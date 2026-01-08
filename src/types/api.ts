@@ -15,13 +15,17 @@ export type User = {
   name?: string;
   phone?: string;
   role?: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
 };
 
 export type GiftCard = {
   id: string;
   merchant_id?: string;
+  merchant_store_name?: string | null;
   store_name?: string | null;
   merchant_name?: string | null;
+  merchant_logo_url?: string | null;
   merchant?: { name?: string | null };
   store?: { name?: string | null };
   name?: string | null;

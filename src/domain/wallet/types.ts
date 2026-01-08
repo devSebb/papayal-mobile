@@ -5,6 +5,7 @@ export type TabKey = "all" | "received" | "sent" | "redeemed";
 export type GiftCardVM = {
   id: GiftCard["id"];
   merchantLabel: string;
+  merchantLogoUrl?: string | null;
   amountCents?: number | null;
   remainingBalanceCents?: number | null;
   currency?: string;

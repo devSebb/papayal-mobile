@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,8 @@ import { classifyGiftCards } from "../domain/wallet/classifyGiftCards";
 import { buildActivityFeed } from "../domain/wallet/buildActivityFeed";
 import { ActivityItem, GiftCardVM, TabKey } from "../domain/wallet/types";
 import { GiftCard } from "../types/api";
+
+const merchantPlaceholder = require("../../assets/merchant-default.png");
 
 const PAGE_SIZE = 20;
 const TAB_LABELS: Record<TabKey, string> = {
@@ -95,13 +97,16 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item
   const statusStyle = statusStyles[item.status];
   const expiresLabel = item.expiresAt ? `Expires ${item.expiresAt}` : null;
   const merchantInitial = item.merchantLabel.charAt(0).toUpperCase();
+  const hasLogo = Boolean(item.merchantLogoUrl);
+  const logoSource = hasLogo ? { uri: item.merchantLogoUrl as string } : merchantPlaceholder;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.row}>
       <Card>
         <View style={styles.rowTop}>
           <View style={styles.badgeCircle}>
-            <Text style={styles.badgeInitial}>{merchantInitial}</Text>
+            <Image source={logoSource} style={styles.badgeImage} />
+            {!hasLogo ? <Text style={styles.badgeInitial}>{merchantInitial}</Text> : null}
           </View>
           <View style={styles.rowMiddle}>
             <Text style={styles.merchant}>{item.merchantLabel}</Text>
@@ -453,9 +458,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    overflow: "hidden"
+  },
+  badgeImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover"
   },
   badgeInitial: {
+    position: "absolute",
+    textAlign: "center",
+    width: "100%",
     fontWeight: "700",
     color: theme.colors.secondary
   },

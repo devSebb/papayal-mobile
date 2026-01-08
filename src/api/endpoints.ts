@@ -46,6 +46,13 @@ export const meApi = {
   me: async () => {
     const { data } = await request<User>("/api/v1/me");
     return data;
+  },
+  uploadAvatar: async (formData: FormData) => {
+    const { data } = await request<User>("/api/v1/me/avatar", {
+      method: "POST",
+      body: formData
+    });
+    return data;
   }
 };
 

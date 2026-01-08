@@ -10,6 +10,7 @@ const parseDate = (value?: string | null) => {
 
 const deriveMerchantLabel = (card: GiftCard) => {
   const candidates = [
+    card.merchant_store_name,
     card.store_name,
     (card as any)?.storeName,
     card.merchant_name,
@@ -43,6 +44,7 @@ export const mapGiftCardVM = (card: GiftCard, now = new Date()): GiftCardVM => {
   return {
     id: card.id,
     merchantLabel,
+    merchantLogoUrl: card.merchant_logo_url ?? null,
     amountCents: card.amount_cents,
     remainingBalanceCents: card.remaining_balance_cents,
     currency: card.currency,

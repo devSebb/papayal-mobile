@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+import { NavigationProp, useNavigation } from "@react-navigation/native";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
@@ -11,10 +12,12 @@ import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
 import { API_BASE_URL } from "../config/env";
 import { getLastRequestId } from "../api/http";
+import { ProfileStackParamList } from "../navigation";
 
 const avatarPlaceholder = require("../../assets/avatar-default.png");
 
 const ProfileScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
   const { logout, logoutAll, accessToken } = useAuth();
   const isQueryEnabled = !!accessToken;
   const queryClient = useQueryClient();
@@ -135,6 +138,12 @@ const ProfileScreen: React.FC = () => {
         />
       </Card>
 
+      <Card style={styles.helpCard}>
+        <Text style={styles.sectionTitle}>Ayuda</Text>
+        <Text style={styles.helpText}>Encuentra respuestas rápidas o contacta a soporte.</Text>
+        <Button label="Ir a Ayuda" onPress={() => navigation.navigate("Help")} />
+      </Card>
+
       <Card style={styles.meta}>
         <Text style={styles.sectionTitle}>App info</Text>
         <Text style={styles.muted}>API base URL: {API_BASE_URL}</Text>
@@ -204,6 +213,13 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: theme.spacing(1)
+  },
+  helpCard: {
+    marginTop: theme.spacing(1.5)
+  },
+  helpText: {
+    color: theme.colors.muted,
+    marginBottom: theme.spacing(1)
   },
   error: {
     color: theme.colors.danger

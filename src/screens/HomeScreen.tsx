@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { Feather } from "@expo/vector-icons";
+import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 
 import Screen from "../ui/components/Screen";
@@ -9,7 +10,6 @@ import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
 import { meApi } from "../api/endpoints";
 import { AppTabsParamList } from "../navigation";
-import { NavigationProp } from "@react-navigation/native";
 import { useAuth } from "../auth/authStore";
 
 const HomeScreen: React.FC = () => {
@@ -27,6 +27,40 @@ const HomeScreen: React.FC = () => {
     <Screen scrollable>
       <Text style={styles.title}>Welcome</Text>
       <Text style={styles.subtitle}>Manage your cards and redemptions easily.</Text>
+
+      <Card style={[styles.card, styles.heroCard]}>
+        <Text style={styles.heroTitle}>Tarjetas de regalo para lo esencial en Ecuador.</Text>
+        <Text style={styles.heroSubtitle}>Rápido. Seguro.</Text>
+
+        <Button
+          label="Comenzar"
+          onPress={() => navigation.navigate("WalletTab")}
+          variant="primary"
+          style={styles.heroButton}
+        />
+
+        <View style={styles.flowSection}>
+          <Text style={styles.flowTitle}>Como Funciona</Text>
+          <View style={styles.flowSteps}>
+            <View style={styles.flowStep}>
+              <Feather name="shopping-bag" size={28} color={theme.colors.secondary} />
+              <Text style={styles.flowLabel}>Elige una{"\n"}Tienda</Text>
+            </View>
+            <Feather name="arrow-right" size={20} color={theme.colors.navbarMuted} />
+            <View style={styles.flowStep}>
+              <Feather name="send" size={28} color={theme.colors.secondary} />
+              <Text style={styles.flowLabel}>Envia la{"\n"}tarjeta</Text>
+            </View>
+            <Feather name="arrow-right" size={20} color={theme.colors.navbarMuted} />
+            <View style={styles.flowStep}>
+              <Feather name="map-pin" size={28} color={theme.colors.secondary} />
+              <Text style={styles.flowLabel}>Gasta{"\n"}Localmente</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.promo}>Ahorra hasta un 30%{"\n"}en tu primer envio</Text>
+      </Card>
 
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Account</Text>
@@ -65,6 +99,61 @@ const styles = StyleSheet.create({
   subtitle: {
     color: theme.colors.muted,
     marginBottom: theme.spacing(2)
+  },
+  heroCard: {
+    gap: theme.spacing(1.5),
+    marginBottom: theme.spacing(1)
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    lineHeight: 32,
+    color: theme.colors.text
+  },
+  heroSubtitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: theme.colors.text
+  },
+  heroButton: {
+    alignSelf: "flex-start"
+  },
+  flowSection: {
+    gap: theme.spacing(1)
+  },
+  flowTitle: {
+    fontSize: theme.typography.subheading,
+    fontWeight: "700",
+    color: theme.colors.text
+  },
+  flowSteps: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    // gap: theme.spacing(1)
+  },
+  flowStep: {
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    flexGrow: 1,
+    minWidth: 90
+  },
+  flowLabel: {
+    color: theme.colors.text,
+    textAlign: "center",
+    fontSize: theme.typography.small
+  },
+  promo: {
+    marginTop: theme.spacing(1),
+    textAlign: "center",
+    color: theme.colors.primary,
+    fontSize: 22,
+    fontWeight: "800",
+    lineHeight: 30,
+    textShadowColor: "rgba(0,0,0,0.08)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6
   },
   card: {
     marginTop: theme.spacing(1.5)

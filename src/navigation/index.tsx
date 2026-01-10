@@ -14,6 +14,7 @@ import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
 import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import ActivityScreen from "../screens/ActivityScreen";
+import HelpScreen from "../screens/HelpScreen";
 import { useAuth } from "../auth/authStore";
 import { theme } from "../ui/theme";
 import Screen from "../ui/components/Screen";
@@ -31,6 +32,11 @@ export type WalletStackParamList = {
   Activity: undefined;
 };
 
+export type ProfileStackParamList = {
+  Profile: undefined;
+  Help: undefined;
+};
+
 export type AppTabsParamList = {
   HomeTab: undefined;
   WalletTab: undefined;
@@ -40,6 +46,7 @@ export type AppTabsParamList = {
 const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const WalletStack = createNativeStackNavigator<WalletStackParamList>();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const Tab = createBottomTabNavigator<AppTabsParamList>();
 
 const WalletStackNavigator = () => (
@@ -67,15 +74,22 @@ const WalletStackNavigator = () => (
   </WalletStack.Navigator>
 );
 
+const ProfileStackNavigator = () => (
+  <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProfileStack.Screen name="Profile" component={ProfileScreen} />
+    <ProfileStack.Screen name="Help" component={HelpScreen} />
+  </ProfileStack.Navigator>
+);
+
 const AppTabs = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
-      tabBarActiveTintColor: theme.colors.primary,
+      tabBarActiveTintColor: theme.colors.secondary,
       tabBarInactiveTintColor: theme.colors.navbarMuted,
       tabBarLabelStyle: { fontSize: 12, fontFamily: theme.fonts.regular, fontWeight: "600" },
       tabBarStyle: {
-        backgroundColor: theme.colors.navbar,
+        backgroundColor: theme.colors.background,
         borderTopColor: theme.colors.border,
         height: 82,
         paddingTop: 6,
@@ -99,7 +113,7 @@ const AppTabs = () => (
       component={WalletStackNavigator}
       options={{ title: "Wallet" }}
     />
-    <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Profile" }} />
+    <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: "Profile" }} />
   </Tab.Navigator>
 );
 

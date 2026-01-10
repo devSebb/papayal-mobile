@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -8,6 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import TopNavBar from "../ui/components/TopNavBar";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi } from "../api/endpoints";
 import { WalletStackParamList } from "../navigation";
@@ -21,7 +22,7 @@ import { GiftCard } from "../types/api";
 
 const merchantPlaceholder = require("../../assets/merchant-default.png");
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 6;
 const TAB_LABELS: Record<TabKey, string> = {
   all: "All",
   received: "Received",
@@ -125,6 +126,54 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item
   );
 };
 
+type ListItem =
+  | { type: "card"; key: string; card: GiftCardVM }
+  | { type: "empty"; key: string }
+  | { type: "activity"; key: string }
+  | { type: "pagination"; key: string };
+
+const PaginationControls: React.FC<{
+  page: number;
+  pageCount: number;
+  start: number;
+  end: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+}> = ({ page, pageCount, start, end, total, onPrev, onNext }) => (
+  <View style={styles.paginationContainer}>
+    <TouchableOpacity
+      style={[styles.paginationButton, page === 1 ? styles.paginationButtonDisabled : null]}
+      onPress={onPrev}
+      disabled={page === 1}
+      accessibilityLabel="Previous page"
+    >
+      <Feather
+        name="chevron-left"
+        size={16}
+        color={page === 1 ? theme.colors.muted : theme.colors.text}
+      />
+      <Text style={[styles.paginationButtonLabel, page === 1 ? styles.muted : null]}>Prev</Text>
+    </TouchableOpacity>
+    <Text style={styles.paginationLabel}>
+      {start}-{end} of {total}
+    </Text>
+    <TouchableOpacity
+      style={[styles.paginationButton, page === pageCount ? styles.paginationButtonDisabled : null]}
+      onPress={onNext}
+      disabled={page === pageCount}
+      accessibilityLabel="Next page"
+    >
+      <Text style={[styles.paginationButtonLabel, page === pageCount ? styles.muted : null]}>Next</Text>
+      <Feather
+        name="chevron-right"
+        size={16}
+        color={page === pageCount ? theme.colors.muted : theme.colors.text}
+      />
+    </TouchableOpacity>
+  </View>
+);
+
 const LatestActivitySection: React.FC<{
   items: ActivityItem[];
   onSeeAll: () => void;
@@ -207,6 +256,7 @@ const WalletListScreen: React.FC = () => {
     sent: 1,
     redeemed: 1
   });
+  const listRef = useRef<FlatList<ListItem>>(null);
 
   useEffect(() => {
     setPageByTab({ all: 1, received: 1, sent: 1, redeemed: 1 });
@@ -260,27 +310,51 @@ const WalletListScreen: React.FC = () => {
   }, [mappedCards]);
 
   const tabCards = classification[activeTab] ?? [];
+  const totalCards = tabCards.length;
   const page = pageByTab[activeTab] ?? 1;
-  const pagedCards = tabCards.slice(0, page * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(totalCards / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, totalCards);
+  const rangeStart = totalCards === 0 ? 0 : startIndex + 1;
+  const rangeEnd = totalCards === 0 ? 0 : endIndex;
+  const pagedCards = tabCards.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setPageByTab((prev) => {
+      const current = prev[activeTab] ?? 1;
+      const nextPage = Math.min(current, pageCount);
+      if (nextPage === current) return prev;
+      return { ...prev, [activeTab]: nextPage };
+    });
+  }, [activeTab, pageCount]);
 
   const listData = useMemo(() => {
-    const base: Array<{ type: "activity" | "card" | "empty"; key: string; card?: GiftCardVM }> = [
-      { type: "activity", key: `activity-${activeTab}` }
-    ];
+    const items: ListItem[] = [];
     if (pagedCards.length === 0) {
-      base.push({ type: "empty", key: `empty-${activeTab}` });
+      items.push({ type: "empty", key: `empty-${activeTab}` });
     } else {
-      pagedCards.forEach((card) => base.push({ type: "card", key: card.id, card }));
+      pagedCards.forEach((card) => items.push({ type: "card", key: card.id, card }));
     }
-    return base;
-  }, [activeTab, pagedCards]);
+    if (pageCount > 1) {
+      items.push({ type: "pagination", key: `pagination-${activeTab}-${currentPage}` });
+    }
+    items.push({ type: "activity", key: `activity-${activeTab}` });
+    return items;
+  }, [activeTab, currentPage, pageCount, pagedCards]);
 
-  const handleEndReached = useCallback(() => {
-    const total = tabCards.length;
-    const nextPage = pageByTab[activeTab] ?? 1;
-    if (nextPage * PAGE_SIZE >= total) return;
-    setPageByTab((prev) => ({ ...prev, [activeTab]: nextPage + 1 }));
-  }, [activeTab, pageByTab, tabCards.length]);
+  const changePage = useCallback(
+    (delta: number) => {
+      setPageByTab((prev) => {
+        const current = prev[activeTab] ?? 1;
+        const next = Math.min(pageCount, Math.max(1, current + delta));
+        if (next === current) return prev;
+        return { ...prev, [activeTab]: next };
+      });
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    },
+    [activeTab, pageCount]
+  );
 
   const isBusy = !isQueryEnabled || isLoading || isRefetching;
 
@@ -307,17 +381,26 @@ const WalletListScreen: React.FC = () => {
     </View>
   );
 
-  const renderItem = ({
-    item
-  }: {
-    item: { type: "activity" | "card" | "empty"; key: string; card?: GiftCardVM };
-  }) => {
+  const renderItem = ({ item }: { item: ListItem }) => {
     if (item.type === "activity") {
       return (
         <LatestActivitySection
           items={activityFeed}
           onSeeAll={() => navigation.navigate("Activity")}
           onPressItem={(cardId) => navigation.navigate("GiftCardDetail", { id: cardId })}
+        />
+      );
+    }
+    if (item.type === "pagination") {
+      return (
+        <PaginationControls
+          page={currentPage}
+          pageCount={pageCount}
+          start={rangeStart}
+          end={rangeEnd}
+          total={totalCards}
+          onPrev={() => changePage(-1)}
+          onNext={() => changePage(1)}
         />
       );
     }
@@ -340,11 +423,11 @@ const WalletListScreen: React.FC = () => {
         />
       );
     }
-    if (item.card) {
+    if (item.type === "card") {
       return (
         <GiftCardRow
           item={item.card}
-          onPress={() => navigation.navigate("GiftCardDetail", { id: item.card!.id })}
+          onPress={() => navigation.navigate("GiftCardDetail", { id: item.card.id })}
         />
       );
     }
@@ -353,7 +436,11 @@ const WalletListScreen: React.FC = () => {
 
   return (
     <Screen style={styles.screen} edges={["left", "right"]}>
+      <View style={styles.navContainer}>
+        <TopNavBar />
+      </View>
       <FlatList
+        ref={listRef}
         data={listData}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
@@ -367,8 +454,6 @@ const WalletListScreen: React.FC = () => {
             tintColor={theme.colors.primary}
           />
         }
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.4}
         initialNumToRender={12}
         removeClippedSubviews
       />
@@ -380,6 +465,11 @@ const styles = StyleSheet.create({
   screen: {
     paddingHorizontal: 0,
     paddingVertical: 0
+  },
+  navContainer: {
+    paddingHorizontal: theme.spacing(2),
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(0.5)
   },
   list: {
     gap: theme.spacing(1.5),
@@ -524,6 +614,38 @@ const styles = StyleSheet.create({
   },
   link: {
     color: theme.colors.secondary,
+    fontWeight: "700"
+  },
+  paginationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing(1),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border
+  },
+  paginationLabel: {
+    color: theme.colors.muted,
+    fontWeight: "600"
+  },
+  paginationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    paddingHorizontal: theme.spacing(1.2),
+    paddingVertical: theme.spacing(0.7),
+    borderRadius: theme.radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background
+  },
+  paginationButtonDisabled: {
+    opacity: 0.6
+  },
+  paginationButtonLabel: {
+    color: theme.colors.text,
     fontWeight: "700"
   },
   activityRow: {

@@ -54,7 +54,7 @@ const WalletStackNavigator = () => (
     <WalletStack.Screen
       name="WalletList"
       component={WalletListScreen}
-      options={{ title: "Wallet" }}
+      options={{ title: "Wallet", headerShown: false }}
     />
     <WalletStack.Screen
       name="GiftCardDetail"

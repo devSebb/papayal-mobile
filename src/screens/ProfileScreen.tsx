@@ -7,6 +7,7 @@ import { NavigationProp, useNavigation } from "@react-navigation/native";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import TopNavBar from "../ui/components/TopNavBar";
 import { theme } from "../ui/theme";
 import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
@@ -87,7 +88,8 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <Screen scrollable>
+    <Screen scrollable edges={["left", "right"]}>
+      <TopNavBar />
       <Card>
         <Text style={styles.title}>Profile</Text>
         {isBusy ? (

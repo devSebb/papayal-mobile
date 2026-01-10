@@ -11,6 +11,7 @@ import { theme } from "../ui/theme";
 import { meApi } from "../api/endpoints";
 import { AppTabsParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
+import TopNavBar from "../ui/components/TopNavBar";
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<AppTabsParamList>>();
@@ -24,7 +25,8 @@ const HomeScreen: React.FC = () => {
   const isBusy = isLoading || !accessToken;
 
   return (
-    <Screen scrollable>
+    <Screen scrollable edges={["left", "right"]}>
+      <TopNavBar />
       <Text style={styles.title}>Welcome</Text>
       <Text style={styles.subtitle}>Manage your cards and redemptions easily.</Text>
 

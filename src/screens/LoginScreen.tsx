@@ -21,7 +21,7 @@ const LoginScreen: React.FC = () => {
     } catch (err) {
       const friendly =
         (err as HttpError)?.error?.message ??
-        "Unable to sign in. Please check your credentials.";
+        "No pudimos iniciar sesión. Revisa tus credenciales.";
       setError(friendly);
     }
   };
@@ -30,12 +30,12 @@ const LoginScreen: React.FC = () => {
     <Screen scrollable>
       <View style={styles.header}>
         <Text style={styles.title}>Papayal</Text>
-        <Text style={styles.subtitle}>Sign in to manage your wallet.</Text>
+        <Text style={styles.subtitle}>Inicia sesión para administrar tu billetera.</Text>
       </View>
       <Card>
         <View style={styles.form}>
           <TextField
-            label="Email"
+            label="Correo"
             value={email}
             autoCapitalize="none"
             keyboardType="email-address"
@@ -43,7 +43,7 @@ const LoginScreen: React.FC = () => {
             autoComplete="email"
           />
           <TextField
-            label="Password"
+            label="Contraseña"
             value={password}
             secureTextEntry
             onChangeText={setPassword}
@@ -52,7 +52,7 @@ const LoginScreen: React.FC = () => {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
-            label="Login"
+            label="Iniciar sesión"
             onPress={handleLogin}
             loading={authLoading}
             disabled={!email || !password}

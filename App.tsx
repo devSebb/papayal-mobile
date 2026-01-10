@@ -1,4 +1,5 @@
 import "react-native-gesture-handler";
+import "react-native-reanimated";
 import React, { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -11,6 +12,7 @@ import RootNavigator from "./src/navigation";
 import { queryClient } from "./src/query/queryClient";
 import { AuthProvider } from "./src/auth/authStore";
 import { theme } from "./src/ui/theme";
+import { PurchaseDraftProvider } from "./src/domain/purchase/purchaseDraftStore";
 
 const App = () => {
   const [fontsLoaded] = useFonts({
@@ -51,8 +53,10 @@ const App = () => {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <StatusBar style="dark" backgroundColor={theme.colors.background} />
-            <RootNavigator />
+            <PurchaseDraftProvider>
+              <StatusBar style="dark" backgroundColor={theme.colors.background} />
+              <RootNavigator />
+            </PurchaseDraftProvider>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

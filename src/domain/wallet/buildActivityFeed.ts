@@ -27,7 +27,7 @@ export const buildActivityFeed = (cards: GiftCard[], currentUserId?: string): Ac
         ? {
             id: `${card.id}-received`,
             cardId: card.id,
-            title: "Received card",
+            title: "Tarjeta recibida",
             subtitle: vm.merchantLabel,
             timestamp: baseTimestamp ?? undefined,
             sortValue: sortBase,
@@ -38,7 +38,7 @@ export const buildActivityFeed = (cards: GiftCard[], currentUserId?: string): Ac
         ? {
             id: `${card.id}-sent`,
             cardId: card.id,
-            title: "Sent card",
+            title: "Tarjeta enviada",
             subtitle: vm.merchantLabel,
             timestamp: baseTimestamp ?? undefined,
             sortValue: sortBase,
@@ -48,7 +48,7 @@ export const buildActivityFeed = (cards: GiftCard[], currentUserId?: string): Ac
         : {
             id: `${card.id}-added`,
             cardId: card.id,
-            title: "Card added",
+            title: "Tarjeta añadida",
             subtitle: vm.merchantLabel,
             timestamp: baseTimestamp ?? undefined,
             sortValue: sortBase,
@@ -58,7 +58,7 @@ export const buildActivityFeed = (cards: GiftCard[], currentUserId?: string): Ac
       : {
           id: `${card.id}-added`,
           cardId: card.id,
-          title: "Card added",
+          title: "Tarjeta añadida",
           subtitle: vm.merchantLabel,
           timestamp: baseTimestamp ?? undefined,
           sortValue: sortBase,
@@ -71,8 +71,7 @@ export const buildActivityFeed = (cards: GiftCard[], currentUserId?: string): Ac
     const redeemedDeltaCents = vm.redeemedDeltaCents ?? 0;
     if (redeemedDeltaCents > 0) {
       const redeemedAmount = centsToDollars(redeemedDeltaCents);
-      const redeemedTitle =
-        redeemedDeltaCents >= card.amount_cents ? "Redeemed full amount" : "Redeemed";
+      const redeemedTitle = redeemedDeltaCents >= card.amount_cents ? "Canje total" : "Canje parcial";
       items.push({
         id: `${card.id}-redeemed`,
         cardId: card.id,
@@ -89,7 +88,7 @@ export const buildActivityFeed = (cards: GiftCard[], currentUserId?: string): Ac
       items.push({
         id: `${card.id}-expired`,
         cardId: card.id,
-        title: "Card expired",
+        title: "Tarjeta vencida",
         subtitle: vm.merchantLabel,
         timestamp: card.expires_at ?? baseTimestamp ?? undefined,
         sortValue: toSortValue(card.expires_at, card.id) + 0.5,

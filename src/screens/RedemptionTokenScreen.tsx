@@ -62,9 +62,9 @@ const RedemptionTokenScreen: React.FC = () => {
   const friendlyError = useMemo(() => {
     if (!error) return null;
     const err = error as HttpError;
-    if (err.status === 422) return "Card is inactive or cannot generate a token.";
-    if (err.status === 403) return "You are not allowed to redeem this card.";
-    return err.error?.message ?? "Unable to generate token.";
+    if (err.status === 422) return "La tarjeta está inactiva o no puede generar un token.";
+    if (err.status === 403) return "No puedes canjear esta tarjeta.";
+    return err.error?.message ?? "No pudimos generar el token.";
   }, [error]);
 
   const handleRegenerate = () => {
@@ -75,8 +75,8 @@ const RedemptionTokenScreen: React.FC = () => {
   return (
     <Screen scrollable edges={["left", "right"]}>
       <Card>
-        <Text style={styles.title}>Redemption Token</Text>
-        {isBusy ? <Text style={styles.muted}>Generating...</Text> : null}
+        <Text style={styles.title}>Token de canje</Text>
+        {isBusy ? <Text style={styles.muted}>Generando...</Text> : null}
         {friendlyError ? <Text style={styles.error}>{friendlyError}</Text> : null}
         {data ? (
           <View style={styles.tokenContainer}>
@@ -84,18 +84,18 @@ const RedemptionTokenScreen: React.FC = () => {
               <QRCode value={data.token} size={180} />
             </View>
             <Text style={styles.tokenText}>{data.token}</Text>
-            <Text style={styles.muted}>Expires at: {data.expires_at}</Text>
-            <Text style={styles.countdown}>Time left: {formatCountdown(remaining)}</Text>
+            <Text style={styles.muted}>Expira: {data.expires_at}</Text>
+            <Text style={styles.countdown}>Tiempo restante: {formatCountdown(remaining)}</Text>
           </View>
         ) : null}
         <Button
-          label="Regenerate"
+          label="Regenerar"
           onPress={handleRegenerate}
           disabled={isFetching || cooldown > 0 || !accessToken}
           style={styles.button}
         />
         {cooldown > 0 ? (
-          <Text style={styles.cooldown}>Please wait {cooldown}s before regenerating.</Text>
+          <Text style={styles.cooldown}>Espera {cooldown}s antes de regenerar.</Text>
         ) : null}
       </Card>
     </Screen>

@@ -24,10 +24,10 @@ const merchantPlaceholder = require("../../assets/merchant-default.png");
 
 const PAGE_SIZE = 6;
 const TAB_LABELS: Record<TabKey, string> = {
-  all: "All",
-  received: "Received",
-  sent: "Sent",
-  redeemed: "Redeemed"
+  all: "Todas",
+  received: "Recibidas",
+  sent: "Enviadas",
+  redeemed: "Canjeadas"
 };
 
 const statusStyles = {
@@ -48,6 +48,12 @@ const statusStyles = {
   }
 } as const;
 
+const statusLabels: Record<GiftCardVM["status"], string> = {
+  Active: "Activa",
+  Redeemed: "Canjeada",
+  Expired: "Vencida"
+};
+
 const iconForActivity: Record<ActivityItem["kind"], { name: keyof typeof Feather.glyphMap; color: string }> = {
   redeemed: { name: "shopping-bag", color: theme.colors.primary },
   expired: { name: "clock", color: theme.colors.danger },
@@ -65,11 +71,11 @@ const sortValueForCard = (card: GiftCard) => {
 };
 
 const formatTimestamp = (timestamp?: string) => {
-  if (!timestamp) return "Recent";
+  if (!timestamp) return "Reciente";
   const parsed = Date.parse(timestamp);
-  if (Number.isNaN(parsed)) return "Recent";
+  if (Number.isNaN(parsed)) return "Reciente";
   const date = new Date(parsed);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("es", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const SummaryChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
@@ -96,10 +102,11 @@ const TabButton: React.FC<{ tab: TabKey; active: boolean; onPress: () => void }>
 
 const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item, onPress }) => {
   const statusStyle = statusStyles[item.status];
-  const expiresLabel = item.expiresAt ? `Expires ${item.expiresAt}` : null;
+  const expiresLabel = item.expiresAt ? `Vence ${item.expiresAt}` : null;
   const merchantInitial = item.merchantLabel.charAt(0).toUpperCase();
   const hasLogo = Boolean(item.merchantLogoUrl);
   const logoSource = hasLogo ? { uri: item.merchantLogoUrl as string } : merchantPlaceholder;
+  const statusLabel = statusLabels[item.status] ?? item.status;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.row}>
@@ -112,13 +119,13 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item
           <View style={styles.rowMiddle}>
             <Text style={styles.merchant}>{item.merchantLabel}</Text>
             <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
-              <Text style={[styles.statusText, { color: statusStyle.color }]}>{item.status}</Text>
+              <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
             </View>
             {expiresLabel ? <Text style={styles.muted}>{expiresLabel}</Text> : null}
           </View>
           <View style={styles.amountColumn}>
             <Text style={styles.amount}>{item.remainingFormatted}</Text>
-            <Text style={styles.amountSmall}>of {item.originalFormatted}</Text>
+            <Text style={styles.amountSmall}>de {item.originalFormatted}</Text>
           </View>
         </View>
       </Card>
@@ -146,25 +153,25 @@ const PaginationControls: React.FC<{
       style={[styles.paginationButton, page === 1 ? styles.paginationButtonDisabled : null]}
       onPress={onPrev}
       disabled={page === 1}
-      accessibilityLabel="Previous page"
+      accessibilityLabel="Página anterior"
     >
       <Feather
         name="chevron-left"
         size={16}
         color={page === 1 ? theme.colors.muted : theme.colors.text}
       />
-      <Text style={[styles.paginationButtonLabel, page === 1 ? styles.muted : null]}>Prev</Text>
+      <Text style={[styles.paginationButtonLabel, page === 1 ? styles.muted : null]}>Anterior</Text>
     </TouchableOpacity>
     <Text style={styles.paginationLabel}>
-      {start}-{end} of {total}
+      {start}-{end} de {total}
     </Text>
     <TouchableOpacity
       style={[styles.paginationButton, page === pageCount ? styles.paginationButtonDisabled : null]}
       onPress={onNext}
       disabled={page === pageCount}
-      accessibilityLabel="Next page"
+      accessibilityLabel="Página siguiente"
     >
-      <Text style={[styles.paginationButtonLabel, page === pageCount ? styles.muted : null]}>Next</Text>
+      <Text style={[styles.paginationButtonLabel, page === pageCount ? styles.muted : null]}>Siguiente</Text>
       <Feather
         name="chevron-right"
         size={16}
@@ -181,13 +188,13 @@ const LatestActivitySection: React.FC<{
 }> = ({ items, onSeeAll, onPressItem }) => (
   <View style={styles.activitySection}>
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>Latest activity</Text>
+      <Text style={styles.sectionTitle}>Actividad reciente</Text>
       <TouchableOpacity onPress={onSeeAll}>
-        <Text style={styles.link}>See all</Text>
+        <Text style={styles.link}>Ver todo</Text>
       </TouchableOpacity>
     </View>
     {items.length === 0 ? (
-      <Text style={styles.muted}>No activity yet.</Text>
+      <Text style={styles.muted}>Aún no hay actividad.</Text>
     ) : (
       items.map((item) => {
         const icon = iconForActivity[item.kind];
@@ -203,7 +210,7 @@ const LatestActivitySection: React.FC<{
             <View style={styles.activityText}>
               <Text style={styles.activityTitle}>{item.title}</Text>
               <Text style={styles.activitySubtitle}>
-                {item.subtitle ?? "Gift card"} • {formatTimestamp(item.timestamp)}
+                {item.subtitle ?? "Tarjeta de regalo"} • {formatTimestamp(item.timestamp)}
               </Text>
             </View>
             {item.amountLabel ? <Text style={styles.activityAmount}>{item.amountLabel}</Text> : null}
@@ -363,10 +370,10 @@ const WalletListScreen: React.FC = () => {
       <Text style={styles.title}>Billetera</Text>
       <View style={styles.chipsRow}>
         {summary.activeBalanceLabel ? (
-          <SummaryChip label="Active balance" value={summary.activeBalanceLabel} />
+          <SummaryChip label="Saldo activo" value={summary.activeBalanceLabel} />
         ) : null}
-        <SummaryChip label="Cards" value={`${summary.totalCards}`} />
-        <SummaryChip label="Redeemed" value={`${summary.redeemedCount}`} />
+        <SummaryChip label="Tarjetas" value={`${summary.totalCards}`} />
+        <SummaryChip label="Canjeadas" value={`${summary.redeemedCount}`} />
       </View>
       <View style={styles.tabsRow}>
         {(Object.keys(TAB_LABELS) as TabKey[]).map((tab) => (
@@ -408,18 +415,18 @@ const WalletListScreen: React.FC = () => {
       if (!classification.hasSenderRecipientFields && (activeTab === "received" || activeTab === "sent")) {
         return (
           <EmptyState
-            message="Classification for received/sent requires sender and recipient fields."
-            actionLabel="View All"
+            message="Clasificar recibidas/enviadas requiere campos de remitente y destinatario."
+            actionLabel="Ver todas"
             onAction={() => setActiveTab("all")}
           />
         );
       }
       if (!classification.canClassifyTransfers && (activeTab === "received" || activeTab === "sent")) {
-        return <EmptyState message="Fetching account info to classify transfers..." />;
+        return <EmptyState message="Obteniendo datos de la cuenta para clasificar transferencias..." />;
       }
       return (
         <EmptyState
-          message={isBusy ? "Loading gift cards..." : "No gift cards in this tab yet."}
+          message={isBusy ? "Cargando tarjetas de regalo..." : "Aún no hay tarjetas en esta pestaña."}
         />
       );
     }

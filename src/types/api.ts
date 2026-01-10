@@ -14,6 +14,7 @@ export type User = {
   email: string;
   name?: string;
   phone?: string;
+  national_id?: string;
   role?: string;
   avatar_url?: string | null;
   avatar_thumb_url?: string | null;

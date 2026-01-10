@@ -47,6 +47,13 @@ export const meApi = {
     const { data } = await request<User>("/api/v1/me");
     return data;
   },
+  update: async (payload: { name?: string; email?: string; phone?: string; national_id?: string }) => {
+    const { data } = await request<User>("/api/v1/me", {
+      method: "PATCH",
+      body: payload
+    });
+    return data;
+  },
   uploadAvatar: async (formData: FormData) => {
     const { data } = await request<User>("/api/v1/me/avatar", {
       method: "POST",

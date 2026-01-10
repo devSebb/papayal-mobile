@@ -34,12 +34,12 @@ const SignupScreen: React.FC = () => {
     const trimmedNationalId = nationalId.trim();
 
     if (!trimmedEmail || !password || !confirmPassword || !trimmedName || !trimmedPhone || !trimmedNationalId) {
-      setError("Please fill in all required fields.");
+      setError("Completa todos los campos obligatorios.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -57,7 +57,7 @@ const SignupScreen: React.FC = () => {
       const httpErr = err as HttpError;
       const details = httpErr?.error?.details;
       let friendly =
-        (httpErr?.error?.message as string | undefined) ?? "Unable to sign up. Please try again.";
+        (httpErr?.error?.message as string | undefined) ?? "No pudimos crear tu cuenta. Inténtalo de nuevo.";
 
       if (httpErr?.status === 422 && details) {
         if (typeof details === "string") {
@@ -97,13 +97,13 @@ const SignupScreen: React.FC = () => {
   return (
     <Screen scrollable>
       <View style={styles.header}>
-        <Text style={styles.title}>Create your account</Text>
-        <Text style={styles.subtitle}>Start managing your Papayal wallet.</Text>
+        <Text style={styles.title}>Crea tu cuenta</Text>
+        <Text style={styles.subtitle}>Empieza a gestionar tu billetera Papayal.</Text>
       </View>
       <Card>
         <View style={styles.form}>
           <TextField
-            label="Email"
+            label="Correo"
             value={email}
             autoCapitalize="none"
             keyboardType="email-address"
@@ -111,7 +111,7 @@ const SignupScreen: React.FC = () => {
             autoComplete="email"
           />
           <TextField
-            label="Password"
+            label="Contraseña"
             value={password}
             secureTextEntry
             onChangeText={setPassword}
@@ -119,7 +119,7 @@ const SignupScreen: React.FC = () => {
             style={styles.inputSpacing}
           />
           <TextField
-            label="Confirm password"
+            label="Confirmar contraseña"
             value={confirmPassword}
             secureTextEntry
             onChangeText={setConfirmPassword}
@@ -127,14 +127,14 @@ const SignupScreen: React.FC = () => {
             style={styles.inputSpacing}
           />
           <TextField
-            label="Name"
+            label="Nombre completo"
             value={name}
             onChangeText={setName}
             autoComplete="name"
             style={styles.inputSpacing}
           />
           <TextField
-            label="Phone"
+            label="Teléfono"
             value={phone}
             keyboardType="phone-pad"
             onChangeText={setPhone}
@@ -142,7 +142,7 @@ const SignupScreen: React.FC = () => {
             style={styles.inputSpacing}
           />
           <TextField
-            label="National ID"
+            label="Documento de identidad"
             value={nationalId}
             onChangeText={setNationalId}
             autoCapitalize="characters"
@@ -150,14 +150,14 @@ const SignupScreen: React.FC = () => {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
-            label="Create account"
+            label="Crear cuenta"
             onPress={handleSignup}
             loading={authLoading}
             disabled={!canSubmit || authLoading}
             style={styles.submit}
           />
           <Button
-            label="Already have an account? Sign in"
+            label="¿Ya tienes una cuenta? Inicia sesión"
             variant="ghost"
             onPress={() => navigation.navigate("Login")}
           />

@@ -101,7 +101,7 @@ const WelcomeScreen: React.FC = () => {
             variant="primary"
           />
           <Button
-            label="Iniciar Sesion"
+            label="Iniciar sesión"
             onPress={() => navigation.navigate("Login")}
             variant="ghost"
             style={styles.secondaryButton}

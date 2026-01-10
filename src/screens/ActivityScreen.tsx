@@ -20,11 +20,11 @@ const iconForKind: Record<ActivityItem["kind"], { name: keyof typeof Feather.gly
 };
 
 const formatTimestamp = (timestamp?: string) => {
-  if (!timestamp) return "Recent";
+  if (!timestamp) return "Reciente";
   const parsed = Date.parse(timestamp);
-  if (Number.isNaN(parsed)) return "Recent";
+  if (Number.isNaN(parsed)) return "Reciente";
   const date = new Date(parsed);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("es", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const ActivityRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
@@ -38,7 +38,7 @@ const ActivityRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
         <View style={styles.activityText}>
           <Text style={styles.activityTitle}>{item.title}</Text>
           <Text style={styles.activitySubtitle}>
-            {item.subtitle ?? "Gift card"} • {formatTimestamp(item.timestamp)}
+            {item.subtitle ?? "Tarjeta de regalo"} • {formatTimestamp(item.timestamp)}
           </Text>
         </View>
         {item.amountLabel ? <Text style={styles.amount}>{item.amountLabel}</Text> : null}
@@ -84,9 +84,9 @@ const ActivityScreen: React.FC = () => {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           isBusy ? (
-            <Text style={styles.muted}>Loading activity...</Text>
+            <Text style={styles.muted}>Cargando actividad...</Text>
           ) : (
-            <Text style={styles.muted}>No activity yet.</Text>
+            <Text style={styles.muted}>Aún no hay actividad.</Text>
           )
         }
         refreshControl={

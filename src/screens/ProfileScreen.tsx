@@ -57,7 +57,7 @@ const ProfileScreen: React.FC = () => {
   const handleChangePhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Please allow photo library access to change your avatar.");
+      Alert.alert("Permiso requerido", "Autoriza el acceso a tus fotos para cambiar tu avatar.");
       return;
     }
 
@@ -80,10 +80,10 @@ const ProfileScreen: React.FC = () => {
 
     try {
       await uploadAvatar(formData);
-      Alert.alert("Profile updated", "Your photo has been refreshed.");
+      Alert.alert("Perfil actualizado", "Tu foto ha sido actualizada.");
     } catch (error) {
       console.error(error);
-      Alert.alert("Upload failed", "We couldn't update your photo. Please try again.");
+      Alert.alert("Error al subir", "No pudimos actualizar tu foto. Inténtalo de nuevo.");
     }
   };
 
@@ -91,9 +91,9 @@ const ProfileScreen: React.FC = () => {
     <Screen scrollable edges={["left", "right"]}>
       <TopNavBar />
       <Card>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.title}>Perfil</Text>
         {isBusy ? (
-          <Text style={styles.muted}>Loading...</Text>
+          <Text style={styles.muted}>Cargando...</Text>
         ) : data ? (
           <>
             <View style={styles.headerRow}>
@@ -106,33 +106,41 @@ const ProfileScreen: React.FC = () => {
                 ) : null}
               </View>
               <View style={styles.info}>
-                <Text style={styles.name}>{data.name ?? "User"}</Text>
+                <Text style={styles.name}>{data.name ?? "Usuario"}</Text>
                 <Text style={styles.muted}>{data.email}</Text>
                 {data.phone ? <Text style={styles.muted}>{data.phone}</Text> : null}
-                {data.role ? <Text style={styles.tag}>Role: {data.role}</Text> : null}
+                {data.role ? <Text style={styles.tag}>Rol: {data.role}</Text> : null}
                 <Button
-                  label="Change photo"
+                  label="Cambiar foto"
                   onPress={handleChangePhoto}
                   style={styles.changePhotoButton}
                   variant="secondary"
+                  labelStyle={styles.changePhotoLabel}
                   loading={uploading}
                   disabled={uploading}
                 />
               </View>
             </View>
+            <Button
+              label="Editar perfil"
+              onPress={() => navigation.navigate("EditProfile")}
+              style={styles.editButton}
+              variant="secondary"
+              disabled={busy || uploading}
+            />
           </>
         ) : (
-          <Text style={styles.error}>Unable to load profile.</Text>
+          <Text style={styles.error}>No pudimos cargar el perfil.</Text>
         )}
         <Button
-          label="Logout"
+          label="Cerrar sesión"
           onPress={handleLogout}
           style={styles.button}
           variant="ghost"
           disabled={busy}
         />
         <Button
-          label="Logout all sessions"
+          label="Cerrar todas las sesiones"
           onPress={handleLogoutAll}
           style={styles.button}
           variant="danger"
@@ -147,9 +155,9 @@ const ProfileScreen: React.FC = () => {
       </Card>
 
       <Card style={styles.meta}>
-        <Text style={styles.sectionTitle}>App info</Text>
-        <Text style={styles.muted}>API base URL: {API_BASE_URL}</Text>
-        {requestId ? <Text style={styles.muted}>Last request id: {requestId}</Text> : null}
+        <Text style={styles.sectionTitle}>Información de la app</Text>
+        <Text style={styles.muted}>URL base de la API: {API_BASE_URL}</Text>
+        {requestId ? <Text style={styles.muted}>ID de la última solicitud: {requestId}</Text> : null}
       </Card>
     </Screen>
   );
@@ -211,7 +219,17 @@ const styles = StyleSheet.create({
   },
   changePhotoButton: {
     marginTop: theme.spacing(0.5),
-    alignSelf: "flex-start"
+    alignSelf: "flex-start",
+    paddingVertical: theme.spacing(0.6),
+    paddingHorizontal: theme.spacing(1.2),
+    borderRadius: 10
+  },
+  editButton: {
+    marginTop: theme.spacing(1)
+  },
+  changePhotoLabel: {
+    fontSize: theme.typography.small,
+    fontWeight: "700"
   },
   button: {
     marginTop: theme.spacing(1)

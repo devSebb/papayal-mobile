@@ -13,14 +13,14 @@ const Card: React.FC<ViewProps> = ({ children, style, ...rest }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.card,
-    borderRadius: theme.radius.lg,
+    borderRadius: 18,
     padding: theme.spacing(2),
     shadowColor: theme.colors.secondary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
     elevation: 5,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border
   }
 });

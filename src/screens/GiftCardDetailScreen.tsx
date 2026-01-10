@@ -31,6 +31,13 @@ const GiftCardDetailScreen: React.FC = () => {
   const amount = centsToDollars(data?.amount_cents);
   const remaining = centsToDollars(data?.remaining_balance_cents);
   const canRedeem = data?.status === "active" && (data?.remaining_balance_cents ?? 0) > 0;
+  const statusLabelMap: Record<string, string> = {
+    active: "Activa",
+    redeemed: "Canjeada",
+    expired: "Vencida",
+    inactive: "Inactiva"
+  };
+  const statusLabel = data?.status ? statusLabelMap[data.status] ?? data.status : "";
   const merchantLabel =
     data?.merchant_store_name?.trim() ||
     data?.store_name?.trim() ||
@@ -38,15 +45,15 @@ const GiftCardDetailScreen: React.FC = () => {
     data?.store?.name?.trim() ||
     data?.merchant?.name?.trim() ||
     data?.merchant_id ||
-    "N/A";
+    "N/D";
   const hasLogo = Boolean(data?.merchant_logo_url);
   const merchantInitial = merchantLabel.charAt(0).toUpperCase();
   const logoSource = hasLogo ? { uri: data?.merchant_logo_url as string } : merchantPlaceholder;
 
   return (
     <Screen scrollable edges={["left", "right"]}>
-      {isBusy ? <Text style={styles.muted}>Loading...</Text> : null}
-      {error ? <Text style={styles.error}>Unable to load card.</Text> : null}
+      {isBusy ? <Text style={styles.muted}>Cargando...</Text> : null}
+      {error ? <Text style={styles.error}>No pudimos cargar la tarjeta.</Text> : null}
       {data ? (
         <Card>
           <View style={styles.header}>
@@ -55,36 +62,36 @@ const GiftCardDetailScreen: React.FC = () => {
               {!hasLogo ? <Text style={styles.logoInitial}>{merchantInitial}</Text> : null}
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.title}>Gift Card #{data.id}</Text>
-              <Text style={styles.muted}>Merchant: {merchantLabel}</Text>
+              <Text style={styles.title}>Tarjeta de regalo #{data.id}</Text>
+              <Text style={styles.muted}>Comercio: {merchantLabel}</Text>
             </View>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Amount</Text>
+            <Text style={styles.label}>Monto</Text>
             <Text style={styles.value}>{formatMoney(amount, data.currency)}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Remaining</Text>
+            <Text style={styles.label}>Saldo</Text>
             <Text style={styles.value}>{formatMoney(remaining, data.currency)}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Status</Text>
-            <Text style={styles.value}>{data.status}</Text>
+            <Text style={styles.label}>Estado</Text>
+            <Text style={styles.value}>{statusLabel}</Text>
           </View>
           {data.expires_at ? (
             <View style={styles.row}>
-              <Text style={styles.label}>Expires</Text>
+              <Text style={styles.label}>Vence</Text>
               <Text style={styles.value}>{data.expires_at}</Text>
             </View>
           ) : null}
           {canRedeem ? (
             <Button
-              label="Generate Redemption Token"
+              label="Generar token de canje"
               onPress={() => navigation.navigate("RedemptionToken", { id })}
               style={styles.button}
             />
           ) : (
-            <Text style={styles.muted}>This card is not eligible for redemption.</Text>
+            <Text style={styles.muted}>Esta tarjeta no es elegible para canje.</Text>
           )}
         </Card>
       ) : null}

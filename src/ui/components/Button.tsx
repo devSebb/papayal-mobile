@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle, TextStyle } from "react-native";
 import { theme } from "../theme";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -11,6 +11,9 @@ type Props = {
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
+  labelStyle?: TextStyle;
+  labelColor?: string;
+  accessibilityLabel?: string;
 };
 
 const Button: React.FC<Props> = ({
@@ -19,13 +22,25 @@ const Button: React.FC<Props> = ({
   variant = "primary",
   disabled = false,
   loading = false,
-  style
+  style,
+  labelStyle,
+  labelColor,
+  accessibilityLabel
 }) => {
   const isDisabled = disabled || loading;
+  const resolvedLabelColor =
+    labelColor ??
+    (variant === "primary"
+      ? theme.colors.secondary
+      : variant === "secondary" || variant === "danger"
+      ? "#FFFFFF"
+      : theme.colors.secondary);
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      hitSlop={10}
       style={({ pressed }) => [
         styles.base,
         styles[variant],
@@ -37,9 +52,20 @@ const Button: React.FC<Props> = ({
       disabled={isDisabled}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "ghost" ? theme.colors.primary : "#fff"} />
+        <ActivityIndicator
+          color={variant === "ghost" ? theme.colors.primary : resolvedLabelColor}
+        />
       ) : (
-        <Text style={[styles.label, variant === "ghost" ? styles.ghostLabel : null]}>{label}</Text>
+        <Text
+          style={[
+            styles.label,
+            { color: resolvedLabelColor },
+            variant === "ghost" ? styles.ghostLabel : null,
+            labelStyle
+          ]}
+        >
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -53,7 +79,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: theme.spacing(0.5),
+    gap: theme.spacing(0.25),
     shadowColor: theme.colors.secondary,
     shadowOpacity: 0.08,
     shadowRadius: 6,
@@ -81,11 +107,12 @@ const styles = StyleSheet.create({
     opacity: 0.5
   },
   label: {
-    color: "#fff",
     fontSize: theme.typography.body,
     fontWeight: "700",
     fontFamily: theme.fonts.regular,
-    letterSpacing: 0.2
+    letterSpacing: 0.1,
+    textAlign: "center",
+    flexShrink: 1
   },
   ghostLabel: {
     color: theme.colors.secondary

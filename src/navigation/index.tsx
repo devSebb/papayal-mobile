@@ -1,9 +1,8 @@
 import React from "react";
 import { ActivityIndicator } from "react-native";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, NavigatorScreenParams } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Feather } from "@expo/vector-icons";
 
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -13,16 +12,37 @@ import WalletListScreen from "../screens/WalletListScreen";
 import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
 import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import EditProfileScreen from "../screens/EditProfileScreen";
 import ActivityScreen from "../screens/ActivityScreen";
 import HelpScreen from "../screens/HelpScreen";
 import { useAuth } from "../auth/authStore";
 import { theme } from "../ui/theme";
 import Screen from "../ui/components/Screen";
+import BuyGiftCardStartScreen from "../screens/buy/BuyGiftCardStartScreen";
+import DeliveryProfileScreen from "../screens/buy/DeliveryProfileScreen";
+import PurchaseConfirmationScreen from "../screens/buy/PurchaseConfirmationScreen";
+import StripePaymentScreen from "../screens/buy/StripePaymentScreen";
+import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
+import AnimatedTabBar from "../ui/components/AnimatedTabBar";
 
 export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
+};
+
+export type HomeStackParamList = {
+  Home: undefined;
+  BuyGiftCardStart: undefined;
+  DeliveryProfile: undefined;
+  PurchaseConfirmation: undefined;
+  StripePayment: undefined;
+  PurchaseSuccess: {
+    merchantName?: string;
+    amountLabel?: string;
+    recipientEmail?: string;
+    demo?: boolean;
+  };
 };
 
 export type WalletStackParamList = {
@@ -34,42 +54,63 @@ export type WalletStackParamList = {
 
 export type ProfileStackParamList = {
   Profile: undefined;
+  EditProfile: undefined;
   Help: undefined;
 };
 
 export type AppTabsParamList = {
-  HomeTab: undefined;
-  WalletTab: undefined;
-  ProfileTab: undefined;
+  HomeTab: NavigatorScreenParams<HomeStackParamList> | undefined;
+  WalletTab: NavigatorScreenParams<WalletStackParamList> | undefined;
+  ProfileTab: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const WalletStack = createNativeStackNavigator<WalletStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const Tab = createBottomTabNavigator<AppTabsParamList>();
+
+const HomeStackNavigator = () => (
+  <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStack.Screen name="Home" component={HomeScreen} />
+    <HomeStack.Screen name="BuyGiftCardStart" component={BuyGiftCardStartScreen} />
+    <HomeStack.Screen name="DeliveryProfile" component={DeliveryProfileScreen} />
+    <HomeStack.Screen
+      name="PurchaseConfirmation"
+      component={PurchaseConfirmationScreen}
+      options={{ presentation: "card" }}
+    />
+    <HomeStack.Screen name="StripePayment" component={StripePaymentScreen} />
+    <HomeStack.Screen
+      name="PurchaseSuccess"
+      component={PurchaseSuccessScreen}
+      options={{ animation: "slide_from_right" }}
+    />
+  </HomeStack.Navigator>
+);
 
 const WalletStackNavigator = () => (
   <WalletStack.Navigator>
     <WalletStack.Screen
       name="WalletList"
       component={WalletListScreen}
-      options={{ title: "Wallet", headerShown: false }}
+      options={{ title: "Billetera", headerShown: false }}
     />
     <WalletStack.Screen
       name="GiftCardDetail"
       component={GiftCardDetailScreen}
-      options={{ title: "Gift Card" }}
+      options={{ title: "Tarjeta de regalo" }}
     />
     <WalletStack.Screen
       name="RedemptionToken"
       component={RedemptionTokenScreen}
-      options={{ title: "Redemption Token" }}
+      options={{ title: "Token de canje" }}
     />
     <WalletStack.Screen
       name="Activity"
       component={ActivityScreen}
-      options={{ title: "Activity" }}
+      options={{ title: "Actividad" }}
     />
   </WalletStack.Navigator>
 );
@@ -77,43 +118,32 @@ const WalletStackNavigator = () => (
 const ProfileStackNavigator = () => (
   <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
     <ProfileStack.Screen name="Profile" component={ProfileScreen} />
+    <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
     <ProfileStack.Screen name="Help" component={HelpScreen} />
   </ProfileStack.Navigator>
 );
 
 const AppTabs = () => (
   <Tab.Navigator
-    screenOptions={({ route }) => ({
+    tabBar={(props) => <AnimatedTabBar {...props} />}
+    screenOptions={{
       headerShown: false,
-      tabBarActiveTintColor: theme.colors.secondary,
-      tabBarInactiveTintColor: theme.colors.navbarMuted,
-      tabBarLabelStyle: { fontSize: 12, fontFamily: theme.fonts.regular, fontWeight: "600" },
+      tabBarShowLabel: false,
       tabBarStyle: {
-        backgroundColor: theme.colors.background,
-        borderTopColor: theme.colors.border,
-        height: 82,
-        paddingTop: 6,
-        paddingBottom: 14
-      },
-      tabBarItemStyle: { paddingVertical: 4 },
-      tabBarIcon: ({ color, size }) => {
-        const iconMap: Record<string, keyof typeof Feather.glyphMap> = {
-          HomeTab: "home",
-          WalletTab: "credit-card",
-          ProfileTab: "user"
-        };
-        const icon = iconMap[route.name] ?? "circle";
-        return <Feather name={icon} size={size} color={color} />;
+        backgroundColor: "transparent",
+        position: "absolute",
+        elevation: 0,
+        borderTopWidth: 0
       }
-    })}
+    }}
   >
-    <Tab.Screen name="HomeTab" component={HomeScreen} options={{ title: "Home" }} />
+    <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: "Inicio" }} />
     <Tab.Screen
       name="WalletTab"
       component={WalletStackNavigator}
-      options={{ title: "Wallet" }}
+      options={{ title: "Billetera" }}
     />
-    <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: "Profile" }} />
+    <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: "Perfil" }} />
   </Tab.Navigator>
 );
 

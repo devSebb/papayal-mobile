@@ -1,4 +1,6 @@
-import { API_BASE_URL } from "../config/env";
+import { Platform } from "react-native";
+
+import { API_BASE_DEBUG, API_BASE_URL } from "../config/env";
 import { ApiError } from "../types/api";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -40,6 +42,61 @@ const logAuthHeader = (path: string, method: HttpMethod, bearer?: string) => {
   const preview = bearer ? bearer.slice(0, 12) : "none";
   const attached = bearer ? `Bearer ${preview}...` : "none";
   console.log(`[http] ${method} ${path} auth=${attached}`);
+};
+
+const MAX_PREVIEW_CHARS = 500;
+
+const redactHeaders = (headers: Record<string, string>) => {
+  const safe = { ...headers };
+  if (safe.Authorization) {
+    const token = safe.Authorization.replace(/^Bearer\s+/i, "");
+    safe.Authorization = `Bearer ${token.slice(0, 6)}...`;
+  }
+  return safe;
+};
+
+const previewBody = (body: unknown) => {
+  if (body === undefined) return "none";
+  if (body instanceof FormData) return "[form-data]";
+  if (typeof body === "string") return body.slice(0, MAX_PREVIEW_CHARS);
+  if (typeof body === "object" && body !== null) {
+    return { keys: Object.keys(body), value: body };
+  }
+  return body;
+};
+
+const logRequestDebug = (url: string, path: string, method: HttpMethod, headers: Record<string, string>, body: unknown) => {
+  console.log("[http][request]", {
+    method,
+    url,
+    path,
+    base: API_BASE_URL,
+    baseDebug: API_BASE_DEBUG,
+    platform: Platform.OS,
+    headers: redactHeaders(headers),
+    body: previewBody(body)
+  });
+};
+
+const logResponseDebug = (url: string, method: HttpMethod, status: number, ok: boolean, bodyText: string | null) => {
+  console.log("[http][response]", {
+    method,
+    url,
+    status,
+    ok,
+    requestId: lastRequestId,
+    bodyPreview: bodyText ? bodyText.slice(0, MAX_PREVIEW_CHARS) : null
+  });
+};
+
+const logNetworkError = (url: string, method: HttpMethod, error: unknown) => {
+  console.warn("[http][network_error]", {
+    method,
+    url,
+    base: API_BASE_URL,
+    platform: Platform.OS,
+    message: (error as any)?.message ?? String(error)
+  });
 };
 
 const buildHeaders = (base: Record<string, string>, body?: unknown) => {
@@ -86,6 +143,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     ? headers.Authorization.slice("Bearer ".length)
     : undefined;
   logAuthHeader(path, method, bearer);
+  if (__DEV__) {
+    logRequestDebug(url, path, method, headers, body);
+  }
   const init: RequestInit = { method, headers };
   if (body !== undefined) {
     init.body =
@@ -96,6 +156,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   try {
     response = await fetch(url, init);
   } catch (error) {
+    if (__DEV__) {
+      logNetworkError(url, method, error);
+    }
     const fallback: HttpError = {
       status: 0,
       error: { code: "network_error", message: "Network error" },
@@ -105,11 +168,33 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
   lastRequestId = response.headers.get("x-request-id") ?? undefined;
 
+  let debugText: string | null = null;
+  if (__DEV__) {
+    try {
+      debugText = await response.clone().text();
+    } catch {
+      debugText = null;
+    }
+  }
+
   let parsed: any = null;
-  try {
-    parsed = await response.clone().json();
-  } catch {
-    parsed = null;
+  if (debugText) {
+    try {
+      parsed = JSON.parse(debugText);
+    } catch {
+      parsed = null;
+    }
+  }
+  if (!parsed) {
+    try {
+      parsed = await response.clone().json();
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (__DEV__) {
+    logResponseDebug(url, method, response.status, response.ok, debugText);
   }
   if (parsed?.request_id) {
     lastRequestId = parsed.request_id;

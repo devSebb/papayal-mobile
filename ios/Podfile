@@ -32,10 +32,6 @@ platform :ios, podfile_properties['ios.deploymentTarget'] || '13.4'
 install! 'cocoapods',
   :deterministic_uuids => false
 
-# Ensure Swift pods that depend on C/C++ targets (like React-jsinspector) can
-# generate the required module maps when integrated as static libraries.
-use_modular_headers!
-
 prepare_react_native_project!
 
 target 'papayalmobile' do
@@ -51,6 +47,14 @@ target 'papayalmobile' do
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
+
+  # Make React-jsinspector modular so Swift pods like ExpoModulesCore can import
+  # it when using static libraries, without enabling modular headers globally.
+  pre_install do |installer|
+    installer.podfile.target_definition_list.each do |td|
+      td.set_use_modular_headers_for_pod('React-jsinspector', true) if td.respond_to?(:set_use_modular_headers_for_pod)
+    end
+  end
 
   post_install do |installer|
     react_native_post_install(

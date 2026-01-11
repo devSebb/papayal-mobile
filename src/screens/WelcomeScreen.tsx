@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6
   },
   logoAccent: {
-    width: 72,
+    width: 95,
     height: 5,
     backgroundColor: theme.colors.primary,
     borderRadius: theme.radius.md / 2

@@ -130,7 +130,7 @@ const AppTabs = () => (
       headerShown: false,
       tabBarShowLabel: false,
       tabBarStyle: {
-        backgroundColor: "transparent",
+        // backgroundColor: "transparent",
         position: "absolute",
         elevation: 0,
         borderTopWidth: 0

@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle, TextStyle } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
 import { theme } from "../theme";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -11,7 +11,6 @@ type Props = {
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
-  labelStyle?: TextStyle;
   labelColor?: string;
   accessibilityLabel?: string;
 };
@@ -23,7 +22,6 @@ const Button: React.FC<Props> = ({
   disabled = false,
   loading = false,
   style,
-  labelStyle,
   labelColor,
   accessibilityLabel
 }) => {
@@ -60,8 +58,7 @@ const Button: React.FC<Props> = ({
           style={[
             styles.label,
             { color: resolvedLabelColor },
-            variant === "ghost" ? styles.ghostLabel : null,
-            labelStyle
+            variant === "ghost" ? styles.ghostLabel : null
           ]}
         >
           {label}

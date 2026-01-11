@@ -27,33 +27,41 @@ const iconMap: Record<string, keyof typeof Feather.glyphMap> = {
 const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const tabWidth = useMemo(
-    () => Math.max((width - theme.spacing(4)) / state.routes.length, 96),
-    [width, state.routes.length]
-  );
-
-  const indicatorX = useSharedValue(state.index * tabWidth);
-  const animatedIndex = useSharedValue(state.index);
   const panX = useSharedValue(0);
+  
   const railPaddingX = theme.spacing(0.5);
-  const indicatorWidth = useMemo(
-    () => Math.max(tabWidth - theme.spacing(1), tabWidth * 0.82),
-    [tabWidth]
-  );
-  const indicatorOffset = useMemo(() => railPaddingX + (tabWidth - indicatorWidth) / 2, [railPaddingX, tabWidth, indicatorWidth]);
+
+  const railInnerWidth = width - railPaddingX * 2;
+
+  const tabWidth = useMemo(() => {
+    return Math.max(railInnerWidth / state.routes.length, 96);
+  }, [railInnerWidth, state.routes.length]);
+
+  const indicatorWidth = useMemo(() => {
+    return Math.max(tabWidth - theme.spacing(1), tabWidth * 0.82);
+  }, [tabWidth]);
+
+  const indicatorCenterOffset = useMemo(() => {
+    return (tabWidth - indicatorWidth) / 2;
+  }, [tabWidth, indicatorWidth]);
+
+  // IMPORTANT: initial value includes offset
+  const indicatorX = useSharedValue(state.index * tabWidth + indicatorCenterOffset);
+  const animatedIndex = useSharedValue(state.index);
 
   useEffect(() => {
-    indicatorX.value = withSpring(state.index * tabWidth + indicatorOffset, {
+    indicatorX.value = withSpring(state.index * tabWidth + indicatorCenterOffset, {
       damping: 18,
       stiffness: 240,
       mass: 0.6
     });
+
     animatedIndex.value = withSpring(state.index, {
       damping: 16,
       stiffness: 200,
       mass: 0.7
     });
-  }, [state.index, tabWidth, indicatorOffset, indicatorX, animatedIndex]);
+  }, [state.index, tabWidth, indicatorCenterOffset]);
 
   const switchTo = (targetIndex: number) => {
     if (targetIndex === state.index || targetIndex < 0 || targetIndex >= state.routes.length) return;
@@ -69,7 +77,7 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
   };
 
   const gesture = Gesture.Pan()
-    .activeOffsetX([-12, 12])
+    // .activeOffsetX([-12, 12])
     .onUpdate((event) => {
       panX.value = event.translationX;
     })
@@ -182,7 +190,7 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
 const styles = StyleSheet.create({
   wrapper: {
     // paddingHorizontal: theme.spacing(1.25),
-    paddingBottom: theme.spacing(1),
+    paddingBottom: theme.spacing(0.1),
     backgroundColor: theme.colors.background
   },
   rail: {
@@ -196,7 +204,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing(2),
     paddingHorizontal: theme.spacing(0.5),
     gap: theme.spacing(0.5),
-    shadowColor: "#000",
+    shadowColor: "#00000",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
@@ -206,8 +214,9 @@ const styles = StyleSheet.create({
   indicator: {
     position: "absolute",
     top: 6,
-    left: theme.spacing(1),
+    left: theme.spacing(0.5),
     height: 50,
+    // width: 50,
     backgroundColor: theme.colors.background,
     borderRadius: 18,
     shadowColor: "#000",
@@ -220,9 +229,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: theme.spacing(1.6),
-    paddingHorizontal: theme.spacing(0.25),
+    gap: 0,
+    paddingVertical: theme.spacing(0.1),
+    // paddingHorizontal: theme.spacing(0.25),
     minHeight: 54
   },
   label: {

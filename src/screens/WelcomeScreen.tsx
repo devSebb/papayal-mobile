@@ -123,7 +123,9 @@ const WelcomeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    gap: theme.spacing(2),
+    flex: 1,
+    gap: theme.spacing(4),
+    backgroundColor: theme.colors.background,
     justifyContent: "space-between",
     paddingVertical: theme.spacing(3)
   },
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing(0.5)
   },
   logo: {
-    fontSize: 40,
+    fontSize: 62,
     fontWeight: "800",
     color: theme.colors.secondary,
     letterSpacing: 0.6
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md / 2
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "800",
     color: theme.colors.text,
     lineHeight: 34
@@ -156,7 +158,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: theme.typography.subheading,
     color: theme.colors.muted,
-    lineHeight: 24
+    lineHeight: 26
   },
   heroImageWrap: {
     alignSelf: "center",

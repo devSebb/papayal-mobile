@@ -12,6 +12,8 @@ import WalletListScreen from "../screens/WalletListScreen";
 import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
 import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import SettingsScreen from "../screens/SettingsScreen";
+import TermsScreen from "../screens/TermsScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import ActivityScreen from "../screens/ActivityScreen";
 import HelpScreen from "../screens/HelpScreen";
@@ -54,6 +56,8 @@ export type WalletStackParamList = {
 
 export type ProfileStackParamList = {
   Profile: undefined;
+  Settings: undefined;
+  Terms: undefined;
   EditProfile: undefined;
   Help: undefined;
 };
@@ -118,6 +122,8 @@ const WalletStackNavigator = () => (
 const ProfileStackNavigator = () => (
   <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
     <ProfileStack.Screen name="Profile" component={ProfileScreen} />
+    <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+    <ProfileStack.Screen name="Terms" component={TermsScreen} />
     <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
     <ProfileStack.Screen name="Help" component={HelpScreen} />
   </ProfileStack.Navigator>

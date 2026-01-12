@@ -1,5 +1,14 @@
-import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from "react-native";
+import React, { useMemo } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import { NavigationProp, useNavigation } from "@react-navigation/native";
@@ -19,7 +28,7 @@ const avatarPlaceholder = require("../../assets/avatar-default.png");
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
-  const { logout, logoutAll, accessToken } = useAuth();
+  const { accessToken } = useAuth();
   const isQueryEnabled = !!accessToken;
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -27,7 +36,6 @@ const ProfileScreen: React.FC = () => {
     queryFn: meApi.me,
     enabled: isQueryEnabled
   });
-  const [busy, setBusy] = useState(false);
   const { mutateAsync: uploadAvatar, isPending: uploading } = useMutation({
     mutationFn: meApi.uploadAvatar,
     onSuccess: async () => {
@@ -42,16 +50,8 @@ const ProfileScreen: React.FC = () => {
       ? { uri: (data.avatar_thumb_url ?? data.avatar_url) as string }
       : avatarPlaceholder;
 
-  const handleLogout = async () => {
-    setBusy(true);
-    await logout();
-    setBusy(false);
-  };
-
-  const handleLogoutAll = async () => {
-    setBusy(true);
-    await logoutAll();
-    setBusy(false);
+  const handleOpenSettings = () => {
+    navigation.navigate("Settings");
   };
 
   const handleChangePhoto = async () => {
@@ -105,11 +105,23 @@ const ProfileScreen: React.FC = () => {
                   </View>
                 ) : null}
               </View>
-              <View style={styles.info}>
-                <Text style={styles.name}>{data.name ?? "Usuario"}</Text>
-                <Text style={styles.muted}>{data.email}</Text>
-                {data.phone ? <Text style={styles.muted}>{data.phone}</Text> : null}
-                {data.role ? <Text style={styles.tag}>Rol: {data.role}</Text> : null}
+              <View style={styles.infoContainer}>
+                <View style={styles.infoRow}>
+                  <View style={styles.info}>
+                    <Text style={styles.name}>{data.name ?? "Usuario"}</Text>
+                    <Text style={styles.muted}>{data.email}</Text>
+                    {data.phone ? <Text style={styles.muted}>{data.phone}</Text> : null}
+                    {data.role ? <Text style={styles.tag}>Rol: {data.role}</Text> : null}
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleOpenSettings}
+                    style={styles.settingsButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Abrir ajustes"
+                  >
+                    <Feather name="tool" size={20} color={theme.colors.text} />
+                  </TouchableOpacity>
+                </View>
                 <Button
                   label="Cambiar foto"
                   onPress={handleChangePhoto}
@@ -121,31 +133,10 @@ const ProfileScreen: React.FC = () => {
                 />
               </View>
             </View>
-            <Button
-              label="Editar perfil"
-              onPress={() => navigation.navigate("EditProfile")}
-              style={styles.editButton}
-              variant="secondary"
-              disabled={busy || uploading}
-            />
           </>
         ) : (
           <Text style={styles.error}>No pudimos cargar el perfil.</Text>
         )}
-        <Button
-          label="Cerrar sesión"
-          onPress={handleLogout}
-          style={styles.button}
-          variant="ghost"
-          disabled={busy}
-        />
-        <Button
-          label="Cerrar todas las sesiones"
-          onPress={handleLogoutAll}
-          style={styles.button}
-          variant="danger"
-          disabled={busy}
-        />
       </Card>
 
       <Card style={styles.helpCard}>
@@ -200,6 +191,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
+  infoContainer: {
+    flex: 1
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: theme.spacing(1)
+  },
   info: {
     gap: theme.spacing(0.5),
     flex: 1,
@@ -224,15 +224,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing(1.2),
     borderRadius: 10
   },
-  editButton: {
-    marginTop: theme.spacing(1)
-  },
   changePhotoLabel: {
     fontSize: theme.typography.small,
     fontWeight: "700"
   },
-  button: {
-    marginTop: theme.spacing(1)
+  settingsButton: {
+    padding: theme.spacing(1),
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    alignSelf: "flex-start"
   },
   helpCard: {
     marginTop: theme.spacing(1.5)

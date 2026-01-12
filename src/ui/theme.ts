@@ -24,8 +24,8 @@ export const theme = {
   },
   typography: {
     heading: 24,
-    subheading: 18,
-    body: 16,
+    subheading: 20,
+    body: 18,
     small: 14
   }
 };

@@ -16,22 +16,29 @@ const Screen: React.FC<Props> = ({
   scrollable = false,
   centerContent = false,
   safeAreaColor,
-  // Tabs and native headers already handle top/bottom insets, so default to only horizontal edges.
   edges = ["top", "left", "right"],
   ...rest
 }) => {
+  const flattenedStyle = StyleSheet.flatten(style) || {};
+  const backgroundColor = safeAreaColor ?? flattenedStyle.backgroundColor ?? theme.colors.background;
+
   const content = (
     <View style={[styles.inner, centerContent ? styles.center : null, style]} {...rest}>
       {children}
     </View>
   );
 
-  const safeStyles = [styles.safe, safeAreaColor ? { backgroundColor: safeAreaColor } : null];
+  const safeStyles = [styles.safe, { backgroundColor }];
 
   return (
     <SafeAreaView style={safeStyles} edges={edges}>
       {scrollable ? (
-        <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView>
+        <ScrollView
+          style={[styles.scroll, { backgroundColor }]}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {content}
+        </ScrollView>
       ) : (
         content
       )}
@@ -49,8 +56,12 @@ const styles = StyleSheet.create({
     padding: theme.spacing(2),
     // backgroundColor: "blue"
   },
+  scroll: {
+    flex: 1
+  },
   scrollContent: {
-    paddingBottom: theme.spacing(4)
+    flexGrow: 1,
+    paddingBottom: theme.spacing(18)
   },
   center: {
     justifyContent: "center",

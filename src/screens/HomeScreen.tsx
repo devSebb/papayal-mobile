@@ -69,7 +69,7 @@ const HomeScreen: React.FC = () => {
           <View style={styles.heroActionRow}>
             <Button
               label="Comenzar"
-              onPress={() => navigation.navigate("WalletTab")}
+              onPress={() => navigation.navigate("BuyGiftCardStart")}
               variant="primary"
               style={styles.heroButton}
             />

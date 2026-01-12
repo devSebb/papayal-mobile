@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { StackActions, type NavigationState, type PartialState } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,10 +24,17 @@ const iconMap: Record<string, keyof typeof Feather.glyphMap> = {
   WalletTab: "credit-card",
   ProfileTab: "user"
 };
+const tabRootScreens: Record<string, string> = {
+  HomeTab: "Home",
+  WalletTab: "WalletList",
+  ProfileTab: "Profile"
+};
 
 const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, theme.spacing(1));
+  // const bottomPadding = Math.max(bottomInset, theme.spacing(3));
   const panX = useSharedValue(0);
   
   const railPaddingX = theme.spacing(0.5);
@@ -64,15 +72,36 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
   }, [state.index, tabWidth, indicatorCenterOffset]);
 
   const switchTo = (targetIndex: number) => {
-    if (targetIndex === state.index || targetIndex < 0 || targetIndex >= state.routes.length) return;
+    if (targetIndex < 0 || targetIndex >= state.routes.length) return;
     const route = state.routes[targetIndex];
+    const isFocused = state.index === targetIndex;
     const event = navigation.emit({
       type: "tabPress",
       target: route.key,
       canPreventDefault: true
     });
-    if (!event.defaultPrevented) {
+    if (event.defaultPrevented) return;
+
+    if (!isFocused) {
       navigation.navigate({ name: route.name, merge: true, params: undefined });
+      return;
+    }
+
+    const nestedState = route.state as NavigationState | PartialState<NavigationState> | undefined;
+    const stackIndex = nestedState?.index ?? 0;
+    const stackKey = nestedState?.key;
+    const rootRouteName = nestedState?.routeNames?.[0] ?? tabRootScreens[route.name];
+
+    if (stackIndex > 0) {
+      if (stackKey) {
+        navigation.dispatch({ ...StackActions.popToTop(), target: stackKey });
+      } else if (rootRouteName) {
+        navigation.navigate({
+          name: route.name,
+          merge: true,
+          params: { screen: rootRouteName }
+        });
+      }
     }
   };
 
@@ -111,8 +140,8 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
       <Animated.View
         style={[
           styles.wrapper,
-          railStyle,
-          
+          // { paddingBottom: bottomPadding },
+          railStyle
         ]}
       >
         <View style={styles.rail} pointerEvents="box-none">
@@ -189,8 +218,11 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
 
 const styles = StyleSheet.create({
   wrapper: {
-    // paddingHorizontal: theme.spacing(1.25),
-    paddingBottom: theme.spacing(0.1),
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // paddingBottom: theme.spacing(3),
     backgroundColor: theme.colors.background
   },
   rail: {
@@ -201,7 +233,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: theme.spacing(0.75),
-    paddingBottom: theme.spacing(2),
+    paddingBottom: theme.spacing(4),
     paddingHorizontal: theme.spacing(0.5),
     gap: theme.spacing(0.5),
     shadowColor: "#00000",
@@ -215,7 +247,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 6,
     left: theme.spacing(0.5),
-    height: 50,
+    height: 55,
     // width: 50,
     backgroundColor: theme.colors.background,
     borderRadius: 18,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Pressable } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 
@@ -12,43 +12,54 @@ import { useAuth } from "../auth/authStore";
 import { HttpError } from "../api/http";
 import type { AuthStackParamList } from "../navigation";
 
-type AuthNav = NativeStackNavigationProp<AuthStackParamList, "Signup">;
+type AuthNav = NativeStackNavigationProp<AuthStackParamList>;
 
 const SignupScreen: React.FC = () => {
   const navigation = useNavigation<AuthNav>();
   const { signup, authLoading } = useAuth();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [nationalId, setNationalId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+
+  const phoneRegex = /^\+?[0-9\s-]{7,15}$/;
 
   const handleSignup = async () => {
     setError(null);
+    setFieldErrors({});
 
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
-    const trimmedName = name.trim();
     const trimmedPhone = phone.trim();
-    const trimmedNationalId = nationalId.trim();
 
-    if (!trimmedEmail || !password || !confirmPassword || !trimmedName || !trimmedPhone || !trimmedNationalId) {
-      setError("Completa todos los campos obligatorios.");
-      return;
-    }
+    const nextErrors: Record<string, string> = {};
+    if (!trimmedFirstName) nextErrors.first_name = "Requerido";
+    if (!trimmedLastName) nextErrors.last_name = "Requerido";
+    if (!trimmedEmail) nextErrors.email = "Requerido";
+    if (!trimmedPhone || !phoneRegex.test(trimmedPhone)) nextErrors.phone = "Teléfono inválido";
+    if (!password) nextErrors.password = "Requerido";
+    if (!confirmPassword) nextErrors.password_confirmation = "Confirma tu contraseña";
+    if (password && confirmPassword && password !== confirmPassword)
+      nextErrors.password_confirmation = "Las contraseñas no coinciden.";
 
-    if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      setError("Revisa los campos resaltados.");
       return;
     }
 
     const payload = {
+      first_name: trimmedFirstName,
+      last_name: trimmedLastName,
       email: trimmedEmail,
       password,
-      name: trimmedName,
-      phone: trimmedPhone,
-      national_id: trimmedNationalId
+      password_confirmation: confirmPassword,
+      phone: trimmedPhone
     };
 
     try {
@@ -56,8 +67,10 @@ const SignupScreen: React.FC = () => {
     } catch (err) {
       const httpErr = err as HttpError;
       const details = httpErr?.error?.details;
+      const nextFieldErrors: Record<string, string> = {};
       let friendly =
-        (httpErr?.error?.message as string | undefined) ?? "No pudimos crear tu cuenta. Inténtalo de nuevo.";
+        (httpErr?.error?.message as string | undefined) ??
+        "No pudimos crear tu cuenta. Inténtalo de nuevo.";
 
       if (httpErr?.status === 422 && details) {
         if (typeof details === "string") {
@@ -65,12 +78,14 @@ const SignupScreen: React.FC = () => {
         } else if (Array.isArray(details)) {
           friendly = details.filter(Boolean).join(", ");
         } else if (typeof details === "object") {
-          const parts = Object.entries(details as Record<string, unknown>)
+          Object.entries(details as Record<string, unknown>).forEach(([key, value]) => {
+            if (!value) return;
+            const text = Array.isArray(value) ? value.join(", ") : String(value);
+            if (text) nextFieldErrors[key] = text;
+          });
+          const parts = Object.entries(nextFieldErrors)
             .map(([key, value]) => {
               if (!value) return null;
-              if (Array.isArray(value)) {
-                return `${key}: ${value.join(", ")}`;
-              }
               return `${key}: ${String(value)}`;
             })
             .filter(Boolean)
@@ -81,17 +96,20 @@ const SignupScreen: React.FC = () => {
         }
       }
 
+      if (Object.keys(nextFieldErrors).length) {
+        setFieldErrors(nextFieldErrors);
+      }
       setError(friendly);
     }
   };
 
   const canSubmit = Boolean(
+    firstName.trim() &&
+    lastName.trim() &&
     email.trim() &&
     password &&
     confirmPassword &&
-    name.trim() &&
-    phone.trim() &&
-    nationalId.trim()
+    phoneRegex.test(phone.trim())
   );
 
   return (
@@ -111,43 +129,87 @@ const SignupScreen: React.FC = () => {
             autoComplete="email"
           />
           <TextField
-            label="Contraseña"
-            value={password}
-            secureTextEntry
-            onChangeText={setPassword}
-            autoComplete="password"
-            style={styles.inputSpacing}
-          />
-          <TextField
-            label="Confirmar contraseña"
-            value={confirmPassword}
-            secureTextEntry
-            onChangeText={setConfirmPassword}
-            autoComplete="password"
-            style={styles.inputSpacing}
-          />
-          <TextField
-            label="Nombre completo"
-            value={name}
-            onChangeText={setName}
+            label="Nombre"
+            value={firstName}
+            onChangeText={(text) => {
+              setFirstName(text);
+              setFieldErrors((prev) => ({ ...prev, first_name: undefined }));
+            }}
             autoComplete="name"
             style={styles.inputSpacing}
+            error={fieldErrors.first_name}
+          />
+          <TextField
+            label="Apellido"
+            value={lastName}
+            onChangeText={(text) => {
+              setLastName(text);
+              setFieldErrors((prev) => ({ ...prev, last_name: undefined }));
+            }}
+            autoComplete="name"
+            style={styles.inputSpacing}
+            error={fieldErrors.last_name}
+          />
+          <TextField
+            label="Correo"
+            value={email}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            onChangeText={(text) => {
+              setEmail(text);
+              setFieldErrors((prev) => ({ ...prev, email: undefined }));
+            }}
+            autoComplete="email"
+            style={styles.inputSpacing}
+            error={fieldErrors.email}
           />
           <TextField
             label="Teléfono"
             value={phone}
             keyboardType="phone-pad"
-            onChangeText={setPhone}
+            onChangeText={(text) => {
+              setPhone(text);
+              setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+            }}
             autoComplete="tel"
             style={styles.inputSpacing}
+            placeholder="+593..."
+            error={fieldErrors.phone}
           />
           <TextField
-            label="Documento de identidad"
-            value={nationalId}
-            onChangeText={setNationalId}
-            autoCapitalize="characters"
+            label="Contraseña"
+            value={password}
+            secureTextEntry
+            onChangeText={(text) => {
+              setPassword(text);
+              setFieldErrors((prev) => ({ ...prev, password: undefined }));
+            }}
+            autoComplete="password"
             style={styles.inputSpacing}
+            error={fieldErrors.password}
           />
+          <TextField
+            label="Confirmar contraseña"
+            value={confirmPassword}
+            secureTextEntry
+            onChangeText={(text) => {
+              setConfirmPassword(text);
+              setFieldErrors((prev) => ({ ...prev, password_confirmation: undefined }));
+            }}
+            autoComplete="password"
+            style={styles.inputSpacing}
+            error={fieldErrors.password_confirmation}
+          />
+          <Pressable
+            onPress={() => {
+              const trimmedEmail = email.trim();
+              (navigation as any).navigate("ForgotPassword", trimmedEmail ? { email: trimmedEmail } : {});
+            }}
+            hitSlop={10}
+            style={styles.forgotPasswordLink}
+          >
+            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+          </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
             label="Crear cuenta"
@@ -186,6 +248,15 @@ const styles = StyleSheet.create({
   },
   inputSpacing: {
     marginTop: theme.spacing(0.25)
+  },
+  forgotPasswordLink: {
+    alignSelf: "flex-end",
+    marginTop: theme.spacing(0.5)
+  },
+  forgotPasswordText: {
+    fontSize: theme.typography.small,
+    color: theme.colors.primary,
+    fontWeight: "600"
   },
   submit: {
     marginTop: theme.spacing(1)

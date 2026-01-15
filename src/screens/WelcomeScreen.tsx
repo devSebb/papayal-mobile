@@ -77,7 +77,7 @@ const WelcomeScreen: React.FC = () => {
   });
 
   return (
-    <Screen scrollable style={styles.container} edges={["top", "bottom", "left", "right"]}>
+    <Screen style={styles.container} edges={["top", "bottom", "left", "right"]}>
       <Animated.View style={[styles.heroBlock, { opacity: fadeAnim, transform: [{ translateY: translateContent }] }]}>
         <View style={styles.logoWrap}>
           <Text style={styles.logo}>Papayal</Text>
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing(4),
     backgroundColor: theme.colors.background,
     justifyContent: "space-between",
-    paddingVertical: theme.spacing(3)
+    paddingVertical: theme.spacing(2)
   },
   heroBlock: {
     width: "100%",
@@ -153,7 +153,8 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "800",
     color: theme.colors.text,
-    lineHeight: 34
+    lineHeight: 34,
+    paddingTop: theme.spacing(2),
   },
   subtitle: {
     fontSize: theme.typography.subheading,

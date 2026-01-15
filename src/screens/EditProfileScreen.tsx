@@ -30,29 +30,31 @@ const EditProfileScreen: React.FC = () => {
     enabled: !!accessToken
   });
 
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [nationalId, setNationalId] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (data) {
-      setName(data.name ?? "");
+      const fallbackName = data.name ?? "";
+      const [given, ...rest] = fallbackName.split(" ").filter(Boolean);
+      setFirstName(data.first_name ?? given ?? "");
+      setLastName(data.last_name ?? (rest.length ? rest.join(" ") : ""));
       setEmail(data.email ?? "");
       setPhone(data.phone ?? "");
-      setNationalId(data.national_id ?? "");
     }
   }, [data]);
 
   const errors = useMemo(() => {
     const next: Record<string, string> = {};
-    if (!name.trim()) next.name = "Requerido";
+    if (!firstName.trim()) next.first_name = "Requerido";
+    if (!lastName.trim()) next.last_name = "Requerido";
     if (!email.trim() || !emailRegex.test(email.trim())) next.email = "Correo inválido";
     if (!phone.trim()) next.phone = "Requerido";
-    if (!nationalId.trim()) next.national_id = "Requerido";
     return next;
-  }, [email, name, nationalId, phone]);
+  }, [email, firstName, lastName, phone]);
 
   const isValid = Object.keys(errors).length === 0;
   const isBusy = isLoading || !accessToken;
@@ -86,14 +88,14 @@ const EditProfileScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    setTouched({ name: true, email: true, phone: true, national_id: true });
+    setTouched({ first_name: true, last_name: true, email: true, phone: true });
     if (!isValid) return;
 
     const payload = {
-      name: name.trim(),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
       email: email.trim(),
-      phone: phone.trim(),
-      national_id: nationalId.trim()
+      phone: phone.trim()
     };
 
     try {
@@ -129,12 +131,22 @@ const EditProfileScreen: React.FC = () => {
           ) : (
             <>
               <TextField
-                label="Nombre completo"
-                value={name}
-                onChangeText={setName}
-                placeholder="Ej: Ana Morales"
-                onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
-                error={touched.name ? errors.name : undefined}
+                label="Nombre"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Ej: Ana"
+                autoComplete="name"
+                onBlur={() => setTouched((prev) => ({ ...prev, first_name: true }))}
+                error={touched.first_name ? errors.first_name : undefined}
+              />
+              <TextField
+                label="Apellido"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Ej: Morales"
+                autoComplete="name"
+                onBlur={() => setTouched((prev) => ({ ...prev, last_name: true }))}
+                error={touched.last_name ? errors.last_name : undefined}
               />
               <TextField
                 label="Correo"
@@ -155,14 +167,6 @@ const EditProfileScreen: React.FC = () => {
                 placeholder="+593..."
                 onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
                 error={touched.phone ? errors.phone : undefined}
-              />
-              <TextField
-                label="Documento de identidad"
-                value={nationalId}
-                onChangeText={setNationalId}
-                autoCapitalize="characters"
-                onBlur={() => setTouched((prev) => ({ ...prev, national_id: true }))}
-                error={touched.national_id ? errors.national_id : undefined}
               />
               <Button
                 label="Guardar cambios"

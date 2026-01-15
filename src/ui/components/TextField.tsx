@@ -13,7 +13,7 @@ const TextField: React.FC<Props> = ({ label, error, style, ...rest }) => {
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
         style={[styles.input, error ? styles.inputError : null, style]}
-        placeholderTextColor={theme.colors.muted}
+        placeholderTextColor={theme.colors.lightText}
         {...rest}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.card,
     fontSize: theme.typography.body,
     color: theme.colors.text,
-    fontFamily: theme.fonts.regular
+    fontFamily: theme.fonts.light
   },
   inputError: {
     borderColor: theme.colors.danger

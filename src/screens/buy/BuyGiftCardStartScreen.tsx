@@ -18,8 +18,8 @@ import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
 import TextField from "../../ui/components/TextField";
 import { theme } from "../../ui/theme";
-import { giftCardApi } from "../../api/endpoints";
-import { GiftCard } from "../../types/api";
+import { giftCardApi, merchantsApi } from "../../api/endpoints";
+import { GiftCard, Merchant } from "../../types/api";
 import { formatMoney } from "../../utils/money";
 import { usePurchaseDraft, MerchantSelection } from "../../domain/purchase/purchaseDraftStore";
 import { useAuth } from "../../auth/authStore";
@@ -124,16 +124,31 @@ const BuyGiftCardStartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { accessToken } = useAuth();
   const { draft, setMerchant, setAmount, setIsDemoPayment } = usePurchaseDraft();
+  const isQueryEnabled = !!accessToken;
   const { data: giftCards, isLoading } = useQuery({
     queryKey: ["giftCards"],
     queryFn: giftCardApi.list,
-    enabled: !!accessToken
+    enabled: isQueryEnabled
+  });
+  const { data: merchants, isLoading: isLoadingMerchants } = useQuery<Merchant[]>({
+    queryKey: ["merchants"],
+    queryFn: merchantsApi.list,
+    enabled: isQueryEnabled
   });
 
   const merchantOptions = useMemo(() => {
+    // First, try to use merchants from API
+    if (merchants && merchants.length > 0) {
+      return merchants.map((merchant) => ({
+        id: merchant.id?.toString() ?? `merchant-${merchant.name}`,
+        name: merchant.store_name || merchant.name,
+        logoUrl: merchant.logo_url ?? null
+      }));
+    }
+    // Fallback to merchants derived from gift cards
     const derived = buildMerchantOptions(giftCards);
     return derived.length > 0 ? derived : fallbackMerchants;
-  }, [giftCards]);
+  }, [merchants, giftCards]);
 
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(
     draft.merchant?.id ?? null
@@ -169,6 +184,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
 
   const canContinue = Boolean(selectedMerchant && amountValid);
   const isDerivedMerchantsAvailable = Boolean(giftCards && giftCards.length > 0);
+  const isMerchantBusy = isLoadingMerchants || isLoading;
 
   const handleContinue = () => {
     if (!selectedMerchant || !amountCents || !canContinue) return;
@@ -204,27 +220,33 @@ const BuyGiftCardStartScreen: React.FC = () => {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Comercio</Text>
           <Text style={styles.sectionHint}>
-            {isDerivedMerchantsAvailable
+            {merchants && merchants.length > 0
+              ? `${merchantOptions.length} comercios disponibles`
+              : isDerivedMerchantsAvailable
               ? "Tomado de tus tarjetas de regalo"
               : "Comercios demo (hasta que exista el endpoint)"}
           </Text>
         </View>
-        {isLoading ? (
+        {isMerchantBusy ? (
           <Text style={styles.muted}>Cargando comercios...</Text>
         ) : (
-          <FlatList
-            data={merchantOptions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <MerchantCard
-                merchant={item}
-                selected={item.id === selectedMerchantId}
-                onPress={() => setSelectedMerchantId(item.id)}
-              />
-            )}
-            ItemSeparatorComponent={() => <View style={{ height: theme.spacing(1) }} />}
-            scrollEnabled={false}
-          />
+          <View style={styles.merchantListContainer}>
+            <FlatList
+              data={merchantOptions}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <MerchantCard
+                  merchant={item}
+                  selected={item.id === selectedMerchantId}
+                  onPress={() => setSelectedMerchantId(item.id)}
+                />
+              )}
+              ItemSeparatorComponent={() => <View style={{ height: theme.spacing(1) }} />}
+              scrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+            />
+          </View>
         )}
       </Card>
 
@@ -381,6 +403,13 @@ const styles = StyleSheet.create({
   merchantDemo: {
     color: theme.colors.muted,
     fontSize: theme.typography.small
+  },
+  merchantListContainer: {
+    // Height calculation: 3 merchants visible
+    // Each merchant row: ~75px (48px avatar + padding + text)
+    // 2 separators between 3 items: 2 * 8px = 16px
+    // Total: (75 * 3) + 16 = 241px, rounded to 250px for safety
+    maxHeight: 250
   },
   amountGrid: {
     flexDirection: "row",

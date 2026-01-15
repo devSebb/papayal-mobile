@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -11,10 +11,13 @@ import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { formatMoney } from "../../utils/money";
+import { checkoutApi } from "../../api/endpoints";
+import { HttpError } from "../../api/http";
 
 const PurchaseConfirmationScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { draft } = usePurchaseDraft();
+  const [checkingKyc, setCheckingKyc] = useState(false);
 
   useEffect(() => {
     if (!draft.merchant || !draft.amount_cents || !draft.recipient) {
@@ -26,6 +29,46 @@ const PurchaseConfirmationScreen: React.FC = () => {
     draft.amount_cents ? draft.amount_cents / 100 : null,
     draft.currency
   );
+
+  const friendlyError = (err: HttpError) => {
+    const details = err?.error?.details;
+    if (typeof details === "string") return details;
+    if (Array.isArray(details)) return details.filter(Boolean).join(", ");
+    if (typeof details === "object" && details) {
+      const parts = Object.entries(details as Record<string, unknown>)
+        .map(([key, value]) => {
+          if (!value) return null;
+          if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
+          return `${key}: ${String(value)}`;
+        })
+        .filter(Boolean)
+        .join(" ");
+      if (parts) return parts;
+    }
+    return err?.error?.message ?? "No pudimos validar tus datos. Inténtalo de nuevo.";
+  };
+
+  const handleContinue = async () => {
+    if (!draft.merchant || !draft.amount_cents || !draft.recipient) return;
+    setCheckingKyc(true);
+    try {
+      const validation = await checkoutApi.validateKyc();
+      if (validation.ok) {
+        navigation.navigate("StripePayment");
+        return;
+      }
+
+      navigation.navigate("CompleteDetails", {
+        missing: validation.missing ?? [],
+        returnTo: "StripePayment"
+      });
+    } catch (err) {
+      const message = friendlyError(err as HttpError);
+      Alert.alert("No pudimos continuar", message);
+    } finally {
+      setCheckingKyc(false);
+    }
+  };
 
   return (
     <Screen scrollable>
@@ -78,7 +121,8 @@ const PurchaseConfirmationScreen: React.FC = () => {
 
       <Button
         label="Continuar al pago"
-        onPress={() => navigation.navigate("StripePayment")}
+        onPress={handleContinue}
+        loading={checkingKyc}
         style={styles.continueButton}
       />
     </Screen>

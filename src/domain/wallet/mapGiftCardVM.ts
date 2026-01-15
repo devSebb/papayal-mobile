@@ -51,7 +51,6 @@ export const mapGiftCardVM = (card: GiftCard, now = new Date()): GiftCardVM => {
     amountFormatted: formatMoney(amount, card.currency),
     originalFormatted: formatMoney(amount, card.currency),
     remainingFormatted: formatMoney(remaining, card.currency),
-    expiresAt: card.expires_at ?? null,
     status,
     rawStatus: card.status,
     isExpired,

@@ -12,9 +12,13 @@ export type AuthResponse = {
 export type User = {
   id: string;
   email: string;
-  name?: string;
-  phone?: string;
-  national_id?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  name?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  country_of_residence?: string | null;
+  date_of_birth?: string | null;
   role?: string;
   avatar_url?: string | null;
   avatar_thumb_url?: string | null;
@@ -44,6 +48,18 @@ export type GiftCard = {
 export type RedemptionToken = {
   token: string;
   expires_at: string;
+};
+
+export type Merchant = {
+  id: string;
+  store_name: string;
+  name: string;
+  status: string;
+  logo_url?: string | null;
+  contact_email?: string | null;
+  address?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type ApiError = {

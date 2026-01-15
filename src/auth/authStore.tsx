@@ -16,11 +16,12 @@ type AuthState = {
 type AuthContextValue = AuthState & {
   login: (email: string, password: string) => Promise<void>;
   signup: (params: {
+    first_name: string;
+    last_name: string;
     email: string;
     password: string;
-    name: string;
+    password_confirmation: string;
     phone: string;
-    national_id: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
@@ -134,11 +135,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = useCallback(
     async (params: {
+      first_name: string;
+      last_name: string;
       email: string;
       password: string;
-      name: string;
+      password_confirmation: string;
       phone: string;
-      national_id: string;
     }) => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {

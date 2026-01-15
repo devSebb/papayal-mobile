@@ -7,6 +7,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
 import SignupScreen from "../screens/SignupScreen";
+import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import HomeScreen from "../screens/HomeScreen";
 import WalletListScreen from "../screens/WalletListScreen";
 import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
@@ -23,6 +25,7 @@ import Screen from "../ui/components/Screen";
 import BuyGiftCardStartScreen from "../screens/buy/BuyGiftCardStartScreen";
 import DeliveryProfileScreen from "../screens/buy/DeliveryProfileScreen";
 import PurchaseConfirmationScreen from "../screens/buy/PurchaseConfirmationScreen";
+import CompleteDetailsScreen from "../screens/buy/CompleteDetailsScreen";
 import StripePaymentScreen from "../screens/buy/StripePaymentScreen";
 import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
@@ -31,6 +34,8 @@ export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
+  ForgotPassword: { email?: string };
+  ResetPassword: { token?: string };
 };
 
 export type HomeStackParamList = {
@@ -38,6 +43,12 @@ export type HomeStackParamList = {
   BuyGiftCardStart: undefined;
   DeliveryProfile: undefined;
   PurchaseConfirmation: undefined;
+  CompleteDetails:
+    | {
+        missing?: string[];
+        returnTo?: "StripePayment";
+      }
+    | undefined;
   StripePayment: undefined;
   PurchaseSuccess: {
     merchantName?: string;
@@ -84,6 +95,11 @@ const HomeStackNavigator = () => (
       name="PurchaseConfirmation"
       component={PurchaseConfirmationScreen}
       options={{ presentation: "card" }}
+    />
+    <HomeStack.Screen
+      name="CompleteDetails"
+      component={CompleteDetailsScreen}
+      options={{ animation: "slide_from_right" }}
     />
     <HomeStack.Screen name="StripePayment" component={StripePaymentScreen} />
     <HomeStack.Screen
@@ -168,6 +184,16 @@ const AuthNavigator = () => (
     <AuthStack.Screen
       name="Signup"
       component={SignupScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
+      name="ForgotPassword"
+      component={ForgotPasswordScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
+      name="ResetPassword"
+      component={ResetPasswordScreen}
       options={{ headerShown: false }}
     />
   </AuthStack.Navigator>

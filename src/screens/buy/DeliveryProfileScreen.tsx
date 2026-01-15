@@ -22,9 +22,9 @@ const SAMPLE_RECIPIENT = {
 const DeliveryProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { draft, setRecipient } = usePurchaseDraft();
-  const [name, setName] = useState(draft.recipient?.name ?? SAMPLE_RECIPIENT.name);
-  const [email, setEmail] = useState(draft.recipient?.email ?? SAMPLE_RECIPIENT.email);
-  const [phone, setPhone] = useState(draft.recipient?.phone ?? SAMPLE_RECIPIENT.phone);
+  const [name, setName] = useState(draft.recipient?.name ?? "");
+  const [email, setEmail] = useState(draft.recipient?.email ?? "");
+  const [phone, setPhone] = useState(draft.recipient?.phone ?? "");
   const [note, setNote] = useState(draft.recipient?.note ?? SAMPLE_RECIPIENT.note);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 

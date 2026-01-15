@@ -3,6 +3,7 @@ export const theme = {
     primary: "#FCA50F",
     secondary: "#0D2F32",
     background: "#EBEBEB",
+    lightText: "#545353",
     card: "#FFFFFF",
     text: "#2C3A43",
     muted: "#6A7780",
@@ -19,6 +20,7 @@ export const theme = {
     lg: 16
   },
   fonts: {
+    light: "SatoshiLightVariable",
     regular: "SatoshiVariable",
     italic: "SatoshiVariableItalic"
   },

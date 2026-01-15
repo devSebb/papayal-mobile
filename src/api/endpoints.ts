@@ -1,5 +1,5 @@
 import { request } from "./http";
-import { AuthTokens, GiftCard, RedemptionToken, User } from "../types/api";
+import { AuthTokens, GiftCard, Merchant, RedemptionToken, User } from "../types/api";
 
 export const authApi = {
   login: async (params: { email: string; password: string; device_id?: string }) => {
@@ -10,11 +10,12 @@ export const authApi = {
     return data;
   },
   signup: async (params: {
+    first_name: string;
+    last_name: string;
     email: string;
     password: string;
-    name: string;
+    password_confirmation: string;
     phone: string;
-    national_id: string;
     device_id?: string;
   }) => {
     const { data } = await request<AuthTokens>("/api/v1/auth/signup", {
@@ -39,6 +40,24 @@ export const authApi = {
   },
   logoutAll: async () => {
     await request("/api/v1/auth/logout_all", { method: "POST" });
+  },
+  forgotPassword: async (email: string) => {
+    const { data } = await request<{ message: string }>("/api/v1/auth/forgot_password", {
+      method: "POST",
+      body: { email }
+    });
+    return data;
+  },
+  resetPassword: async (params: {
+    reset_token: string;
+    password: string;
+    password_confirmation: string;
+  }) => {
+    const { data } = await request<{ message: string }>("/api/v1/auth/reset_password", {
+      method: "POST",
+      body: params
+    });
+    return data;
   }
 };
 
@@ -47,7 +66,28 @@ export const meApi = {
     const { data } = await request<User>("/api/v1/me");
     return data;
   },
-  update: async (payload: { name?: string; email?: string; phone?: string; national_id?: string }) => {
+  update: async (payload: {
+    first_name?: string;
+    last_name?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    country_of_residence?: string;
+    date_of_birth?: string;
+  }) => {
+    const { data } = await request<User>("/api/v1/me", {
+      method: "PATCH",
+      body: payload
+    });
+    return data;
+  },
+  updateKyc: async (payload: {
+    address: string;
+    country_of_residence: string;
+    date_of_birth: string;
+    phone?: string;
+  }) => {
     const { data } = await request<User>("/api/v1/me", {
       method: "PATCH",
       body: payload
@@ -58,6 +98,15 @@ export const meApi = {
     const { data } = await request<User>("/api/v1/me/avatar", {
       method: "POST",
       body: formData
+    });
+    return data;
+  }
+};
+
+export const checkoutApi = {
+  validateKyc: async () => {
+    const { data } = await request<{ ok: boolean; missing?: string[] }>("/api/v1/checkout/validate_kyc", {
+      method: "POST"
     });
     return data;
   }
@@ -76,6 +125,13 @@ export const giftCardApi = {
     const { data } = await request<RedemptionToken>(`/api/v1/me/gift_cards/${id}/redemption_token`, {
       method: "POST"
     });
+    return data;
+  }
+};
+
+export const merchantsApi = {
+  list: async () => {
+    const { data } = await request<Merchant[]>("/api/v1/merchants");
     return data;
   }
 };

@@ -49,6 +49,11 @@ const ProfileScreen: React.FC = () => {
     data?.avatar_thumb_url || data?.avatar_url
       ? { uri: (data.avatar_thumb_url ?? data.avatar_url) as string }
       : avatarPlaceholder;
+  const displayName = useMemo(() => {
+    const combined = [data?.first_name, data?.last_name].filter(Boolean).join(" ").trim();
+    if (combined) return combined;
+    return data?.name || "Usuario";
+  }, [data]);
 
   const handleOpenSettings = () => {
     navigation.navigate("Settings");
@@ -108,7 +113,7 @@ const ProfileScreen: React.FC = () => {
               <View style={styles.infoContainer}>
                 <View style={styles.infoRow}>
                   <View style={styles.info}>
-                    <Text style={styles.name}>{data.name ?? "Usuario"}</Text>
+                    <Text style={styles.name}>{displayName}</Text>
                     <Text style={styles.muted}>{data.email}</Text>
                     {data.phone ? <Text style={styles.muted}>{data.phone}</Text> : null}
                     {data.role ? <Text style={styles.tag}>Rol: {data.role}</Text> : null}

@@ -78,12 +78,6 @@ const GiftCardDetailScreen: React.FC = () => {
             <Text style={styles.label}>Estado</Text>
             <Text style={styles.value}>{statusLabel}</Text>
           </View>
-          {data.expires_at ? (
-            <View style={styles.row}>
-              <Text style={styles.label}>Vence</Text>
-              <Text style={styles.value}>{data.expires_at}</Text>
-            </View>
-          ) : null}
           {canRedeem ? (
             <Button
               label="Generar token de canje"

@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
@@ -25,9 +25,15 @@ const PurchaseSuccessScreen: React.FC = () => {
   const recipientEmail = route.params?.recipientEmail ?? "";
   const isDemo = route.params?.demo ?? true;
 
-  useEffect(() => {
-    resetDraft();
-  }, [resetDraft]);
+  // Only reset draft when leaving the screen, not when mounting
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // Cleanup: reset draft when leaving the screen
+        resetDraft();
+      };
+    }, [resetDraft])
+  );
 
   const goToWallet = () => {
     const parent = navigation.getParent();
@@ -38,7 +44,15 @@ const PurchaseSuccessScreen: React.FC = () => {
     }
   };
 
-  const startAnother = () => navigation.navigate("BuyGiftCardStart");
+  const goToHome = () => {
+    resetDraft();
+    navigation.navigate("Home");
+  };
+
+  const startAnother = () => {
+    resetDraft();
+    navigation.navigate("BuyGiftCardStart");
+  };
 
   return (
     <Screen scrollable centerContent>
@@ -83,6 +97,12 @@ const PurchaseSuccessScreen: React.FC = () => {
             onPress={startAnother}
             variant="ghost"
             style={styles.secondaryBtn}
+          />
+          <Button
+            label="Regresar a inicio"
+            onPress={goToHome}
+            variant="ghost"
+            style={styles.homeBtn}
           />
         </View>
       </Card>
@@ -173,6 +193,13 @@ const styles = StyleSheet.create({
     borderRadius: 18
   },
   secondaryBtn: {
+    width: "100%",
+    paddingVertical: theme.spacing(1.2),
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.secondary
+  },
+  homeBtn: {
     width: "100%",
     paddingVertical: theme.spacing(1.2),
     borderRadius: 18,

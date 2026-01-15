@@ -102,7 +102,6 @@ const TabButton: React.FC<{ tab: TabKey; active: boolean; onPress: () => void }>
 
 const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item, onPress }) => {
   const statusStyle = statusStyles[item.status];
-  const expiresLabel = item.expiresAt ? `Vence ${item.expiresAt}` : null;
   const merchantInitial = item.merchantLabel.charAt(0).toUpperCase();
   const hasLogo = Boolean(item.merchantLogoUrl);
   const logoSource = hasLogo ? { uri: item.merchantLogoUrl as string } : merchantPlaceholder;
@@ -121,7 +120,6 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item
             <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
               <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
             </View>
-            {expiresLabel ? <Text style={styles.muted}>{expiresLabel}</Text> : null}
           </View>
           <View style={styles.amountColumn}>
             <Text style={styles.amount}>{item.remainingFormatted}</Text>

@@ -12,7 +12,6 @@ export type GiftCardVM = {
   amountFormatted: string;
   originalFormatted: string;
   remainingFormatted: string;
-  expiresAt?: string | null;
   status: "Active" | "Redeemed" | "Expired";
   rawStatus?: string;
   isExpired: boolean;

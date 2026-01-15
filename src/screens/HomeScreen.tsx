@@ -1,5 +1,5 @@
 import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { CompositeNavigationProp, useNavigation } from "@react-navigation/native";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
@@ -9,13 +9,33 @@ import { useQuery } from "@tanstack/react-query";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import MerchantGridCard from "../ui/components/MerchantGridCard";
 import { theme } from "../ui/theme";
-import { meApi } from "../api/endpoints";
+import { giftCardApi, merchantsApi, meApi } from "../api/endpoints";
 import { AppTabsParamList, HomeStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import TopNavBar from "../ui/components/TopNavBar";
+import { formatMoney } from "../utils/money";
+import { GiftCard, Merchant } from "../types/api";
 
 const heroImage = require("../../assets/home-hero.png");
+
+type MerchantAggregate = {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  count: number;
+  totalRemainingCents: number;
+  currencies: Set<string>;
+};
+
+type MerchantCardItem = {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  countLabel: string;
+  amountLabel: string;
+};
 
 const HomeScreen: React.FC = () => {
   type NavProps = CompositeNavigationProp<
@@ -26,12 +46,48 @@ const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavProps>();
   const { accessToken } = useAuth();
   const isQueryEnabled = !!accessToken;
+  const { width } = useWindowDimensions();
+  const numColumns = width >= 900 ? 3 : 2;
+
   const { data, isLoading } = useQuery({
     queryKey: ["me"],
     queryFn: meApi.me,
     enabled: isQueryEnabled
   });
+  const { data: giftCards, isLoading: isLoadingGiftCards } = useQuery({
+    queryKey: ["giftCards"],
+    queryFn: giftCardApi.list,
+    enabled: isQueryEnabled
+  });
+  const { data: merchants, isLoading: isLoadingMerchants } = useQuery<Merchant[]>({
+    queryKey: ["merchants"],
+    queryFn: merchantsApi.list,
+    enabled: isQueryEnabled
+  });
+
+  const merchantAggregates = deriveMerchantAggregates(giftCards ?? []);
+
+  const merchantCards = merchantAggregates.map((agg: MerchantAggregate) => {
+    const currencies = Array.from(agg.currencies);
+    const hasMulti = currencies.length > 1;
+    const currencyCode = currencies.length === 1 ? currencies[0] : undefined;
+    const countLabel = `${agg.count} ${agg.count === 1 ? "tarjeta" : "tarjetas"}`;
+    const amountLabel = hasMulti
+      ? "Multi"
+      : formatMoney(agg.totalRemainingCents / 100, currencyCode);
+    return {
+      id: agg.id,
+      name: agg.name,
+      logoUrl: agg.logoUrl,
+      countLabel,
+      amountLabel
+    };
+  });
+
   const isBusy = isLoading || !accessToken;
+  const isMerchantBusy = isLoadingMerchants || !accessToken;
+  const merchantsList: Merchant[] = merchants ?? [];
+  const hasMerchants = merchantsList.length > 0;
 
   return (
     <Screen scrollable edges={["left", "right"]}>
@@ -104,6 +160,49 @@ const HomeScreen: React.FC = () => {
       </Card>
 
       <Card style={styles.card}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Comercios</Text>
+          {isMerchantBusy ? <Text style={styles.muted}>Cargando...</Text> : null}
+        </View>
+
+        {isMerchantBusy ? (
+          <View style={styles.gridSkeletons}>
+            {Array.from({ length: numColumns * 2 }).map((_, idx) => (
+              <SkeletonTile key={`skeleton-${idx}`} wide={numColumns === 3} />
+            ))}
+          </View>
+        ) : hasMerchants ? (
+          <FlatList
+            data={merchantsList}
+            numColumns={numColumns}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.gridContent}
+            columnWrapperStyle={numColumns > 1 ? styles.gridColumn : undefined}
+            ItemSeparatorComponent={() => <View style={{ height: theme.spacing(1) }} />}
+            renderItem={({ item }) => (
+              <View style={styles.gridItem}>
+                <MerchantGridCard
+                  name={item.store_name || item.name}
+                  logoUrl={item.logo_url}
+                  onPress={() => {
+                    navigation.navigate("BuyGiftCardStart");
+                  }}
+                />
+              </View>
+            )}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No hay comercios disponibles.</Text>
+            <Text style={styles.emptySubtitle}>
+              Los comercios aparecerán aquí cuando estén disponibles.
+            </Text>
+          </View>
+        )}
+      </Card>
+
+      <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Cuenta</Text>
         {isBusy ? (
           <Text style={styles.muted}>Cargando...</Text>
@@ -139,6 +238,57 @@ const HomeScreen: React.FC = () => {
     </Screen>
   );
 };
+
+const pickMerchantName = (card: GiftCard) =>
+  card.merchant_store_name?.trim() ||
+  card.store_name?.trim() ||
+  card.merchant_name?.trim() ||
+  card.merchant?.name?.trim?.() ||
+  card.store?.name?.trim?.() ||
+  card.name?.trim() ||
+  "Comercio";
+
+const buildMerchantKey = (card: GiftCard, displayName: string) =>
+  card.merchant_id ??
+  `${card.merchant_logo_url ?? "no-logo"}|${card.merchant_name ?? ""}|${card.store_name ?? ""}|${displayName}`;
+
+const deriveMerchantAggregates = (giftCards: GiftCard[]): MerchantAggregate[] => {
+  const map = new Map<string, MerchantAggregate>();
+
+  giftCards.forEach((card) => {
+    const displayName = pickMerchantName(card);
+    const key = buildMerchantKey(card, displayName);
+    const existing = map.get(key);
+
+    const next: MerchantAggregate = existing ?? {
+      id: key,
+      name: displayName,
+      logoUrl: card.merchant_logo_url ?? null,
+      count: 0,
+      totalRemainingCents: 0,
+      currencies: new Set<string>()
+    };
+
+    next.count += 1;
+    if (typeof card.remaining_balance_cents === "number" && Number.isFinite(card.remaining_balance_cents)) {
+      next.totalRemainingCents += card.remaining_balance_cents;
+    }
+    if (card.currency) {
+      next.currencies.add(card.currency);
+    }
+    if (!next.logoUrl && card.merchant_logo_url) {
+      next.logoUrl = card.merchant_logo_url;
+    }
+
+    map.set(key, next);
+  });
+
+  return Array.from(map.values());
+};
+
+const SkeletonTile: React.FC<{ wide: boolean; key?: React.Key }> = ({ wide }) => (
+  <View style={[styles.skeletonCard, wide ? styles.skeletonThird : undefined]} />
+);
 
 const styles = StyleSheet.create({
   title: {
@@ -235,6 +385,54 @@ const styles = StyleSheet.create({
   },
   card: {
     marginTop: theme.spacing(1.5)
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing(1)
+  },
+  gridContent: {
+    gap: theme.spacing(1)
+  },
+  gridColumn: {
+    gap: theme.spacing(1)
+  },
+  gridItem: {
+    flex: 1
+  },
+  gridSkeletons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing(1)
+  },
+  skeletonCard: {
+    flexBasis: "48%",
+    height: 150,
+    borderRadius: theme.radius.lg,
+    backgroundColor: "#F4F6F7",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border
+  },
+  skeletonThird: {
+    flexBasis: "31%"
+  },
+  emptyState: {
+    alignItems: "center",
+    gap: theme.spacing(0.5)
+  },
+  emptyTitle: {
+    fontSize: theme.typography.subheading,
+    fontWeight: "700",
+    color: theme.colors.text
+  },
+  emptySubtitle: {
+    color: theme.colors.muted,
+    textAlign: "center",
+    marginBottom: theme.spacing(1)
+  },
+  emptyCta: {
+    width: "100%"
   },
   ctaCard: {
     gap: theme.spacing(1.5)

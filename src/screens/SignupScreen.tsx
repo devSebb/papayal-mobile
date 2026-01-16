@@ -208,7 +208,6 @@ const SignupScreen: React.FC = () => {
             hitSlop={10}
             style={styles.forgotPasswordLink}
           >
-            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
           </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button

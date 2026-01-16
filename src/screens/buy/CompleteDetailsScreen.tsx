@@ -9,42 +9,13 @@ import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
 import TextField from "../../ui/components/TextField";
+import PhoneInput from "../../ui/components/PhoneInput";
 import { theme } from "../../ui/theme";
 import { meApi, checkoutApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
 import { HttpError } from "../../api/http";
-
-const toDisplayDate = (value?: string | null) => {
-  if (!value) return "";
-  const isoParts = value.split("-");
-  if (isoParts.length === 3) {
-    const [year, month, day] = isoParts;
-    return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
-  }
-  return value;
-};
-
-const toIsoDate = (value: string) => {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
-  if (!match) return null;
-  const [, dayStr, monthStr, yearStr] = match;
-  const day = Number(dayStr);
-  const month = Number(monthStr);
-  const year = Number(yearStr);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null;
-  }
-  const paddedMonth = monthStr.padStart(2, "0");
-  const paddedDay = dayStr.padStart(2, "0");
-  return `${yearStr}-${paddedMonth}-${paddedDay}`;
-};
+import { toDisplayDate, toIsoDate, formatDateInput } from "../../utils/date";
 
 const CompleteDetailsScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -63,7 +34,8 @@ const CompleteDetailsScreen: React.FC = () => {
   const [address, setAddress] = useState("");
   const [country, setCountry] = useState("");
   const [dob, setDob] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phoneE164, setPhoneE164] = useState<string | null>(null);
+  const [phoneValid, setPhoneValid] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [validating, setValidating] = useState(false);
@@ -78,11 +50,10 @@ const CompleteDetailsScreen: React.FC = () => {
       setAddress(data.address ?? "");
       setCountry(data.country_of_residence ?? "");
       setDob(toDisplayDate(data.date_of_birth));
-      // Only set phone if user doesn't have one (for new phone input)
-      if (!data.phone) {
-        setPhone("");
-      } else {
-        setPhone(data.phone);
+      // Set phone E.164 if user has one
+      setPhoneE164(data.phone ?? null);
+      if (data.phone) {
+        setPhoneValid(true);
       }
     }
   }, [data]);
@@ -99,8 +70,6 @@ const CompleteDetailsScreen: React.FC = () => {
     }
   }, [missing]);
 
-  const phoneRegex = /^\+?[0-9\s-]{7,15}$/;
-
   const derivedErrors = useMemo(() => {
     const next: Record<string, string> = {};
     if (!address.trim()) next.address = "Requerido";
@@ -111,14 +80,12 @@ const CompleteDetailsScreen: React.FC = () => {
       next.date_of_birth = "Usa formato dd/mm/aaaa";
     }
     if (needsPhone) {
-      if (!phone.trim()) {
-        next.phone = "Requerido";
-      } else if (!phoneRegex.test(phone.trim())) {
-        next.phone = "Teléfono inválido";
+      if (!phoneE164 || !phoneValid) {
+        next.phone = phoneE164 ? "Teléfono inválido" : "Requerido";
       }
     }
     return next;
-  }, [address, country, dob, phone, needsPhone]);
+  }, [address, country, dob, phoneE164, phoneValid, needsPhone]);
 
   const { mutateAsync: updateKyc, isPending: saving } = useMutation({
     mutationFn: meApi.updateKyc,
@@ -169,13 +136,16 @@ const CompleteDetailsScreen: React.FC = () => {
         address: string;
         country_of_residence: string;
         date_of_birth: string;
-        phone: string;
+        phone?: string;
       } = {
         address: address.trim(),
         country_of_residence: country.trim(),
-        date_of_birth: isoDob,
-        phone: phone.trim()
+        date_of_birth: isoDob
       };
+      
+      if (phoneE164) {
+        payload.phone = phoneE164;
+      }
 
       await updateKyc(payload);
       setValidating(true);
@@ -277,25 +247,26 @@ const CompleteDetailsScreen: React.FC = () => {
             label="Fecha de nacimiento (dd/mm/aaaa)"
             value={dob}
             onChangeText={(text) => {
-              setDob(text);
+              setDob(formatDateInput(text));
               setFieldErrors((prev) => ({ ...prev, date_of_birth: undefined }));
             }}
             placeholder="dd/mm/aaaa"
-            keyboardType="numbers-and-punctuation"
+            keyboardType="number-pad"
+            maxLength={10}
             onBlur={() => setTouched((prev) => ({ ...prev, date_of_birth: true }))}
             error={errorFor("date_of_birth")}
           />
           {needsPhone && (
-            <TextField
+            <PhoneInput
               label="Teléfono"
-              value={phone}
-              onChangeText={(text) => {
-                setPhone(text);
+              valueE164={phoneE164}
+              onChangeE164={(e164) => {
+                setPhoneE164(e164);
                 setFieldErrors((prev) => ({ ...prev, phone: undefined }));
               }}
-              placeholder="Ej: +593 99 123 4567"
-              keyboardType="phone-pad"
-              autoComplete="tel"
+              onValidChange={setPhoneValid}
+              required
+              placeholder="099 123 4567"
               onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
               error={errorFor("phone")}
             />

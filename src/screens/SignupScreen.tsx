@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import TextField from "../ui/components/TextField";
+import PhoneInput from "../ui/components/PhoneInput";
 import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
 import { useAuth } from "../auth/authStore";
@@ -22,26 +23,26 @@ const SignupScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phoneE164, setPhoneE164] = useState<string | null>(null);
+  const [phoneValid, setPhoneValid] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
-
-  const phoneRegex = /^\+?[0-9\s-]{7,15}$/;
 
   const handleSignup = async () => {
     setError(null);
     setFieldErrors({});
 
+    setPhoneTouched(true);
     const trimmedFirstName = firstName.trim();
     const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
-    const trimmedPhone = phone.trim();
 
     const nextErrors: Record<string, string> = {};
     if (!trimmedFirstName) nextErrors.first_name = "Requerido";
     if (!trimmedLastName) nextErrors.last_name = "Requerido";
     if (!trimmedEmail) nextErrors.email = "Requerido";
-    if (!trimmedPhone || !phoneRegex.test(trimmedPhone)) nextErrors.phone = "Teléfono inválido";
+    if (!phoneE164 || !phoneValid) nextErrors.phone = phoneE164 ? "Teléfono inválido" : "Teléfono requerido";
     if (!password) nextErrors.password = "Requerido";
     if (!confirmPassword) nextErrors.password_confirmation = "Confirma tu contraseña";
     if (password && confirmPassword && password !== confirmPassword)
@@ -53,13 +54,19 @@ const SignupScreen: React.FC = () => {
       return;
     }
 
+    if (!phoneE164) {
+      setFieldErrors((prev) => ({ ...prev, phone: "Teléfono requerido" }));
+      setError("Revisa los campos resaltados.");
+      return;
+    }
+
     const payload = {
       first_name: trimmedFirstName,
       last_name: trimmedLastName,
       email: trimmedEmail,
       password,
       password_confirmation: confirmPassword,
-      phone: trimmedPhone
+      phone: phoneE164
     };
 
     try {
@@ -109,7 +116,8 @@ const SignupScreen: React.FC = () => {
     email.trim() &&
     password &&
     confirmPassword &&
-    phoneRegex.test(phone.trim())
+    phoneE164 &&
+    phoneValid
   );
 
   return (
@@ -163,18 +171,19 @@ const SignupScreen: React.FC = () => {
             style={styles.inputSpacing}
             error={fieldErrors.email}
           />
-          <TextField
+          <PhoneInput
             label="Teléfono"
-            value={phone}
-            keyboardType="phone-pad"
-            onChangeText={(text) => {
-              setPhone(text);
+            valueE164={phoneE164}
+            onChangeE164={(e164) => {
+              setPhoneE164(e164);
               setFieldErrors((prev) => ({ ...prev, phone: undefined }));
             }}
-            autoComplete="tel"
+            onValidChange={setPhoneValid}
+            required
             style={styles.inputSpacing}
-            placeholder="+593..."
-            error={fieldErrors.phone}
+            placeholder="099 123 4567"
+            error={phoneTouched || fieldErrors.phone ? fieldErrors.phone : undefined}
+            onBlur={() => setPhoneTouched(true)}
           />
           <TextField
             label="Contraseña"

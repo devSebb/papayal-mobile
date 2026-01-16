@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -8,6 +8,7 @@ import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
 import TextField from "../../ui/components/TextField";
+import PhoneInput from "../../ui/components/PhoneInput";
 import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
@@ -24,19 +25,29 @@ const DeliveryProfileScreen: React.FC = () => {
   const { draft, setRecipient } = usePurchaseDraft();
   const [name, setName] = useState(draft.recipient?.name ?? "");
   const [email, setEmail] = useState(draft.recipient?.email ?? "");
-  const [phone, setPhone] = useState(draft.recipient?.phone ?? "");
+  const [phoneE164, setPhoneE164] = useState<string | null>(draft.recipient?.phone ?? null);
+  const [phoneValid, setPhoneValid] = useState(false);
   const [note, setNote] = useState(draft.recipient?.note ?? SAMPLE_RECIPIENT.note);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Check if phone is valid when E.164 changes
+  useEffect(() => {
+    if (phoneE164) {
+      setPhoneValid(true);
+    } else {
+      setPhoneValid(false);
+    }
+  }, [phoneE164]);
 
   const errors = useMemo(() => {
     const emailRegex = /\S+@\S+\.\S+/;
     const next: Record<string, string> = {};
     if (!name.trim()) next.name = "Requerido";
     if (!email.trim() || !emailRegex.test(email.trim())) next.email = "Correo inválido";
-    if (!phone.trim()) next.phone = "Teléfono requerido";
+    if (!phoneE164 || !phoneValid) next.phone = phoneE164 ? "Teléfono inválido" : "Teléfono requerido";
     if (note.length > 140) next.note = "Máximo 140 caracteres";
     return next;
-  }, [email, name, note, phone]);
+  }, [email, name, note, phoneE164, phoneValid]);
 
   const isValid = Object.keys(errors).length === 0;
 
@@ -46,7 +57,7 @@ const DeliveryProfileScreen: React.FC = () => {
     setRecipient({
       name: name.trim(),
       email: email.trim(),
-      phone: phone.trim(),
+      phone: phoneE164 || "",
       note: note.trim() ? note.trim() : undefined
     });
     navigation.navigate("PurchaseConfirmation");
@@ -90,12 +101,15 @@ const DeliveryProfileScreen: React.FC = () => {
             onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
             error={touched.email ? errors.email : undefined}
           />
-          <TextField
+          <PhoneInput
             label="Teléfono"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="+593..."
-            keyboardType="phone-pad"
+            valueE164={phoneE164}
+            onChangeE164={(e164) => {
+              setPhoneE164(e164);
+            }}
+            onValidChange={setPhoneValid}
+            required
+            placeholder="099 123 4567"
             onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
             error={touched.phone ? errors.phone : undefined}
           />

@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, View, Pressable, TouchableOpacity } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Feather } from "@expo/vector-icons";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
@@ -12,6 +14,7 @@ import { theme } from "../ui/theme";
 import { useAuth } from "../auth/authStore";
 import { HttpError } from "../api/http";
 import type { AuthStackParamList } from "../navigation";
+import { openLegal } from "../utils/openExternal";
 
 type AuthNav = NativeStackNavigationProp<AuthStackParamList>;
 
@@ -28,6 +31,8 @@ const SignupScreen: React.FC = () => {
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState<string | undefined>(undefined);
 
   const handleSignup = async () => {
     setError(null);
@@ -47,6 +52,13 @@ const SignupScreen: React.FC = () => {
     if (!confirmPassword) nextErrors.password_confirmation = "Confirma tu contraseña";
     if (password && confirmPassword && password !== confirmPassword)
       nextErrors.password_confirmation = "Las contraseñas no coinciden.";
+    
+    if (!termsAccepted) {
+      setTermsError("Debes aceptar los Términos y la Política de Privacidad para continuar.");
+      setFieldErrors(nextErrors);
+      setError("Debes aceptar los Términos y la Política de Privacidad para continuar.");
+      return;
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
@@ -71,6 +83,14 @@ const SignupScreen: React.FC = () => {
 
     try {
       await signup(payload);
+      // Store acceptance on successful signup
+      await AsyncStorage.setItem(
+        "legal_acceptance_v1",
+        JSON.stringify({
+          accepted: true,
+          accepted_at: new Date().toISOString()
+        })
+      );
     } catch (err) {
       const httpErr = err as HttpError;
       const details = httpErr?.error?.details;
@@ -117,7 +137,8 @@ const SignupScreen: React.FC = () => {
     password &&
     confirmPassword &&
     phoneE164 &&
-    phoneValid
+    phoneValid &&
+    termsAccepted
   );
 
   return (
@@ -209,15 +230,49 @@ const SignupScreen: React.FC = () => {
             style={styles.inputSpacing}
             error={fieldErrors.password_confirmation}
           />
-          <Pressable
-            onPress={() => {
-              const trimmedEmail = email.trim();
-              (navigation as any).navigate("ForgotPassword", trimmedEmail ? { email: trimmedEmail } : {});
-            }}
-            hitSlop={10}
-            style={styles.forgotPasswordLink}
-          >
-          </Pressable>
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() => {
+                setTermsAccepted(!termsAccepted);
+                setTermsError(undefined);
+                setError(null);
+              }}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  termsAccepted ? styles.checkboxChecked : null,
+                  termsError ? styles.checkboxError : null
+                ]}
+              >
+                {termsAccepted && (
+                  <Feather name="check" size={16} color={theme.colors.secondary} />
+                )}
+              </View>
+              <View style={styles.termsTextContainer}>
+                <Text style={styles.termsText}>
+                  He leído y acepto los{" "}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => openLegal("/legal/terminos")}
+                  >
+                    Términos
+                  </Text>
+                  {" "}y la{" "}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => openLegal("/legal/privacidad")}
+                  >
+                    Política de Privacidad
+                  </Text>
+                  .
+                </Text>
+              </View>
+            </TouchableOpacity>
+            {termsError ? <Text style={styles.termsError}>{termsError}</Text> : null}
+          </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
             label="Crear cuenta"
@@ -271,6 +326,53 @@ const styles = StyleSheet.create({
   },
   error: {
     color: theme.colors.danger
+  },
+  termsContainer: {
+    marginTop: theme.spacing(0.5),
+    marginBottom: theme.spacing(0.5)
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacing(1)
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2
+  },
+  checkboxError: {
+    borderColor: theme.colors.danger
+  },
+  checkboxChecked: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  termsTextContainer: {
+    flex: 1,
+    flexWrap: "wrap"
+  },
+  termsText: {
+    fontSize: theme.typography.small,
+    color: theme.colors.text,
+    lineHeight: 20
+  },
+  termsLink: {
+    color: theme.colors.primary,
+    fontWeight: "600",
+    textDecorationLine: "underline"
+  },
+  termsError: {
+    color: theme.colors.danger,
+    fontSize: theme.typography.small,
+    marginTop: theme.spacing(0.5),
+    marginLeft: theme.spacing(3.5)
   }
 });
 

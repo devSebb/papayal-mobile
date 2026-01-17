@@ -55,8 +55,8 @@ const ProfileScreen: React.FC = () => {
     return data?.name || "Usuario";
   }, [data]);
 
-  const handleOpenSettings = () => {
-    navigation.navigate("Settings");
+  const handleEditProfile = () => {
+    navigation.navigate("EditProfile");
   };
 
   const handleChangePhoto = async () => {
@@ -119,12 +119,12 @@ const ProfileScreen: React.FC = () => {
                     {data.role ? <Text style={styles.tag}>Rol: {data.role}</Text> : null}
                   </View>
                   <TouchableOpacity
-                    onPress={handleOpenSettings}
+                    onPress={handleEditProfile}
                     style={styles.settingsButton}
                     accessibilityRole="button"
-                    accessibilityLabel="Abrir ajustes"
+                    accessibilityLabel="Editar perfil"
                   >
-                    <Feather name="tool" size={20} color={theme.colors.text} />
+                    <Feather name="edit" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                 </View>
                 <Button
@@ -145,7 +145,19 @@ const ProfileScreen: React.FC = () => {
       </Card>
 
       <Card style={styles.helpCard}>
-        <Text style={styles.sectionTitle}>Ayuda</Text>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="settings" size={18} color={theme.colors.text} />
+          <Text style={styles.sectionTitle}>Ajustes</Text>
+        </View>
+        <Text style={styles.helpText}>Gestiona tu perfil y sesiones activas.</Text>
+        <Button label="Ir a Ajustes" onPress={() => navigation.navigate("Settings")} />
+      </Card>
+
+      <Card style={styles.helpCard}>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="help-circle" size={18} color={theme.colors.text} />
+          <Text style={styles.sectionTitle}>Ayuda</Text>
+        </View>
         <Text style={styles.helpText}>Encuentra respuestas rápidas o contacta a soporte.</Text>
         <Button label="Ir a Ayuda" onPress={() => navigation.navigate("Help")} />
       </Card>
@@ -254,10 +266,15 @@ const styles = StyleSheet.create({
   meta: {
     marginTop: theme.spacing(1.5)
   },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.75),
+    marginBottom: theme.spacing(0.5)
+  },
   sectionTitle: {
     fontSize: theme.typography.body,
-    fontWeight: "600",
-    marginBottom: theme.spacing(0.5)
+    fontWeight: "600"
   }
 });
 

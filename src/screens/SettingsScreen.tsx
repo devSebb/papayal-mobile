@@ -88,8 +88,8 @@ const SettingsScreen: React.FC = () => {
           loading={busyAction === "logoutAll"}
         />
         <Button
-          label="Términos y condiciones"
-          onPress={() => navigation.navigate("Terms")}
+          label="Legal y Privacidad"
+          onPress={() => navigation.navigate("LegalPrivacy")}
           variant="ghost"
           style={styles.button}
           disabled={!!busyAction}

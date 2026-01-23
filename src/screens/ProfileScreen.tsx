@@ -1,8 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,6 +12,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 
 import Screen from "../ui/components/Screen";
@@ -21,7 +23,7 @@ import { theme } from "../ui/theme";
 import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
 import { API_BASE_URL } from "../config/env";
-import { getLastRequestId } from "../api/http";
+import { getLastRequestId, HttpError } from "../api/http";
 import { ProfileStackParamList } from "../navigation";
 
 const avatarPlaceholder = require("../../assets/avatar-default.png");
@@ -31,24 +33,49 @@ const ProfileScreen: React.FC = () => {
   const { accessToken } = useAuth();
   const isQueryEnabled = !!accessToken;
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["me"],
     queryFn: meApi.me,
     enabled: isQueryEnabled
   });
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState<number>(Date.now());
+  const [avatarLoadError, setAvatarLoadError] = useState<boolean>(false);
   const { mutateAsync: uploadAvatar, isPending: uploading } = useMutation({
     mutationFn: meApi.uploadAvatar,
-    onSuccess: async () => {
+    onSuccess: async (updatedUser) => {
+      // Update cache immediately with new avatar URLs
+      queryClient.setQueryData(["me"], updatedUser);
+      // Invalidate to ensure fresh data
       await queryClient.invalidateQueries({ queryKey: ["me"] });
+      // Add cache buster to force image refresh
+      setAvatarCacheBuster(Date.now());
+      // Reset error state when new avatar is uploaded
+      setAvatarLoadError(false);
     }
   });
   const isBusy = isLoading || !accessToken;
 
+  // Reset error state when avatar URLs change, so we retry loading new URLs
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [data?.avatar_thumb_url, data?.avatar_url]);
+
   const requestId = useMemo(() => getLastRequestId(), [data]);
-  const avatarSource =
-    data?.avatar_thumb_url || data?.avatar_url
-      ? { uri: (data.avatar_thumb_url ?? data.avatar_url) as string }
-      : avatarPlaceholder;
+  const avatarSource = useMemo(() => {
+    // If there was a load error, use placeholder
+    if (avatarLoadError) {
+      return avatarPlaceholder;
+    }
+    const thumbUrl = data?.avatar_thumb_url;
+    const fullUrl = data?.avatar_url;
+    if (thumbUrl || fullUrl) {
+      const url = (thumbUrl ?? fullUrl) as string;
+      // Add cache buster query param to force refresh after upload
+      const separator = url.includes("?") ? "&" : "?";
+      return { uri: `${url}${separator}v=${avatarCacheBuster}` };
+    }
+    return avatarPlaceholder;
+  }, [data?.avatar_thumb_url, data?.avatar_url, avatarCacheBuster, avatarLoadError]);
   const displayName = useMemo(() => {
     const combined = [data?.first_name, data?.last_name].filter(Boolean).join(" ").trim();
     if (combined) return combined;
@@ -60,35 +87,167 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleChangePhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Permiso requerido", "Autoriza el acceso a tus fotos para cambiar tu avatar.");
-      return;
-    }
+    console.log("[ProfileScreen] handleChangePhoto called");
+    // Show action sheet to choose camera or library
+    Alert.alert(
+      "Cambiar foto de perfil",
+      "¿Cómo quieres agregar tu foto?",
+      [
+        {
+          text: "Cámara",
+          onPress: () => {
+            console.log("[ProfileScreen] Camera option selected");
+            handleImagePicker("camera");
+          }
+        },
+        {
+          text: "Galería",
+          onPress: () => {
+            console.log("[ProfileScreen] Library option selected");
+            handleImagePicker("library");
+          }
+        },
+        {
+          text: "Cancelar",
+          style: "cancel"
+        }
+      ],
+      { cancelable: true }
+    );
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85
-    });
-
-    if (result.canceled || !result.assets?.length) return;
-
-    const asset = result.assets[0];
-    const formData = new FormData();
-    formData.append("avatar", {
-      uri: asset.uri,
-      name: asset.fileName ?? "avatar.jpg",
-      type: asset.mimeType ?? "image/jpeg"
-    } as any);
-
+  const handleImagePicker = async (source: "camera" | "library") => {
     try {
+      console.log(`[ProfileScreen] handleImagePicker called with source: ${source}`);
+      
+      // Request appropriate permissions
+      if (source === "camera") {
+        console.log("[ProfileScreen] Requesting camera permissions...");
+        const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+        console.log("[ProfileScreen] Camera permission:", cameraPermission);
+        if (!cameraPermission.granted) {
+          Alert.alert(
+            "Permiso requerido",
+            "Autoriza el acceso a la cámara para tomar una foto."
+          );
+          return;
+        }
+      } else {
+        console.log("[ProfileScreen] Requesting media library permissions...");
+        const libraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        console.log("[ProfileScreen] Library permission:", libraryPermission);
+        if (!libraryPermission.granted) {
+          Alert.alert(
+            "Permiso requerido",
+            "Autoriza el acceso a tus fotos para seleccionar una imagen."
+          );
+          return;
+        }
+      }
+
+      // Launch image picker
+      const pickerOptions: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1.0 // Use full quality before manipulation
+      };
+
+      console.log(`[ProfileScreen] Launching ${source} picker...`);
+      const result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync(pickerOptions)
+          : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+
+      console.log("[ProfileScreen] Picker result:", { 
+        canceled: result.canceled, 
+        assetsCount: result.assets?.length 
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        console.log("[ProfileScreen] Picker was canceled or no assets");
+        return;
+      }
+
+      const asset = result.assets[0];
+      console.log("[ProfileScreen] Asset selected:", { 
+        uri: asset.uri?.substring(0, 50), 
+        width: asset.width, 
+        height: asset.height 
+      });
+      await processAndUploadImage(asset);
+    } catch (error) {
+      console.error("[ProfileScreen] Error in image picker:", error);
+      Alert.alert(
+        "Error", 
+        `No pudimos abrir la ${source === "camera" ? "cámara" : "galería"}. ${error instanceof Error ? error.message : "Inténtalo de nuevo."}`
+      );
+    }
+  };
+
+  const processAndUploadImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    try {
+      // Resize and compress image before upload
+      // Resize longest edge to 1080px while maintaining aspect ratio
+      const actions: ImageManipulator.Action[] = [];
+      if (asset.width && asset.height) {
+        const maxDimension = Math.max(asset.width, asset.height);
+        if (maxDimension > 1080) {
+          const ratio = 1080 / maxDimension;
+          actions.push({
+            resize: {
+              width: Math.round(asset.width * ratio),
+              height: Math.round(asset.height * ratio)
+            }
+          });
+        }
+        // If no resize needed, actions array stays empty and we just compress
+      } else {
+        // If dimensions unknown, resize to max 1080 on longest edge
+        actions.push({ resize: { width: 1080 } });
+      }
+
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        actions.length > 0 ? actions : undefined,
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG
+        }
+      );
+
+      // Create FormData with proper React Native format
+      const formData = new FormData();
+      const fileUri = manipulated.uri;
+      
+      // React Native FormData requires this exact structure
+      // The file object must have uri, name, and type
+      formData.append("avatar", {
+        uri: fileUri,
+        name: "avatar.jpg",
+        type: "image/jpeg"
+      } as any);
+      
+      console.log("[ProfileScreen] FormData prepared for upload:", {
+        uri: fileUri.substring(0, 80),
+        hasFormData: formData instanceof FormData,
+        formDataType: typeof formData
+      });
+
       await uploadAvatar(formData);
       Alert.alert("Perfil actualizado", "Tu foto ha sido actualizada.");
     } catch (error) {
-      console.error(error);
-      Alert.alert("Error al subir", "No pudimos actualizar tu foto. Inténtalo de nuevo.");
+      console.error("Error uploading avatar:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "Error desconocido";
+      Alert.alert(
+        "Error al subir",
+        `No pudimos actualizar tu foto. ${errorMessage}`
+      );
     }
   };
 
@@ -103,7 +262,14 @@ const ProfileScreen: React.FC = () => {
           <>
             <View style={styles.headerRow}>
               <View style={styles.avatarWrapper}>
-                <Image source={avatarSource} style={styles.avatar} />
+                <Image 
+                  source={avatarSource} 
+                  style={styles.avatar}
+                  onError={() => {
+                    // Fall back to placeholder if image fails to load
+                    setAvatarLoadError(true);
+                  }}
+                />
                 {uploading ? (
                   <View style={styles.avatarOverlay}>
                     <ActivityIndicator color="#fff" />
@@ -132,13 +298,41 @@ const ProfileScreen: React.FC = () => {
                   onPress={handleChangePhoto}
                   style={styles.changePhotoButton}
                   variant="secondary"
-                  labelStyle={styles.changePhotoLabel}
                   loading={uploading}
                   disabled={uploading}
                 />
               </View>
             </View>
           </>
+        ) : error ? (
+          <View>
+            <Text style={styles.error}>No pudimos cargar el perfil.</Text>
+            {__DEV__ && (() => {
+              const httpError = error as unknown as HttpError;
+              const errorMessage = 
+                httpError?.error?.message || 
+                httpError?.error?.code || 
+                (typeof httpError?.raw === 'string' ? httpError.raw : 
+                 httpError?.raw?.message || 
+                 JSON.stringify(httpError?.raw)?.slice(0, 200) ||
+                 (error instanceof Error ? error.message : "Unknown error"));
+              const status = httpError?.status;
+              return (
+                <View style={styles.errorDetails}>
+                  {status && <Text style={styles.errorDetail}>Status: {status}</Text>}
+                  <Text style={styles.errorDetail}>Error: {errorMessage}</Text>
+                  {httpError?.requestId && (
+                    <Text style={styles.errorDetail}>Request ID: {httpError.requestId}</Text>
+                  )}
+                  {httpError?.raw && typeof httpError.raw === 'object' && (
+                    <Text style={styles.errorDetail}>
+                      Raw: {JSON.stringify(httpError.raw).slice(0, 300)}
+                    </Text>
+                  )}
+                </View>
+              );
+            })()}
+          </View>
         ) : (
           <Text style={styles.error}>No pudimos cargar el perfil.</Text>
         )}
@@ -241,10 +435,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing(1.2),
     borderRadius: 10
   },
-  changePhotoLabel: {
-    fontSize: theme.typography.small,
-    fontWeight: "700"
-  },
   settingsButton: {
     padding: theme.spacing(1),
     borderRadius: theme.radius.md,
@@ -262,6 +452,15 @@ const styles = StyleSheet.create({
   },
   error: {
     color: theme.colors.danger
+  },
+  errorDetails: {
+    marginTop: theme.spacing(1),
+    gap: theme.spacing(0.5)
+  },
+  errorDetail: {
+    color: theme.colors.danger,
+    fontSize: theme.typography.small,
+    fontFamily: "monospace"
   },
   meta: {
     marginTop: theme.spacing(1.5)

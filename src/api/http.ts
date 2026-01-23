@@ -104,8 +104,16 @@ const buildHeaders = (base: Record<string, string>, body?: unknown) => {
     Accept: "application/json",
     ...base
   };
-  if (body && !(body instanceof FormData) && !headers["Content-Type"]) {
-    headers["Content-Type"] = "application/json";
+  // For FormData, DO NOT set Content-Type - let fetch set it with boundary
+  // Setting it manually will break multipart/form-data
+  if (body && !(body instanceof FormData)) {
+    if (!headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+  }
+  // Explicitly remove Content-Type for FormData if it was set
+  if (body instanceof FormData && headers["Content-Type"]) {
+    delete headers["Content-Type"];
   }
   const accessToken = authHandlers?.getAccessToken();
   if (accessToken) {
@@ -145,11 +153,30 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   logAuthHeader(path, method, bearer);
   if (__DEV__) {
     logRequestDebug(url, path, method, headers, body);
+    // Additional logging for FormData
+    if (body instanceof FormData) {
+      console.log("[http][formdata] FormData being sent, Content-Type should be set by fetch");
+      // Try to inspect FormData (React Native specific)
+      if ((body as any)._parts) {
+        console.log("[http][formdata] FormData parts:", (body as any)._parts.map((p: any) => ({
+          key: p[0],
+          valueType: typeof p[1],
+          valueKeys: p[1] && typeof p[1] === 'object' ? Object.keys(p[1]) : 'N/A'
+        })));
+      }
+    }
   }
   const init: RequestInit = { method, headers };
   if (body !== undefined) {
-    init.body =
-      body instanceof FormData || typeof body === "string" ? body : JSON.stringify(body);
+    if (body instanceof FormData) {
+      // Don't set Content-Type for FormData - let fetch set it with boundary
+      // React Native FormData needs this
+      init.body = body;
+    } else if (typeof body === "string") {
+      init.body = body;
+    } else {
+      init.body = JSON.stringify(body);
+    }
   }
 
   let response: Response;
@@ -195,6 +222,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (__DEV__) {
     logResponseDebug(url, method, response.status, response.ok, debugText);
+    // Log full error response for 500 errors
+    if (!response.ok && response.status >= 500 && debugText) {
+      console.error("[http][500_error]", {
+        url,
+        status: response.status,
+        body: debugText,
+        parsed
+      });
+    }
   }
   if (parsed?.request_id) {
     lastRequestId = parsed.request_id;

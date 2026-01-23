@@ -24,6 +24,7 @@
     "expo-image-picker": "~15.1.0",
     "expo-localization": "~15.0.3",
     "expo-secure-store": "~13.0.0",
+    "expo-splash-screen": "~0.27.7",
     "expo-status-bar": "~1.12.1",
     "expo-web-browser": "~13.0.3",
     "libphonenumber-js": "^1.12.34",

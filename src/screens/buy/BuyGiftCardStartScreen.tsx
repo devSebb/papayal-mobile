@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  FlatList,
   Image,
   Pressable,
   StyleSheet,
@@ -230,22 +229,17 @@ const BuyGiftCardStartScreen: React.FC = () => {
         {isMerchantBusy ? (
           <Text style={styles.muted}>Cargando comercios...</Text>
         ) : (
-          <View style={styles.merchantListContainer}>
-            <FlatList
-              data={merchantOptions}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+          <View style={styles.merchantList}>
+            {merchantOptions.map((item, index) => (
+              <React.Fragment key={item.id}>
+                {index > 0 && <View style={{ height: theme.spacing(1) }} />}
                 <MerchantCard
                   merchant={item}
                   selected={item.id === selectedMerchantId}
                   onPress={() => setSelectedMerchantId(item.id)}
                 />
-              )}
-              ItemSeparatorComponent={() => <View style={{ height: theme.spacing(1) }} />}
-              scrollEnabled={true}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-            />
+              </React.Fragment>
+            ))}
           </View>
         )}
       </Card>
@@ -404,12 +398,8 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: theme.typography.small
   },
-  merchantListContainer: {
-    // Height calculation: 3 merchants visible
-    // Each merchant row: ~75px (48px avatar + padding + text)
-    // 2 separators between 3 items: 2 * 8px = 16px
-    // Total: (75 * 3) + 16 = 241px, rounded to 250px for safety
-    maxHeight: 250
+  merchantList: {
+    gap: 0 // Spacing handled by separators in the map
   },
   amountGrid: {
     flexDirection: "row",

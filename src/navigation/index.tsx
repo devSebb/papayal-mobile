@@ -1,5 +1,4 @@
 import React from "react";
-import { ActivityIndicator } from "react-native";
 import { NavigationContainer, DefaultTheme, NavigatorScreenParams } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -22,7 +21,6 @@ import ActivityScreen from "../screens/ActivityScreen";
 import HelpScreen from "../screens/HelpScreen";
 import { useAuth } from "../auth/authStore";
 import { theme } from "../ui/theme";
-import Screen from "../ui/components/Screen";
 import BuyGiftCardStartScreen from "../screens/buy/BuyGiftCardStartScreen";
 import DeliveryProfileScreen from "../screens/buy/DeliveryProfileScreen";
 import PurchaseConfirmationScreen from "../screens/buy/PurchaseConfirmationScreen";
@@ -215,16 +213,10 @@ const navTheme = {
 };
 
 const RootNavigator = () => {
-  const { accessToken, hydrated } = useAuth();
+  const { accessToken } = useAuth();
 
-  if (!hydrated) {
-    return (
-      <Screen centerContent>
-        <ActivityIndicator color={theme.colors.primary} />
-      </Screen>
-    );
-  }
-
+  // BootGate ensures we only render after hydration is complete,
+  // so we can directly switch based on accessToken without a loading state.
   return (
     <NavigationContainer theme={navTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>

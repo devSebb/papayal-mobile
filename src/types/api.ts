@@ -58,6 +58,7 @@ export type Merchant = {
   logo_url?: string | null;
   contact_email?: string | null;
   address?: string | null;
+  categories?: string[];
   created_at?: string | null;
   updated_at?: string | null;
 };

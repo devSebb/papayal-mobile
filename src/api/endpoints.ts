@@ -133,6 +133,10 @@ export const merchantsApi = {
   list: async () => {
     const { data } = await request<Merchant[]>("/api/v1/merchants");
     return data;
+  },
+  detail: async (id: string) => {
+    const { data } = await request<Merchant>(`/api/v1/merchants/${id}`);
+    return data;
   }
 };
 

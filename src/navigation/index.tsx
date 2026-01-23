@@ -27,6 +27,7 @@ import PurchaseConfirmationScreen from "../screens/buy/PurchaseConfirmationScree
 import CompleteDetailsScreen from "../screens/buy/CompleteDetailsScreen";
 import StripePaymentScreen from "../screens/buy/StripePaymentScreen";
 import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
+import MerchantProfileScreen from "../screens/MerchantProfileScreen";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
 
 export type AuthStackParamList = {
@@ -39,7 +40,8 @@ export type AuthStackParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
-  BuyGiftCardStart: undefined;
+  MerchantProfile: { id: string };
+  BuyGiftCardStart: { merchantId?: string } | undefined;
   DeliveryProfile: undefined;
   PurchaseConfirmation: undefined;
   CompleteDetails:
@@ -89,6 +91,7 @@ const Tab = createBottomTabNavigator<AppTabsParamList>();
 const HomeStackNavigator = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />
+    <HomeStack.Screen name="MerchantProfile" component={MerchantProfileScreen} />
     <HomeStack.Screen name="BuyGiftCardStart" component={BuyGiftCardStartScreen} />
     <HomeStack.Screen name="DeliveryProfile" component={DeliveryProfileScreen} />
     <HomeStack.Screen

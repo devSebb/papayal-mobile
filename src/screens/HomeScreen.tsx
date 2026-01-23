@@ -186,7 +186,7 @@ const HomeScreen: React.FC = () => {
                   name={item.store_name || item.name}
                   logoUrl={item.logo_url}
                   onPress={() => {
-                    navigation.navigate("BuyGiftCardStart");
+                    navigation.navigate("MerchantProfile", { id: item.id });
                   }}
                 />
               </View>

@@ -1,69 +1,235 @@
-import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  BackHandler,
+  Pressable,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { CardField, useStripe } from "@stripe/stripe-react-native";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
-import TextField from "../../ui/components/TextField";
 import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { formatMoney } from "../../utils/money";
-import { createGiftCardPaymentIntent } from "../../api/payments";
+import {
+  createGiftCardPaymentIntent,
+  isPaymentError,
+  PaymentError
+} from "../../api/payments";
+
+type PaymentPhase = "input" | "processing" | "confirming" | "generating";
 
 const StripePaymentScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
-  const { draft, setIsDemoPayment } = usePurchaseDraft();
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvc, setCvc] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [banner, setBanner] = useState<string | null>(
-    "Pagos en modo demo — falta endpoint de PaymentIntent en el backend"
-  );
+  const { confirmPayment } = useStripe();
+  const { draft } = usePurchaseDraft();
 
+  const [cardComplete, setCardComplete] = useState(false);
+  const [phase, setPhase] = useState<PaymentPhase>("input");
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+
+  // Validate draft on mount
   useEffect(() => {
     if (!draft.merchant || !draft.amount_cents || !draft.recipient) {
       navigation.replace("BuyGiftCardStart");
     }
   }, [draft.amount_cents, draft.merchant, draft.recipient, navigation]);
 
+  // Prevent back navigation during payment processing
+  useEffect(() => {
+    const isProcessing = phase !== "input";
+
+    const onBackPress = () => {
+      if (isProcessing) {
+        // Block back button during payment
+        return true;
+      }
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [phase]);
+
   const amountLabel = formatMoney(
     draft.amount_cents ? draft.amount_cents / 100 : null,
     draft.currency
   );
 
-  const handlePay = async () => {
-    if (!draft.merchant || !draft.amount_cents || !draft.recipient) return;
-    setSubmitting(true);
-    setBanner(null);
+  const canPay =
+    cardComplete &&
+    draft.merchant?.id &&
+    draft.amount_cents &&
+    draft.amount_cents > 0 &&
+    (draft.recipient?.email || draft.recipient?.phone) &&
+    phase === "input";
 
-    let demoMode = false;
+  const handleCardChange = useCallback(
+    (cardDetails: { complete: boolean }) => {
+      setCardComplete(cardDetails.complete);
+      // Clear error when user modifies card
+      if (errorBanner) {
+        setErrorBanner(null);
+      }
+    },
+    [errorBanner]
+  );
+
+  const handlePay = async () => {
+    if (!canPay) return;
+
+    setErrorBanner(null);
+    setPhase("processing");
+
+    // Step 1: Create PaymentIntent on backend
+    let clientSecret: string;
+    let piId: string;
+
     try {
-      await createGiftCardPaymentIntent(draft);
-    } catch (error) {
-      demoMode = true;
-      setBanner("Pagos en modo demo — falta endpoint de PaymentIntent en el backend");
-    } finally {
-      setIsDemoPayment(demoMode);
-      setSubmitting(false);
-      navigation.navigate("PurchaseSuccess", {
-        merchantName: draft.merchant.name,
-        amountLabel,
-        recipientEmail: draft.recipient.email,
-        demo: demoMode
-      });
+      if (__DEV__) {
+        console.log("[StripePayment] Creating PaymentIntent for draft:", draft.draft_id);
+      }
+
+      const result = await createGiftCardPaymentIntent(draft);
+      clientSecret = result.clientSecret;
+      piId = result.paymentIntentId;
+      setPaymentIntentId(piId);
+
+      if (__DEV__) {
+        console.log("[StripePayment] PaymentIntent created:", piId);
+      }
+    } catch (err) {
+      if (__DEV__) {
+        console.error("[StripePayment] PaymentIntent creation failed:", err);
+      }
+
+      if (isPaymentError(err)) {
+        const paymentErr = err as PaymentError;
+
+        // Handle auth error - redirect to login
+        if (paymentErr.type === "auth") {
+          setErrorBanner(paymentErr.message);
+          setPhase("input");
+          // Could navigate to login here if needed
+          return;
+        }
+
+        setErrorBanner(paymentErr.message);
+      } else {
+        setErrorBanner("No se pudo procesar el pago. Intenta nuevamente.");
+      }
+
+      setPhase("input");
+      return;
     }
+
+    // Step 2: Confirm payment with Stripe SDK
+    setPhase("confirming");
+
+    try {
+      if (__DEV__) {
+        console.log("[StripePayment] Confirming payment with Stripe SDK");
+      }
+
+      const { error: confirmError, paymentIntent } = await confirmPayment(clientSecret, {
+        paymentMethodType: "Card"
+      });
+
+      if (confirmError) {
+        if (__DEV__) {
+          console.error("[StripePayment] Stripe confirm error:", confirmError);
+        }
+
+        // Map Stripe errors to user-friendly Spanish messages
+        const userMessage = mapStripeError(confirmError);
+        setErrorBanner(userMessage);
+        setPhase("input");
+        return;
+      }
+
+      if (__DEV__) {
+        console.log("[StripePayment] Payment confirmed:", paymentIntent?.id);
+      }
+    } catch (err) {
+      if (__DEV__) {
+        console.error("[StripePayment] Unexpected confirm error:", err);
+      }
+
+      setErrorBanner("Error al procesar el pago. Intenta nuevamente.");
+      setPhase("input");
+      return;
+    }
+
+    // Step 3: Payment succeeded, show "generating" state
+    setPhase("generating");
+
+    // Wait briefly for webhook to process (backend creates gift card asynchronously)
+    // Then navigate to success screen
+    await waitForGiftCardGeneration(piId);
+
+    navigation.navigate("PurchaseSuccess", {
+      merchantName: draft.merchant?.name,
+      amountLabel,
+      recipientEmail: draft.recipient?.email,
+      paymentIntentId: piId
+    });
   };
+
+  const handleGoBack = () => {
+    if (phase !== "input") return; // Block during processing
+    navigation.goBack();
+  };
+
+  // Render loading states
+  if (phase === "processing" || phase === "confirming") {
+    return (
+      <Screen scrollable centerContent>
+        <Card style={styles.loadingCard}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingTitle}>
+            {phase === "processing" ? "Preparando pago..." : "Procesando pago..."}
+          </Text>
+          <Text style={styles.loadingSubtitle}>
+            No cierres la aplicación
+          </Text>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (phase === "generating") {
+    return (
+      <Screen scrollable centerContent>
+        <Card style={styles.loadingCard}>
+          <View style={styles.successIcon}>
+            <Feather name="check" size={32} color="#fff" />
+          </View>
+          <Text style={styles.loadingTitle}>Pago confirmado</Text>
+          <Text style={styles.loadingSubtitle}>Generando tu tarjeta...</Text>
+          <ActivityIndicator
+            size="small"
+            color={theme.colors.primary}
+            style={{ marginTop: 16 }}
+          />
+        </Card>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scrollable>
       <View style={styles.navRow}>
         <Pressable
-          onPress={() => navigation.goBack()}
+          onPress={handleGoBack}
           hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Volver"
@@ -72,15 +238,18 @@ const StripePaymentScreen: React.FC = () => {
           <Feather name="arrow-left" size={22} color={theme.colors.text} />
         </Pressable>
       </View>
+
       <Text style={styles.header}>Pago</Text>
       <Text style={styles.subheader}>
-        Usa Stripe de forma segura. Por ahora estamos en modo demo mientras conectamos el backend.
+        Completa tu compra de forma segura con Stripe.
       </Text>
 
-      {banner ? (
-        <Card style={[styles.sectionCard, styles.banner]}>
-          <Text style={styles.bannerTitle}>Modo demo</Text>
-          <Text style={styles.bannerText}>{banner}</Text>
+      {errorBanner ? (
+        <Card style={[styles.sectionCard, styles.errorBanner]}>
+          <View style={styles.errorRow}>
+            <Feather name="alert-circle" size={18} color="#C62828" />
+            <Text style={styles.errorText}>{errorBanner}</Text>
+          </View>
         </Card>
       ) : null}
 
@@ -102,56 +271,119 @@ const StripePaymentScreen: React.FC = () => {
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Método de pago</Text>
-          <Text style={styles.sectionHint}>Stripe CardField (simulado)</Text>
+          <View style={styles.stripeSecure}>
+            <Feather name="lock" size={12} color={theme.colors.muted} />
+            <Text style={styles.stripeSecureText}>Pago seguro</Text>
+          </View>
         </View>
-        <View style={styles.fakeCard}>
-          <View style={styles.fakeCardHeader}>
-            <Text style={styles.fakeCardTitle}>Tarjeta (demo)</Text>
-            <Feather name="credit-card" size={18} color={theme.colors.secondary} />
-          </View>
-          <TextField
-            label="Número"
-            value={cardNumber}
-            onChangeText={setCardNumber}
-            placeholder="4242 4242 4242 4242"
-            keyboardType="number-pad"
-          />
-          <View style={styles.fakeRow}>
-            <View style={{ flex: 1 }}>
-              <TextField
-                label="Expiración"
-                value={expiry}
-                onChangeText={setExpiry}
-                placeholder="MM/AA"
-                keyboardType="number-pad"
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <TextField
-                label="CVC"
-                value={cvc}
-                onChangeText={setCvc}
-                placeholder="123"
-                keyboardType="number-pad"
-              />
-            </View>
-          </View>
-          <Text style={styles.helperText}>
-            UI de pago simulada. Cuando el backend exponga PaymentIntent enviaremos solo el
-            client_secret al móvil.
+
+        <CardField
+          postalCodeEnabled={false}
+          placeholders={{
+            number: "4242 4242 4242 4242"
+          }}
+          cardStyle={{
+            backgroundColor: "#F8FAFB",
+            textColor: theme.colors.text,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: 12,
+            fontSize: 16,
+            placeholderColor: theme.colors.muted
+          }}
+          style={styles.cardField}
+          onCardChange={handleCardChange}
+        />
+
+        <View style={styles.stripeFooter}>
+          <Feather name="shield" size={14} color={theme.colors.muted} />
+          <Text style={styles.stripeFooterText}>
+            Pago seguro con Stripe. Nunca almacenamos tu tarjeta.
           </Text>
         </View>
       </Card>
 
       <Button
-        label="Pagar (modo demo)"
+        label={`Pagar ${amountLabel}`}
         onPress={handlePay}
-        loading={submitting}
-        style={styles.payButton}
+        disabled={!canPay}
+        style={[styles.payButton, !canPay && styles.payButtonDisabled]}
       />
     </Screen>
   );
 };
+
+/**
+ * Maps Stripe SDK errors to user-friendly Spanish messages.
+ */
+function mapStripeError(error: { code?: string; message?: string; declineCode?: string }): string {
+  const { code, declineCode } = error;
+
+  // Card declined errors
+  if (code === "card_declined" || declineCode) {
+    switch (declineCode) {
+      case "insufficient_funds":
+        return "Fondos insuficientes. Usa otra tarjeta.";
+      case "lost_card":
+      case "stolen_card":
+        return "Esta tarjeta no puede ser utilizada. Contacta a tu banco.";
+      case "expired_card":
+        return "Tu tarjeta está vencida. Usa otra tarjeta.";
+      case "incorrect_cvc":
+        return "El código de seguridad es incorrecto.";
+      case "processing_error":
+        return "Error al procesar. Intenta nuevamente.";
+      default:
+        return "Tu tarjeta fue rechazada. Verifica los datos o usa otra tarjeta.";
+    }
+  }
+
+  // Other common errors
+  if (code === "incorrect_number") {
+    return "El número de tarjeta es incorrecto.";
+  }
+  if (code === "invalid_expiry_month" || code === "invalid_expiry_year") {
+    return "La fecha de expiración es inválida.";
+  }
+  if (code === "incorrect_cvc") {
+    return "El código de seguridad es incorrecto.";
+  }
+  if (code === "expired_card") {
+    return "Tu tarjeta está vencida. Usa otra tarjeta.";
+  }
+
+  // Network/connectivity
+  if (code === "api_connection_error") {
+    return "Error de conexión. Verifica tu internet e intenta nuevamente.";
+  }
+
+  // Generic fallback - only use Stripe's message if it's safe
+  return "No se pudo procesar el pago. Verifica los datos e intenta nuevamente.";
+}
+
+/**
+ * Waits for the gift card to be generated by the webhook.
+ * Uses a simple delay since the backend creates the card asynchronously.
+ *
+ * TODO: If a status endpoint exists (e.g., GET /api/v1/gift_cards/by_payment_intent/:id),
+ * implement polling here instead of a fixed delay.
+ */
+async function waitForGiftCardGeneration(_paymentIntentId: string): Promise<void> {
+  // For now, wait 3 seconds to give webhook time to process
+  // The success screen will inform user that the card may take a moment to appear
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  // TODO: Implement polling when endpoint is available:
+  // const MAX_ATTEMPTS = 8;
+  // const POLL_INTERVAL = 1500;
+  // for (let i = 0; i < MAX_ATTEMPTS; i++) {
+  //   try {
+  //     const result = await giftCardApi.getByPaymentIntent(paymentIntentId);
+  //     if (result) return;
+  //   } catch {}
+  //   await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+  // }
+}
 
 const styles = StyleSheet.create({
   header: {
@@ -195,16 +427,20 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: theme.typography.small
   },
-  banner: {
-    backgroundColor: "#FFF7E6",
-    borderColor: theme.colors.primary
+  errorBanner: {
+    backgroundColor: "#FFEBEE",
+    borderColor: "#EF5350",
+    borderWidth: 1
   },
-  bannerTitle: {
-    color: theme.colors.secondary,
-    fontWeight: "800"
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8
   },
-  bannerText: {
-    color: theme.colors.text
+  errorText: {
+    color: "#C62828",
+    flex: 1,
+    lineHeight: 20
   },
   summaryRow: {
     flexDirection: "row",
@@ -219,36 +455,62 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: "700"
   },
-  fakeCard: {
-    gap: theme.spacing(1),
-    backgroundColor: "#F8FAFB",
-    borderRadius: 14,
-    padding: theme.spacing(1.2),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+  cardField: {
+    width: "100%",
+    height: 50,
+    marginVertical: 8
   },
-  fakeCardHeader: {
+  stripeSecure: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
+    alignItems: "center",
+    gap: 4
   },
-  fakeCardTitle: {
-    color: theme.colors.secondary,
-    fontWeight: "700"
-  },
-  fakeRow: {
-    flexDirection: "row",
-    gap: theme.spacing(1)
-  },
-  helperText: {
+  stripeSecureText: {
     color: theme.colors.muted,
     fontSize: theme.typography.small
+  },
+  stripeFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4
+  },
+  stripeFooterText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.small,
+    flex: 1
   },
   payButton: {
     paddingVertical: theme.spacing(1.4),
     borderRadius: 18
+  },
+  payButtonDisabled: {
+    opacity: 0.5
+  },
+  loadingCard: {
+    width: "100%",
+    alignItems: "center",
+    paddingVertical: theme.spacing(4),
+    gap: theme.spacing(1)
+  },
+  loadingTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: theme.colors.text,
+    marginTop: theme.spacing(1)
+  },
+  loadingSubtitle: {
+    color: theme.colors.muted,
+    textAlign: "center"
+  },
+  successIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: theme.colors.success,
+    alignItems: "center",
+    justifyContent: "center"
   }
 });
 
 export default StripePaymentScreen;
-

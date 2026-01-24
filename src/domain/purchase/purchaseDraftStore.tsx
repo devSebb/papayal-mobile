@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
+import { generateUUID } from "../../utils/uuid";
 
 export type MerchantSelection = {
   id?: string;
@@ -14,11 +15,12 @@ export type RecipientInfo = {
 };
 
 export type PurchaseDraft = {
+  /** Unique ID for this draft, used for idempotency with backend */
+  draft_id: string;
   merchant: MerchantSelection | null;
   amount_cents: number | null;
   currency: string;
   recipient: RecipientInfo | null;
-  isDemoPayment: boolean;
 };
 
 type PurchaseDraftContextValue = {
@@ -26,22 +28,21 @@ type PurchaseDraftContextValue = {
   setMerchant: (merchant: MerchantSelection | null) => void;
   setAmount: (amountCents: number | null, currency?: string) => void;
   setRecipient: (recipient: RecipientInfo | null) => void;
-  setIsDemoPayment: (isDemo: boolean) => void;
   resetDraft: () => void;
 };
 
-const initialDraft: PurchaseDraft = {
+const createInitialDraft = (): PurchaseDraft => ({
+  draft_id: generateUUID(),
   merchant: null,
   amount_cents: null,
   currency: "USD",
-  recipient: null,
-  isDemoPayment: true
-};
+  recipient: null
+});
 
 const PurchaseDraftContext = createContext<PurchaseDraftContextValue | undefined>(undefined);
 
 export const PurchaseDraftProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [draft, setDraft] = useState<PurchaseDraft>(initialDraft);
+  const [draft, setDraft] = useState<PurchaseDraft>(createInitialDraft);
 
   const setMerchant = (merchant: MerchantSelection | null) =>
     setDraft((prev) => ({ ...prev, merchant }));
@@ -56,13 +57,11 @@ export const PurchaseDraftProvider: React.FC<{ children: React.ReactNode }> = ({
   const setRecipient = (recipient: RecipientInfo | null) =>
     setDraft((prev) => ({ ...prev, recipient }));
 
-  const setIsDemoPayment = (isDemo: boolean) =>
-    setDraft((prev) => ({ ...prev, isDemoPayment: isDemo }));
-
-  const resetDraft = () => setDraft(initialDraft);
+  /** Resets draft completely and generates a new draft_id for the next purchase */
+  const resetDraft = () => setDraft(createInitialDraft());
 
   const value = useMemo<PurchaseDraftContextValue>(
-    () => ({ draft, setMerchant, setAmount, setRecipient, setIsDemoPayment, resetDraft }),
+    () => ({ draft, setMerchant, setAmount, setRecipient, resetDraft }),
     [draft]
   );
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
@@ -11,19 +11,17 @@ import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 
-type RouteProps = {
-  params?: HomeStackParamList["PurchaseSuccess"];
-};
+type PurchaseSuccessRouteProp = RouteProp<HomeStackParamList, "PurchaseSuccess">;
 
 const PurchaseSuccessScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
-  const route = useRoute<RouteProps>();
+  const route = useRoute<PurchaseSuccessRouteProp>();
   const { resetDraft } = usePurchaseDraft();
 
   const merchantName = route.params?.merchantName ?? "Tarjeta de regalo";
   const amountLabel = route.params?.amountLabel ?? "";
   const recipientEmail = route.params?.recipientEmail ?? "";
-  const isDemo = route.params?.demo ?? true;
+  const paymentIntentId = route.params?.paymentIntentId;
 
   // Only reset draft when leaving the screen, not when mounting
   useFocusEffect(
@@ -58,32 +56,49 @@ const PurchaseSuccessScreen: React.FC = () => {
     <Screen scrollable centerContent>
       <View style={styles.navRow}>
         <Pressable
-          onPress={() => navigation.goBack()}
+          onPress={goToHome}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Volver"
+          accessibilityLabel="Cerrar"
           style={styles.backButton}
         >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
+          <Feather name="x" size={22} color={theme.colors.text} />
         </Pressable>
       </View>
+
       <Card style={styles.card}>
         <View style={styles.iconCircle}>
           <Feather name="check" size={32} color="#fff" />
         </View>
-        <Text style={styles.title}>¡Listo!</Text>
+        <Text style={styles.title}>¡Pago confirmado!</Text>
         <Text style={styles.subtitle}>
-          Compra completada{isDemo ? " (demo)" : ""}. Verás la tarjeta en tu billetera.
+          Tu pago fue procesado exitosamente.
         </Text>
 
         <View style={styles.summary}>
-          {isDemo ? <Text style={styles.demoPill}>Compra simulada (demo)</Text> : null}
           <Text style={styles.summaryText}>{merchantName}</Text>
           {amountLabel ? <Text style={styles.summaryAmount}>{amountLabel}</Text> : null}
           {recipientEmail ? (
             <Text style={styles.summaryRecipient}>Destinatario: {recipientEmail}</Text>
           ) : null}
         </View>
+
+        {/* Info notice about gift card generation - webhook delay messaging */}
+        <View style={styles.infoBox}>
+          <Feather name="clock" size={16} color={theme.colors.secondary} />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoText}>
+              La tarjeta puede tardar unos segundos en aparecer en tu billetera.
+            </Text>
+            <Text style={styles.infoHint}>
+              Si no la ves de inmediato, desliza para actualizar.
+            </Text>
+          </View>
+        </View>
+
+        {__DEV__ && paymentIntentId ? (
+          <Text style={styles.debugText}>PaymentIntent: {paymentIntentId}</Text>
+        ) : null}
 
         <View style={styles.actions}>
           <Button
@@ -143,6 +158,7 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
     marginBottom: theme.spacing(1)
   },
   backButton: {
@@ -159,16 +175,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: theme.spacing(0.5)
   },
-  demoPill: {
-    backgroundColor: "#FFF7E6",
-    color: theme.colors.secondary,
-    paddingHorizontal: theme.spacing(1),
-    paddingVertical: theme.spacing(0.4),
-    borderRadius: 999,
-    fontWeight: "700",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.primary
-  },
   summaryText: {
     fontWeight: "700",
     color: theme.colors.text,
@@ -181,6 +187,37 @@ const styles = StyleSheet.create({
   },
   summaryRecipient: {
     color: theme.colors.muted
+  },
+  infoBox: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FFF7E6",
+    padding: theme.spacing(1.2),
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.primary,
+    marginTop: theme.spacing(1)
+  },
+  infoContent: {
+    flex: 1,
+    gap: 4
+  },
+  infoText: {
+    color: theme.colors.text,
+    fontSize: theme.typography.small,
+    lineHeight: 18
+  },
+  infoHint: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.small - 1,
+    fontStyle: "italic"
+  },
+  debugText: {
+    color: theme.colors.muted,
+    fontSize: 10,
+    fontFamily: "monospace"
   },
   actions: {
     width: "100%",
@@ -209,4 +246,3 @@ const styles = StyleSheet.create({
 });
 
 export default PurchaseSuccessScreen;
-

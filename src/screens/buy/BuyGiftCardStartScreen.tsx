@@ -122,7 +122,7 @@ const MerchantCard: React.FC<{
 const BuyGiftCardStartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { accessToken } = useAuth();
-  const { draft, setMerchant, setAmount, setIsDemoPayment } = usePurchaseDraft();
+  const { draft, setMerchant, setAmount } = usePurchaseDraft();
   const isQueryEnabled = !!accessToken;
   const { data: giftCards, isLoading } = useQuery({
     queryKey: ["giftCards"],
@@ -193,7 +193,6 @@ const BuyGiftCardStartScreen: React.FC = () => {
       logoUrl: selectedMerchant.logoUrl
     });
     setAmount(amountCents, "USD");
-    setIsDemoPayment(true);
     navigation.navigate("DeliveryProfile");
   };
 

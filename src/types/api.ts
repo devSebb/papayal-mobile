@@ -24,6 +24,15 @@ export type User = {
   avatar_thumb_url?: string | null;
 };
 
+export type GiftCardSender = {
+  id: string;
+  name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+};
+
 export type GiftCard = {
   id: string;
   merchant_id?: string;
@@ -41,6 +50,10 @@ export type GiftCard = {
   expires_at?: string | null;
   sender_id?: string | null;
   recipient_id?: string | null;
+  /** Sender details (only present on received gift cards) */
+  sender?: GiftCardSender | null;
+  /** Optional note/message from sender */
+  note?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

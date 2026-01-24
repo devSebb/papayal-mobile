@@ -13,7 +13,8 @@ type AuthNav = NativeStackNavigationProp<AuthStackParamList, "Welcome">;
 
 type FeatherIconName = ComponentProps<typeof Feather>["name"];
 
-const heroImage = require("../../assets/home-hero.png");
+const textImage = require("../../assets/Papayal-text.png");
+const logoTagImage = require("../../assets/Papayal-logoTag.png");
 
 const trustBadges = [
   { icon: "shield" as FeatherIconName, label: "Seguro" },
@@ -79,16 +80,19 @@ const WelcomeScreen: React.FC = () => {
   return (
     <Screen style={styles.container} edges={["top", "bottom", "left", "right"]}>
       <Animated.View style={[styles.heroBlock, { opacity: fadeAnim, transform: [{ translateY: translateContent }] }]}>
-        <View style={styles.logoWrap}>
-          <Text style={styles.logo}>Papayal</Text>
-          <View style={styles.logoAccent} />
+        <View style={styles.logoColumn}>
+          <Animated.View style={[styles.logoTagWrap, { transform: [{ translateY: floatAnim }, { scale: pulseAnim }] }]}>
+            <Image source={logoTagImage} style={styles.logoTagImage} />
+          </Animated.View>
+          <View style={styles.textContainer}>
+            <Image source={textImage} style={styles.textImage} />
+            <View style={styles.textAccent} />
+          </View>
         </View>
-        <Text style={styles.title}>Envía Tarjetas de Regalo al Ecuador</Text>
-        <Text style={styles.subtitle}>Desde donde sea, en segundos y con respaldo.</Text>
-
-        <Animated.View style={[styles.heroImageWrap, { transform: [{ translateY: floatAnim }, { scale: pulseAnim }] }]}>
-          <Image source={heroImage} style={styles.heroImage} />
-        </Animated.View>
+        <View style={styles.headingContainer}>
+          <Text style={styles.title}>Envía {"\n"}Tarjetas de Regalo {"\n"}al Ecuador</Text>
+          <Text style={styles.subtitle}>Desde donde sea, en segundos y con respaldo.</Text>
+        </View>
       </Animated.View>
 
       <Animated.View style={[styles.callout, { opacity: fadeAnim, transform: [{ translateY: translateContent }] }]}>
@@ -131,51 +135,54 @@ const styles = StyleSheet.create({
   },
   heroBlock: {
     width: "100%",
-    gap: theme.spacing(1.5)
+    gap: theme.spacing(4),
+    alignItems: "center"
   },
-  logoWrap: {
-    alignItems: "flex-start",
-    gap: theme.spacing(0.5)
+  logoColumn: {
+    alignItems: "center",
+    gap: theme.spacing(2),
+    marginTop: theme.spacing(4)
   },
-  logo: {
-    fontSize: 62,
-    fontWeight: "800",
-    color: theme.colors.secondary,
-    letterSpacing: 0.6
+  textContainer: {
+    alignItems: "center"
   },
-  logoAccent: {
-    width: 95,
-    height: 5,
+  textImage: {
+    width: 300,
+    height: 80,
+    resizeMode: "contain"
+  },
+  textAccent: {
+    width: 300,
+    height: 4,
+    marginTop: 5,
     backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.md / 2
+    borderRadius: 2
+  },
+  logoTagWrap: {
+    alignSelf: "center",
+    backgroundColor: "transparent"
+  },
+  logoTagImage: {
+    width: 140,
+    height: 140,
+    resizeMode: "contain"
+  },
+  headingContainer: {
+    alignItems: "center",
+    gap: theme.spacing(0.5)
   },
   title: {
     fontSize: 32,
     fontWeight: "800",
     color: theme.colors.text,
-    lineHeight: 34,
-    paddingTop: theme.spacing(2),
+    lineHeight: 40,
+    textAlign: "center"
   },
   subtitle: {
     fontSize: theme.typography.subheading,
     color: theme.colors.muted,
-    lineHeight: 26
-  },
-  heroImageWrap: {
-    alignSelf: "center",
-    backgroundColor: "transparent",
-    padding: theme.spacing(1.5),
-    borderRadius: theme.radius.lg * 1.4,
-    shadowColor: theme.colors.secondary,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 0
-  },
-  heroImage: {
-    width: 240,
-    height: 240,
-    resizeMode: "contain"
+    lineHeight: 26,
+    textAlign: "center"
   },
   callout: {
     width: "100%",

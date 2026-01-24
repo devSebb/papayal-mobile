@@ -3,6 +3,7 @@ import { RouteProp, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import { Barcode } from "expo-barcode-generator";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
@@ -83,6 +84,19 @@ const RedemptionTokenScreen: React.FC = () => {
             <View style={styles.qrWrapper}>
               <QRCode value={data.token} size={180} />
             </View>
+            <View style={styles.barcodeWrapper}>
+              <Barcode
+                value={data.token}
+                options={{
+                  format: "CODE128",
+                  width: 2,
+                  height: 70,
+                  displayValue: false,
+                  margin: 10,
+                  background: theme.colors.card
+                }}
+              />
+            </View>
             <Text style={styles.tokenText}>{data.token}</Text>
             <Text style={styles.muted}>Expira: {data.expires_at}</Text>
             <Text style={styles.countdown}>Tiempo restante: {formatCountdown(remaining)}</Text>
@@ -138,6 +152,14 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border
+  },
+  barcodeWrapper: {
+    padding: theme.spacing(1),
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    overflow: "hidden"
   },
   cooldown: {
     color: theme.colors.muted,

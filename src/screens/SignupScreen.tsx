@@ -329,12 +329,14 @@ const styles = StyleSheet.create({
   },
   termsContainer: {
     marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(0.5)
+    marginBottom: theme.spacing(0.5),
+    width: "100%"
   },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: theme.spacing(1)
+    gap: theme.spacing(1),
+    width: "100%"
   },
   checkbox: {
     width: 20,
@@ -356,7 +358,8 @@ const styles = StyleSheet.create({
   },
   termsTextContainer: {
     flex: 1,
-    flexWrap: "wrap"
+    flexShrink: 1,
+    overflow: "hidden"
   },
   termsText: {
     fontSize: theme.typography.small,

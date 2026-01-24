@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
@@ -8,25 +8,60 @@ import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
-import { giftCardApi } from "../api/endpoints";
+import { giftCardApi, meApi } from "../api/endpoints";
 import { WalletStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import { centsToDollars, formatMoney } from "../utils/money";
+import { getInitials } from "../utils/initials";
 
 const merchantPlaceholder = require("../../assets/merchant-default.png");
+const avatarPlaceholder = require("../../assets/avatar-default.png");
 
 const GiftCardDetailScreen: React.FC = () => {
   const route = useRoute<RouteProp<WalletStackParamList, "GiftCardDetail">>();
   const navigation = useNavigation<NativeStackNavigationProp<WalletStackParamList>>();
   const { id } = route.params;
   const { accessToken } = useAuth();
-  const isQueryEnabled = !!accessToken;
+  const isSignedIn = !!accessToken;
+
+  // Fetch current user
+  const { data: currentUser } = useQuery({
+    queryKey: ["me"],
+    queryFn: meApi.me,
+    enabled: isSignedIn
+  });
+
+  // Fetch gift card detail
   const { data, isLoading, error } = useQuery({
     queryKey: ["giftCard", id],
     queryFn: () => giftCardApi.detail(id),
-    enabled: isQueryEnabled
+    enabled: isSignedIn
   });
-  const isBusy = !isQueryEnabled || isLoading;
+
+  const isBusy = !isSignedIn || isLoading;
+
+  // Determine if we should show sender info:
+  // - User must be signed in
+  // - Gift card must be received by the current user (not sent by them)
+  const shouldShowSender = useMemo(() => {
+    if (!isSignedIn || !currentUser?.id || !data?.recipient_id) return false;
+    // Only show if the current user is the recipient (received card)
+    return data.recipient_id === currentUser.id;
+  }, [isSignedIn, currentUser?.id, data?.recipient_id]);
+
+  // Derive sender display name
+  const senderDisplayName = useMemo(() => {
+    if (!data?.sender) return null;
+    return (
+      data.sender.full_name?.trim() ||
+      [data.sender.name, data.sender.last_name].filter(Boolean).join(" ").trim() ||
+      data.sender.name?.trim() ||
+      null
+    );
+  }, [data?.sender]);
+
+  // Check if there's a valid note to display
+  const hasNote = Boolean(data?.note?.trim());
 
   const amount = centsToDollars(data?.amount_cents);
   const remaining = centsToDollars(data?.remaining_balance_cents);
@@ -78,6 +113,47 @@ const GiftCardDetailScreen: React.FC = () => {
             <Text style={styles.label}>Estado</Text>
             <Text style={styles.value}>{statusLabel}</Text>
           </View>
+
+          {/* Sender info - only shown for received gift cards */}
+          {shouldShowSender && data.sender ? (
+            <View style={styles.senderSection}>
+              <Text style={styles.sectionLabel}>De</Text>
+              <View style={styles.senderRow}>
+                <View style={styles.senderAvatarWrapper}>
+                  {data.sender.avatar_url ? (
+                    <Image
+                      source={{ uri: data.sender.avatar_url }}
+                      style={styles.senderAvatar}
+                    />
+                  ) : (
+                    <>
+                      <Image source={avatarPlaceholder} style={styles.senderAvatar} />
+                      <Text style={styles.senderInitials}>
+                        {getInitials(senderDisplayName)}
+                      </Text>
+                    </>
+                  )}
+                </View>
+                <View style={styles.senderInfo}>
+                  <Text style={styles.senderName}>{senderDisplayName || "—"}</Text>
+                  {data.sender.email ? (
+                    <Text style={styles.senderEmail}>{data.sender.email}</Text>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Note/message - only shown for received gift cards with a note */}
+          {shouldShowSender && hasNote ? (
+            <View style={styles.noteSection}>
+              <Text style={styles.sectionLabel}>Mensaje</Text>
+              <View style={styles.noteBox}>
+                <Text style={styles.noteText}>{data.note}</Text>
+              </View>
+            </View>
+          ) : null}
+
           {canRedeem ? (
             <Button
               label="Generar token de canje"
@@ -151,6 +227,79 @@ const styles = StyleSheet.create({
   error: {
     color: theme.colors.danger,
     marginBottom: theme.spacing(1)
+  },
+  // Sender section styles
+  senderSection: {
+    marginTop: theme.spacing(2),
+    paddingTop: theme.spacing(2),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border
+  },
+  sectionLabel: {
+    fontSize: theme.typography.small,
+    color: theme.colors.muted,
+    fontWeight: "600",
+    marginBottom: theme.spacing(1),
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  senderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(1.5)
+  },
+  senderAvatarWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: theme.colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  senderAvatar: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover"
+  },
+  senderInitials: {
+    position: "absolute",
+    color: theme.colors.secondary,
+    fontWeight: "700",
+    fontSize: theme.typography.body
+  },
+  senderInfo: {
+    flex: 1,
+    gap: theme.spacing(0.25)
+  },
+  senderName: {
+    fontSize: theme.typography.body,
+    fontWeight: "600",
+    color: theme.colors.text
+  },
+  senderEmail: {
+    fontSize: theme.typography.small,
+    color: theme.colors.muted
+  },
+  // Note section styles
+  noteSection: {
+    marginTop: theme.spacing(2),
+    paddingTop: theme.spacing(2),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border
+  },
+  noteBox: {
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.radius.sm,
+    padding: theme.spacing(1.5)
+  },
+  noteText: {
+    fontSize: theme.typography.body,
+    color: theme.colors.text,
+    fontStyle: "italic",
+    lineHeight: 24
   }
 });
 

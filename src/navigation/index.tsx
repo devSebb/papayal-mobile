@@ -55,7 +55,7 @@ export type HomeStackParamList = {
     merchantName?: string;
     amountLabel?: string;
     recipientEmail?: string;
-    demo?: boolean;
+    paymentIntentId?: string;
   };
 };
 

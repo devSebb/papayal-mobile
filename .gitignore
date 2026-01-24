@@ -36,3 +36,7 @@ ios/build/
 # misc
 .DS_Store
 
+# Environment files (never commit secrets!)
+.env
+.env.local
+.env.*.local

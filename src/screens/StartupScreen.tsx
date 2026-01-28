@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, StyleSheet, useWindowDimensions, View } from 
 
 import { theme } from "../ui/theme";
 
-const logo = require("../../assets/Papayal-logoV2.png");
+const logo = require("../../assets/Papayal-logoTag.png");
 
 /**
  * Branded loading screen shown during app boot.

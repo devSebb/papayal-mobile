@@ -33,6 +33,13 @@ const StripePaymentScreen: React.FC = () => {
   const { draft } = usePurchaseDraft();
 
   const [cardComplete, setCardComplete] = useState(false);
+  const [cardDetails, setCardDetails] = useState<{
+    complete: boolean;
+    brand?: string;
+    last4?: string;
+    expiryMonth?: number;
+    expiryYear?: number;
+  } | null>(null);
   const [phase, setPhase] = useState<PaymentPhase>("input");
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
@@ -74,8 +81,15 @@ const StripePaymentScreen: React.FC = () => {
     phase === "input";
 
   const handleCardChange = useCallback(
-    (cardDetails: { complete: boolean }) => {
-      setCardComplete(cardDetails.complete);
+    (details: {
+      complete: boolean;
+      brand?: string;
+      last4?: string;
+      expiryMonth?: number;
+      expiryYear?: number;
+    }) => {
+      setCardComplete(details.complete);
+      setCardDetails(details);
       // Clear error when user modifies card
       if (errorBanner) {
         setErrorBanner(null);
@@ -86,6 +100,12 @@ const StripePaymentScreen: React.FC = () => {
 
   const handlePay = async () => {
     if (!canPay) return;
+
+    // Double-check that card is complete before proceeding
+    if (!cardComplete || !cardDetails?.complete) {
+      setErrorBanner("Por favor completa todos los datos de la tarjeta.");
+      return;
+    }
 
     setErrorBanner(null);
     setPhase("processing");
@@ -133,13 +153,26 @@ const StripePaymentScreen: React.FC = () => {
     }
 
     // Step 2: Confirm payment with Stripe SDK
-    setPhase("confirming");
-
+    // CRITICAL: Keep phase as "processing" (don't change to "confirming") to ensure CardField stays mounted
+    // The CardField must remain in the render tree for confirmPayment to access card details
+    
     try {
       if (__DEV__) {
         console.log("[StripePayment] Confirming payment with Stripe SDK");
+        console.log("[StripePayment] Card details:", {
+          complete: cardDetails?.complete,
+          brand: cardDetails?.brand,
+          last4: cardDetails?.last4,
+          expiryMonth: cardDetails?.expiryMonth,
+          expiryYear: cardDetails?.expiryYear
+        });
       }
 
+      // Small delay to ensure CardField has fully synchronized card details with Stripe SDK
+      // This helps prevent "Card details not complete" errors that can occur due to timing issues
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // DO NOT change phase here - CardField must stay mounted for confirmPayment to work
       const { error: confirmError, paymentIntent } = await confirmPayment(clientSecret, {
         paymentMethodType: "Card"
       });
@@ -190,22 +223,8 @@ const StripePaymentScreen: React.FC = () => {
   };
 
   // Render loading states
-  if (phase === "processing" || phase === "confirming") {
-    return (
-      <Screen scrollable centerContent>
-        <Card style={styles.loadingCard}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingTitle}>
-            {phase === "processing" ? "Preparando pago..." : "Procesando pago..."}
-          </Text>
-          <Text style={styles.loadingSubtitle}>
-            No cierres la aplicación
-          </Text>
-        </Card>
-      </Screen>
-    );
-  }
-
+  // NOTE: We only show full-screen loading for "generating" phase
+  // During "processing", we keep the form visible (with CardField mounted) but show overlay
   if (phase === "generating") {
     return (
       <Screen scrollable centerContent>
@@ -225,8 +244,22 @@ const StripePaymentScreen: React.FC = () => {
     );
   }
 
+  // Show loading overlay during processing, but keep CardField mounted
+  const isProcessing = phase === "processing";
+
   return (
     <Screen scrollable>
+      {isProcessing && (
+        <View style={styles.processingOverlay}>
+          <Card style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingTitle}>Procesando pago...</Text>
+            <Text style={styles.loadingSubtitle}>
+              No cierres la aplicación
+            </Text>
+          </Card>
+        </View>
+      )}
       <View style={styles.navRow}>
         <Pressable
           onPress={handleGoBack}
@@ -293,6 +326,8 @@ const StripePaymentScreen: React.FC = () => {
           }}
           style={styles.cardField}
           onCardChange={handleCardChange}
+          // Keep CardField enabled but visually indicate processing
+          // It must stay mounted for confirmPayment to access card details
         />
 
         <View style={styles.stripeFooter}>
@@ -306,8 +341,8 @@ const StripePaymentScreen: React.FC = () => {
       <Button
         label={`Pagar ${amountLabel}`}
         onPress={handlePay}
-        disabled={!canPay}
-        style={[styles.payButton, !canPay && styles.payButtonDisabled]}
+        disabled={!canPay || isProcessing}
+        style={[styles.payButton, (!canPay || isProcessing) && styles.payButtonDisabled]}
       />
     </Screen>
   );
@@ -317,7 +352,7 @@ const StripePaymentScreen: React.FC = () => {
  * Maps Stripe SDK errors to user-friendly Spanish messages.
  */
 function mapStripeError(error: { code?: string; message?: string; declineCode?: string }): string {
-  const { code, declineCode } = error;
+  const { code, declineCode, message } = error;
 
   // Card declined errors
   if (code === "card_declined" || declineCode) {
@@ -336,6 +371,11 @@ function mapStripeError(error: { code?: string; message?: string; declineCode?: 
       default:
         return "Tu tarjeta fue rechazada. Verifica los datos o usa otra tarjeta.";
     }
+  }
+
+  // Card details not complete - specific handling
+  if (code === "Failed" || message?.toLowerCase().includes("card details not complete")) {
+    return "Los datos de la tarjeta no están completos. Por favor verifica que todos los campos estén llenos correctamente.";
   }
 
   // Other common errors
@@ -510,6 +550,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.success,
     alignItems: "center",
     justifyContent: "center"
+  },
+  processingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    zIndex: 1000,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing(2)
   }
 });
 

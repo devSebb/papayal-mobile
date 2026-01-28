@@ -253,7 +253,8 @@ const HelpScreen: React.FC = () => {
   };
 
   const handleHome = () => {
-    navigation.popToTop();
+    // Navigate to Profile first to ensure we're in a valid state, then switch to HomeTab
+    navigation.navigate("Profile");
     tabNavigation?.navigate("HomeTab");
   };
 

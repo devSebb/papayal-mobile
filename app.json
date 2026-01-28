@@ -4,9 +4,9 @@
     "slug": "papayal-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Papayal-logoTag.png",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/Papayal-logoTag.png",
       "resizeMode": "contain",
       "backgroundColor": "#EBEBE8"
     },
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/Papayal-logoTag.png",
         "backgroundColor": "#EBEBE8"
       },
       "permissions": [
@@ -28,7 +28,7 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/Papayal-logoTag.png"
     },
     "plugins": [
       "expo-font",

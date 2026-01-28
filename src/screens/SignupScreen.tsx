@@ -150,14 +150,6 @@ const SignupScreen: React.FC = () => {
       <Card>
         <View style={styles.form}>
           <TextField
-            label="Correo"
-            value={email}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            autoComplete="email"
-          />
-          <TextField
             label="Nombre"
             value={firstName}
             onChangeText={(text) => {
@@ -165,7 +157,6 @@ const SignupScreen: React.FC = () => {
               setFieldErrors((prev) => ({ ...prev, first_name: undefined }));
             }}
             autoComplete="name"
-            style={styles.inputSpacing}
             error={fieldErrors.first_name}
           />
           <TextField

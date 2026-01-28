@@ -95,28 +95,6 @@ const HomeScreen: React.FC = () => {
       <Text style={styles.title}>Bienvenido</Text>
       <Text style={styles.subtitle}>Administra tus tarjetas y canjes fácilmente.</Text>
 
-      <Card style={[styles.card, styles.ctaCard]}>
-        <View style={styles.ctaHeader}>
-          <Text style={styles.ctaTitle}>¿Listo para regalar?</Text>
-          <Text style={styles.ctaSubtitle}>Compra o revisa tus tarjetas de regalo en segundos.</Text>
-        </View>
-        <View style={styles.ctaButtons}>
-          <Button
-            label="Comprar tarjeta de regalo"
-            onPress={() => navigation.navigate("BuyGiftCardStart")}
-            variant="primary"
-            style={styles.ctaButtonPrimary}
-          />
-          <Button
-            label="Ver mis tarjetas de regalo"
-            onPress={() => navigation.navigate("WalletTab")}
-            variant="secondary"
-            style={styles.ctaButtonSecondary}
-            labelColor={theme.colors.secondary}
-          />
-        </View>
-      </Card>
-
       <Card style={[styles.card, styles.heroCard]}>
         <Text style={styles.heroTitle}>Tarjetas de regalo para lo esencial en Ecuador.</Text>
         <View style={styles.heroSubSection}>
@@ -124,12 +102,11 @@ const HomeScreen: React.FC = () => {
 
           <View style={styles.heroActionRow}>
             <Button
-              label="Comenzar"
+              label={"Comprar tarjeta\nde regalo"}
               onPress={() => navigation.navigate("BuyGiftCardStart")}
               variant="primary"
               style={styles.heroButton}
             />
-
             <View style={styles.heroImageWrap}>
               <Image source={heroImage} style={styles.heroImage} />
             </View>
@@ -301,7 +278,7 @@ const styles = StyleSheet.create({
     // marginBottom: theme.spacing(1)
   },
   heroCard: {
-    gap: theme.spacing(1),
+    gap: theme.spacing(2),
     marginBottom: theme.spacing(1)
   },
   heroTitle: {
@@ -433,42 +410,6 @@ const styles = StyleSheet.create({
   },
   emptyCta: {
     width: "100%"
-  },
-  ctaCard: {
-    gap: theme.spacing(1.5)
-  },
-  ctaHeader: {
-    gap: theme.spacing(0.5)
-  },
-  ctaTitle: {
-    fontSize: theme.typography.subheading,
-    fontWeight: "800",
-    color: theme.colors.text
-  },
-  ctaSubtitle: {
-    color: theme.colors.muted,
-    fontWeight: "600"
-  },
-  ctaButtons: {
-    flexDirection: "row",
-    gap: theme.spacing(1),
-    flexWrap: "wrap"
-  },
-  ctaButtonPrimary: {
-    flex: 1,
-    paddingVertical: theme.spacing(1.4),
-    borderRadius: 18,
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 }
-  },
-  ctaButtonSecondary: {
-    flex: 1,
-    paddingVertical: theme.spacing(1.4),
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: theme.colors.secondary
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,

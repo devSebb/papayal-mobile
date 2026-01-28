@@ -9,11 +9,11 @@ import Animated, {
   Extrapolation,
   interpolate,
   interpolateColor,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring
 } from "react-native-reanimated";
+import { runOnJS } from "react-native-worklets";
 
 import { theme } from "../theme";
 

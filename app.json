@@ -21,7 +21,8 @@
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "DLFL9SP5JG"
     },
     "android": {
       "adaptiveIcon": {

@@ -96,17 +96,11 @@ const HomeScreen: React.FC = () => {
       <Text style={styles.subtitle}>Administra tus tarjetas y canjes fácilmente.</Text>
 
       <Card style={[styles.card, styles.heroCard]}>
-        <Text style={styles.heroTitle}>Tarjetas de regalo para lo esencial en Ecuador.</Text>
+        <Text style={styles.heroTitle}>Tarjetas de regalo digitales para lo esencial en Ecuador.</Text>
         <View style={styles.heroSubSection}>
           <Text style={styles.heroSubtitle}>Rápido. Seguro.</Text>
 
           <View style={styles.heroActionRow}>
-            <Button
-              label={"Comprar tarjeta\nde regalo"}
-              onPress={() => navigation.navigate("BuyGiftCardStart")}
-              variant="primary"
-              style={styles.heroButton}
-            />
             <View style={styles.heroImageWrap}>
               <Image source={heroImage} style={styles.heroImage} />
             </View>
@@ -133,7 +127,12 @@ const HomeScreen: React.FC = () => {
           </View>
         </View>
 
-        <Text style={styles.promo}>Ahorra hasta un 30%{"\n"}en tu primer envío</Text>
+        <Button
+          label="Comprar tarjeta de regalo"
+          onPress={() => navigation.navigate("BuyGiftCardStart")}
+          variant="primary"
+          style={styles.promoButton}
+        />
       </Card>
 
       <Card style={styles.card}>
@@ -282,9 +281,9 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing(1)
   },
   heroTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "800",
-    lineHeight: 32,
+    lineHeight: 36,
     color: theme.colors.text
   },
   heroSubSection: {
@@ -301,19 +300,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: theme.spacing(0.75),
     paddingVertical: 0,
-    marginTop: theme.spacing(0.25)
   },
   heroButton: {
     flexShrink: 0
   },
   heroImageWrap: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    flex: 1
-  },
+    marginTop: theme.spacing(3)
+  }, 
   heroImage: {
-    width: 170,
-    height: 140,
+    width: 220,
+    height: 180,
     resizeMode: "contain"
   },
   flowSection: {
@@ -342,16 +341,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: theme.typography.small
   },
-  promo: {
-    marginTop: theme.spacing(1),
-    textAlign: "center",
-    color: theme.colors.primary,
-    fontSize: 22,
-    fontWeight: "800",
-    lineHeight: 30,
-    textShadowColor: "rgba(0,0,0,0.08)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6
+  promoButton: {
+    marginTop: theme.spacing(1)
   },
   card: {
     marginTop: theme.spacing(1.5)

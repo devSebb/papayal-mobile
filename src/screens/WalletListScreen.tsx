@@ -95,7 +95,6 @@ const SummaryBanner: React.FC<{
       <Text style={styles.summaryBalanceLabel}>Saldo Disponible</Text>
       <Text style={styles.summaryBalanceValue}>{balanceLabel ?? "—"}</Text>
     </View>
-    <View style={styles.summaryDivider} />
     <View style={styles.summaryRight}>
       <View style={styles.summaryStatItem}>
         <Text style={styles.summaryStatLabel}>Tarjetas</Text>
@@ -144,11 +143,16 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
             {!hasLogo ? <Text style={styles.badgeInitial}>{merchantInitial}</Text> : null}
           </View>
           <View style={styles.rowMiddle}>
-            <Text style={styles.senderLabel}>
-              {senderName ? `de: ${senderName}` : "Propia"}
+            <Text style={styles.merchantTitle} numberOfLines={1}>
+              {item.merchantLabel}
             </Text>
-            <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
-              <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
+            <View style={styles.senderRow}>
+              <Text style={styles.senderLabel}>
+                {senderName ? `de: ${senderName}` : "Propia"}
+              </Text>
+              <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
+                <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
+              </View>
             </View>
           </View>
           <View style={styles.cardDivider} />
@@ -543,19 +547,22 @@ const styles = StyleSheet.create({
   },
   summaryBanner: {
     flexDirection: "row",
-    alignItems: "flex-start"
+    alignItems: "flex-start",
+    paddingBottom: theme.spacing(2)
   },
   summaryLeft: {
     paddingBottom: theme.spacing(1.5),
     paddingRight: theme.spacing(2),
     marginRight: theme.spacing(2),
+    marginLeft: theme.spacing(1),
     borderBottomWidth: 2,
     borderRightWidth: 2,
     borderColor: theme.colors.primary,
-    borderBottomRightRadius: theme.radius.md
+    borderBottomRightRadius: theme.radius.md,
+    gap: theme.spacing(1)
   },
   summaryBalanceLabel: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: "600",
     color: theme.colors.text
   },
@@ -565,23 +572,18 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginTop: 2
   },
-  summaryDivider: {
-    width: 1,
-    alignSelf: "stretch" as const,
-    marginVertical: 4,
-    backgroundColor: theme.colors.border
-  },
+
   summaryRight: {
     flex: 1,
     flexDirection: "row",
     justifyContent: "space-around",
-    alignItems: "center"
   },
   summaryStatItem: {
-    alignItems: "center" as const
+    alignItems: "center" as const,
+    gap: theme.spacing(1)
   },
   summaryStatLabel: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: "500",
     color: theme.colors.muted
   },
@@ -589,11 +591,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: theme.colors.text,
-    marginTop: 2
+    marginTop: 2,
   },
   tabsRow: {
     flexDirection: "row",
-    gap: theme.spacing(1)
+    gap: theme.spacing(1),
+    marginLeft: theme.spacing(0.5)
   },
   tab: {
     paddingVertical: theme.spacing(0.8),
@@ -623,14 +626,14 @@ const styles = StyleSheet.create({
     gap: theme.spacing(1.2)
   },
   cardWithAccent: {
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
+    borderRightWidth: 4,
+    borderRightColor: theme.colors.primary,
     overflow: "hidden"
   },
   merchantLogoContainer: {
-    width: 80,
-    height: 44,
-    borderRadius: theme.radius.sm,
+    width: 55,
+    height: 55,
+    borderRadius: 35,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden"
@@ -650,6 +653,17 @@ const styles = StyleSheet.create({
   },
   rowMiddle: {
     flex: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: theme.spacing(0.25),
+    minWidth: 0
+  },
+  merchantTitle: {
+    fontSize: theme.typography.body,
+    fontWeight: "700",
+    color: theme.colors.text
+  },
+  senderRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing(1)
@@ -661,6 +675,7 @@ const styles = StyleSheet.create({
     borderRadius: 1
   },
   senderLabel: {
+    flexShrink: 0,
     fontSize: 14,
     fontWeight: "500",
     color: theme.colors.muted
@@ -699,7 +714,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.subheading,
     fontWeight: "700",
-    color: theme.colors.text
+    color: theme.colors.text,
+    marginLeft: theme.spacing(0.5)
   },
   link: {
     color: theme.colors.secondary,

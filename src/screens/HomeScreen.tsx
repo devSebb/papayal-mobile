@@ -309,19 +309,12 @@ const styles = StyleSheet.create({
   heroImageWrap: {
     alignItems: "center",
     justifyContent: "center",
-    paddingRight: 40,
-    flexShrink: 0,
-    paddingVertical: 0,
-    marginVertical: -50
+    flex: 1
   },
   heroImage: {
-    width: "25%",
-    maxWidth: 110,
-    aspectRatio: 1,
-    resizeMode: "contain",
-    paddingRight: 10,
-    marginTop: 0,
-    marginBottom: 0
+    width: 170,
+    height: 140,
+    resizeMode: "contain"
   },
   flowSection: {
     gap: theme.spacing(1)

@@ -14,9 +14,16 @@ import { AuthProvider } from "./src/auth/authStore";
 import { theme } from "./src/ui/theme";
 import { PurchaseDraftProvider } from "./src/domain/purchase/purchaseDraftStore";
 import BootGate from "./src/boot/BootGate";
+import { AppErrorBoundary } from "./src/boot/AppErrorBoundary";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+
+/**
+ * StripeProvider with empty publishableKey can crash the native Stripe SDK
+ * on iOS production builds. Show a config screen instead of mounting it.
+ */
+const hasValidStripeKey = !!STRIPE_PUBLISHABLE_KEY && STRIPE_PUBLISHABLE_KEY.startsWith("pk_");
 
 /**
  * Shows a developer-facing error when Stripe key is missing.
@@ -58,36 +65,67 @@ const LocalhostWarningBanner: React.FC = () => {
   );
 };
 
+/**
+ * Shown when Stripe key is missing in production.
+ * Prevents passing "" to StripeProvider, which can crash the native SDK.
+ */
+const ConfigErrorScreen: React.FC = () => (
+  <View style={styles.configError}>
+    <Text style={styles.configErrorTitle}>Configuración incompleta</Text>
+    <Text style={styles.configErrorText}>
+      La app no está configurada correctamente para esta versión.{"\n\n"}
+      Si eres el desarrollador: configura EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY y
+      EXPO_PUBLIC_API_BASE_URL en EAS Secrets antes de ejecutar el build.
+    </Text>
+  </View>
+);
+
 const App = () => {
   // Log API config in dev for debugging
   if (__DEV__) {
     console.log("[App] Stripe publishable key:", STRIPE_PUBLISHABLE_KEY ? `${STRIPE_PUBLISHABLE_KEY.slice(0, 12)}...` : "NOT SET");
   }
 
+  // Avoid mounting StripeProvider with empty key — can crash native SDK in production
+  if (!hasValidStripeKey) {
+    return (
+      <AppErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+          <SafeAreaProvider>
+            <StatusBar style="dark" backgroundColor={theme.colors.background} />
+            <ConfigErrorScreen />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </AppErrorBoundary>
+    );
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaProvider>
-        {/*
-          TODO: Add merchantIdentifier="merchant.app.papayal" once Apple Pay is
-          fully enabled in the Stripe Dashboard. Do NOT add it prematurely as
-          it may cause warnings or unexpected behavior.
-        */}
-        <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <PurchaseDraftProvider>
-                <StatusBar style="dark" backgroundColor={theme.colors.background} />
-                <StripeMissingKeyBanner />
-                <LocalhostWarningBanner />
-                <BootGate>
-                  <RootNavigator />
-                </BootGate>
-              </PurchaseDraftProvider>
-            </AuthProvider>
-          </QueryClientProvider>
-        </StripeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <AppErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <SafeAreaProvider>
+          {/*
+            TODO: Add merchantIdentifier="merchant.app.papayal" once Apple Pay is
+            fully enabled in the Stripe Dashboard. Do NOT add it prematurely as
+            it may cause warnings or unexpected behavior.
+          */}
+          <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <PurchaseDraftProvider>
+                  <StatusBar style="dark" backgroundColor={theme.colors.background} />
+                  <StripeMissingKeyBanner />
+                  <LocalhostWarningBanner />
+                  <BootGate>
+                    <RootNavigator />
+                  </BootGate>
+                </PurchaseDraftProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </StripeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </AppErrorBoundary>
   );
 };
 
@@ -118,6 +156,23 @@ const styles = StyleSheet.create({
     color: "#E65100",
     fontSize: 12,
     fontWeight: "600",
+    textAlign: "center"
+  },
+  configError: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24
+  },
+  configErrorTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: theme.colors.text,
+    marginBottom: 12
+  },
+  configErrorText: {
+    fontSize: 14,
+    color: theme.colors.muted,
     textAlign: "center"
   }
 });

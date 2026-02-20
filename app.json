@@ -1,10 +1,11 @@
 {
   "expo": {
+    "scheme": "papayal",
     "name": "papayal-mobile",
     "slug": "papayal-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Papayal-logoTag.png",
+    "icon": "./assets/Papayal-icon.png",
     "splash": {
       "image": "./assets/Papayal-logoTag.png",
       "resizeMode": "contain",
@@ -15,7 +16,12 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.papayal.app"
+      "bundleIdentifier": "com.papayal.app",
+      "deploymentTarget": "15.1",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

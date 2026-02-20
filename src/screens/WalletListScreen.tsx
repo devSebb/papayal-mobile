@@ -39,19 +39,19 @@ const statusStyles = {
   Redeemed: {
     backgroundColor: "#F3F4F6",
     borderColor: theme.colors.border,
-    color: theme.colors.secondary
+    color: theme.colors.muted
   },
   Expired: {
-    backgroundColor: "#FDECEF",
-    borderColor: "#F5B7C0",
-    color: theme.colors.danger
+    backgroundColor: "#F3F4F6",
+    borderColor: theme.colors.border,
+    color: theme.colors.muted
   }
 } as const;
 
 const statusLabels: Record<GiftCardVM["status"], string> = {
   Active: "Activa",
-  Redeemed: "Canjeada",
-  Expired: "Vencida"
+  Redeemed: "Inactiva",
+  Expired: "Inactiva"
 };
 
 const iconForActivity: Record<ActivityItem["kind"], { name: keyof typeof Feather.glyphMap; color: string }> = {
@@ -78,10 +78,34 @@ const formatTimestamp = (timestamp?: string) => {
   return date.toLocaleDateString("es", { month: "short", day: "numeric", year: "numeric" });
 };
 
-const SummaryChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={styles.chip}>
-    <Text style={styles.chipLabel}>{label}</Text>
-    <Text style={styles.chipValue}>{value}</Text>
+const shortName = (full: string) => {
+  const parts = full.trim().split(/\s+/);
+  return parts.length > 1
+    ? parts[0] + " " + parts[parts.length - 1][0] + "."
+    : parts[0];
+};
+
+const SummaryBanner: React.FC<{
+  balanceLabel: string | null;
+  totalCards: number;
+  gastadoLabel: string | null;
+}> = ({ balanceLabel, totalCards, gastadoLabel }) => (
+  <View style={styles.summaryBanner}>
+    <View style={styles.summaryLeft}>
+      <Text style={styles.summaryBalanceLabel}>Saldo Disponible</Text>
+      <Text style={styles.summaryBalanceValue}>{balanceLabel ?? "—"}</Text>
+    </View>
+    <View style={styles.summaryDivider} />
+    <View style={styles.summaryRight}>
+      <View style={styles.summaryStatItem}>
+        <Text style={styles.summaryStatLabel}>Tarjetas</Text>
+        <Text style={styles.summaryStatValue}>{totalCards}</Text>
+      </View>
+      <View style={styles.summaryStatItem}>
+        <Text style={styles.summaryStatLabel}>Gastado</Text>
+        <Text style={styles.summaryStatValue}>{gastadoLabel ?? "—"}</Text>
+      </View>
+    </View>
   </View>
 );
 
@@ -100,7 +124,11 @@ const TabButton: React.FC<{ tab: TabKey; active: boolean; onPress: () => void }>
   </TouchableOpacity>
 );
 
-const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item, onPress }) => {
+const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: () => void }> = ({
+  item,
+  senderName,
+  onPress
+}) => {
   const statusStyle = statusStyles[item.status];
   const merchantInitial = item.merchantLabel.charAt(0).toUpperCase();
   const hasLogo = Boolean(item.merchantLogoUrl);
@@ -109,21 +137,24 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.row}>
-      <Card>
+      <Card style={styles.cardWithAccent}>
         <View style={styles.rowTop}>
-          <View style={styles.badgeCircle}>
-            <Image source={logoSource} style={styles.badgeImage} />
+          <View style={styles.merchantLogoContainer}>
+            <Image source={logoSource} style={styles.merchantLogoImage} />
             {!hasLogo ? <Text style={styles.badgeInitial}>{merchantInitial}</Text> : null}
           </View>
           <View style={styles.rowMiddle}>
-            <Text style={styles.merchant}>{item.merchantLabel}</Text>
+            <Text style={styles.senderLabel}>
+              {senderName ? `de: ${senderName}` : "Propia"}
+            </Text>
             <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
               <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
             </View>
           </View>
+          <View style={styles.cardDivider} />
           <View style={styles.amountColumn}>
             <Text style={styles.amount}>{item.remainingFormatted}</Text>
-            <Text style={styles.amountSmall}>de {item.originalFormatted}</Text>
+            <Text style={styles.muted}>de {item.originalFormatted}</Text>
           </View>
         </View>
       </Card>
@@ -285,6 +316,23 @@ const WalletListScreen: React.FC = () => {
     [giftCards, user?.id]
   );
 
+  const senderNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const card of giftCards ?? []) {
+      if (card.recipient_id === user?.id && card.sender) {
+        const fullName =
+          card.sender.full_name?.trim() ||
+          [card.sender.name, card.sender.last_name].filter(Boolean).join(" ").trim() ||
+          card.sender.name?.trim() ||
+          null;
+        if (fullName) {
+          map.set(card.id, shortName(fullName));
+        }
+      }
+    }
+    return map;
+  }, [giftCards, user?.id]);
+
   const summary = useMemo(() => {
     const activeCards = mappedCards.filter((card) => card.status === "Active");
     const activeWithAmounts = activeCards.filter(
@@ -305,12 +353,20 @@ const WalletListScreen: React.FC = () => {
         ? formatMoney(centsToDollars(activeBalanceCents), activeWithAmounts[0]?.currency)
         : null;
 
-    const redeemedCount = mappedCards.filter((card) => card.isRedeemed).length;
+    const cardsWithCurrency = mappedCards.filter((c) => !!c.currency);
+    const spentCurrencies = new Set(cardsWithCurrency.map((c) => c.currency).filter(Boolean) as string[]);
+    const canShowGastado = cardsWithCurrency.length > 0 && spentCurrencies.size === 1;
+    const gastadoCents = canShowGastado
+      ? cardsWithCurrency.reduce((sum, c) => sum + (c.redeemedDeltaCents ?? 0), 0)
+      : 0;
+    const gastadoLabel = canShowGastado
+      ? formatMoney(centsToDollars(gastadoCents), cardsWithCurrency[0]?.currency)
+      : null;
 
     return {
       activeBalanceLabel,
       totalCards: mappedCards.length,
-      redeemedCount
+      gastadoLabel
     };
   }, [mappedCards]);
 
@@ -365,14 +421,12 @@ const WalletListScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.title}>Billetera</Text>
-      <View style={styles.chipsRow}>
-        {summary.activeBalanceLabel ? (
-          <SummaryChip label="Saldo activo" value={summary.activeBalanceLabel} />
-        ) : null}
-        <SummaryChip label="Tarjetas" value={`${summary.totalCards}`} />
-        <SummaryChip label="Canjeadas" value={`${summary.redeemedCount}`} />
-      </View>
+      <SummaryBanner
+        balanceLabel={summary.activeBalanceLabel}
+        totalCards={summary.totalCards}
+        gastadoLabel={summary.gastadoLabel}
+      />
+      <Text style={styles.sectionTitle}>Mis Tarjetas</Text>
       <View style={styles.tabsRow}>
         {(Object.keys(TAB_LABELS) as TabKey[]).map((tab) => (
           <TabButton
@@ -432,6 +486,7 @@ const WalletListScreen: React.FC = () => {
       return (
         <GiftCardRow
           item={item.card}
+          senderName={senderNameMap.get(item.card.id)}
           onPress={() => navigation.navigate("GiftCardDetail", { id: item.card.id })}
         />
       );
@@ -484,34 +539,56 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: theme.colors.background,
     paddingVertical: theme.spacing(1),
-    // paddingHorizontal: theme.spacing(2),
     gap: theme.spacing(1)
   },
-  title: {
-    fontSize: theme.typography.heading,
-    fontWeight: "800",
+  summaryBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start"
+  },
+  summaryLeft: {
+    paddingBottom: theme.spacing(1.5),
+    paddingRight: theme.spacing(2),
+    marginRight: theme.spacing(2),
+    borderBottomWidth: 2,
+    borderRightWidth: 2,
+    borderColor: theme.colors.primary,
+    borderBottomRightRadius: theme.radius.md
+  },
+  summaryBalanceLabel: {
+    fontSize: 14,
+    fontWeight: "600",
     color: theme.colors.text
   },
-  chipsRow: {
-    flexDirection: "row",
-    gap: theme.spacing(1),
-    flexWrap: "wrap"
-  },
-  chip: {
-    paddingHorizontal: theme.spacing(1.5),
-    paddingVertical: theme.spacing(1),
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.card,
-    borderColor: theme.colors.border,
-    borderWidth: StyleSheet.hairlineWidth
-  },
-  chipLabel: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.small
-  },
-  chipValue: {
+  summaryBalanceValue: {
+    fontSize: 32,
+    fontWeight: "800",
     color: theme.colors.text,
+    marginTop: 2
+  },
+  summaryDivider: {
+    width: 1,
+    alignSelf: "stretch" as const,
+    marginVertical: 4,
+    backgroundColor: theme.colors.border
+  },
+  summaryRight: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center"
+  },
+  summaryStatItem: {
+    alignItems: "center" as const
+  },
+  summaryStatLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.colors.muted
+  },
+  summaryStatValue: {
+    fontSize: 18,
     fontWeight: "700",
+    color: theme.colors.text,
     marginTop: 2
   },
   tabsRow: {
@@ -527,15 +604,15 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border
   },
   tabActive: {
-    backgroundColor: "#FDF3DB",
-    borderColor: theme.colors.primary
+    backgroundColor: theme.colors.secondary,
+    borderColor: theme.colors.secondary
   },
   tabLabel: {
     color: theme.colors.muted,
     fontWeight: "600"
   },
   tabLabelActive: {
-    color: theme.colors.secondary
+    color: theme.colors.card
   },
   row: {
     width: "100%"
@@ -545,37 +622,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing(1.2)
   },
-  badgeCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#EEF2F3",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+  cardWithAccent: {
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary,
     overflow: "hidden"
   },
-  badgeImage: {
+  merchantLogoContainer: {
+    width: 80,
+    height: 44,
+    borderRadius: theme.radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+  merchantLogoImage: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover"
+    resizeMode: "contain"
   },
   badgeInitial: {
     position: "absolute",
     textAlign: "center",
     width: "100%",
     fontWeight: "700",
+    fontSize: theme.typography.heading,
     color: theme.colors.secondary
   },
   rowMiddle: {
     flex: 1,
-    gap: theme.spacing(0.5)
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(1)
   },
-  merchant: {
-    fontSize: theme.typography.subheading,
-    fontWeight: "700",
-    color: theme.colors.text
+  cardDivider: {
+    width: 2,
+    alignSelf: "stretch",
+    backgroundColor: theme.colors.primary,
+    borderRadius: 1
+  },
+  senderLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.colors.muted
   },
   statusPill: {
     alignSelf: "flex-start",
@@ -595,10 +683,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     color: theme.colors.text
-  },
-  amountSmall: {
-    color: theme.colors.muted,
-    marginTop: 2
   },
   muted: {
     color: theme.colors.muted

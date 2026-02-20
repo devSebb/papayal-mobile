@@ -319,7 +319,12 @@ const HelpScreen: React.FC = () => {
             })}
           </View>
 
-          <View style={styles.faqList}>
+          <ScrollView
+            style={styles.faqScrollContainer}
+            contentContainerStyle={styles.faqList}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+          >
             {filteredFaqs.length === 0 ? (
               <View style={styles.emptyState}>
                 <Feather name="search" size={22} color={theme.colors.muted} />
@@ -349,7 +354,7 @@ const HelpScreen: React.FC = () => {
                 );
               })
             )}
-          </View>
+          </ScrollView>
         </Card>
 
         <Card style={styles.card}>
@@ -502,8 +507,13 @@ const styles = StyleSheet.create({
   chipLabelActive: {
     color: "#fff"
   },
+  faqScrollContainer: {
+    maxHeight: 600,
+    borderRadius: theme.radius.md
+  },
   faqList: {
-    gap: theme.spacing(1)
+    gap: theme.spacing(1),
+    paddingBottom: theme.spacing(0.5)
   },
   faqItem: {
     borderWidth: 1,

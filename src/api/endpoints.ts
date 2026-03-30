@@ -17,6 +17,7 @@ export const authApi = {
     password_confirmation: string;
     phone: string;
     device_id?: string;
+    interests?: string[];
   }) => {
     const { data } = await request<AuthTokens>("/api/v1/auth/signup", {
       method: "POST",

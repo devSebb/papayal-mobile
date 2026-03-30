@@ -24,6 +24,7 @@ type AuthContextValue = AuthState & {
     password: string;
     password_confirmation: string;
     phone: string;
+    interests?: string[];
   }) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
@@ -237,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password: string;
       password_confirmation: string;
       phone: string;
+      interests?: string[];
     }) => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {

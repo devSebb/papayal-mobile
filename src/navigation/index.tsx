@@ -29,12 +29,23 @@ import CompleteDetailsScreen from "../screens/buy/CompleteDetailsScreen";
 import StripePaymentScreen from "../screens/buy/StripePaymentScreen";
 import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import MerchantProfileScreen from "../screens/MerchantProfileScreen";
+import InterestsScreen from "../screens/InterestsScreen";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
 
 export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
+  Interests: {
+    formData: {
+      first_name: string;
+      last_name: string;
+      email: string;
+      password: string;
+      password_confirmation: string;
+      phone: string;
+    };
+  };
   ForgotPassword: { email?: string };
   ResetPassword: { token?: string };
 };
@@ -189,6 +200,11 @@ const AuthNavigator = () => (
     <AuthStack.Screen
       name="Signup"
       component={SignupScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
+      name="Interests"
+      component={InterestsScreen}
       options={{ headerShown: false }}
     />
     <AuthStack.Screen

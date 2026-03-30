@@ -22,6 +22,7 @@ export type User = {
   role?: string;
   avatar_url?: string | null;
   avatar_thumb_url?: string | null;
+  interests?: string[];
 };
 
 export type GiftCardSender = {

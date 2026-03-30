@@ -12,6 +12,11 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring
+} from "react-native-reanimated";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
@@ -19,11 +24,12 @@ import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
 import { merchantsApi } from "../api/endpoints";
 import { HomeStackParamList } from "../navigation";
-
-const merchantPlaceholder = require("../../assets/merchant-default.png");
+import { getMerchantColors } from "../utils/merchantColors";
 
 type RouteProps = RouteProp<HomeStackParamList, "MerchantProfile">;
 type NavProps = NativeStackNavigationProp<HomeStackParamList, "MerchantProfile">;
+
+const SPRING_CONFIG = { damping: 15, stiffness: 300 };
 
 const MerchantProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavProps>();
@@ -41,9 +47,17 @@ const MerchantProfileScreen: React.FC = () => {
   });
 
   const hasLogo = Boolean(merchant?.logo_url);
-  const logoSource = hasLogo ? { uri: merchant!.logo_url as string } : merchantPlaceholder;
   const categories = merchant?.categories ?? [];
   const hasCategories = categories.length > 0;
+  const colors = getMerchantColors(id);
+  const initial =
+    (merchant?.store_name || merchant?.name)?.trim()?.charAt(0)?.toUpperCase() || "C";
+
+  // CTA spring animation
+  const ctaScale = useSharedValue(1);
+  const ctaAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ctaScale.value }]
+  }));
 
   if (isLoading) {
     return (
@@ -88,10 +102,23 @@ const MerchantProfileScreen: React.FC = () => {
 
       {/* Header Card */}
       <Card style={styles.headerCard}>
-        <View style={styles.logoContainer}>
-          <Image source={logoSource} style={styles.logo} />
+        {/* Brand zone */}
+        <View style={[styles.brandZone, { backgroundColor: colors.bg }]} />
+
+        {/* Logo — overlaps brand zone boundary */}
+        <View style={styles.logoAnchor}>
+          <View style={[styles.logoContainer, !hasLogo ? styles.logoPlaceholder : null]}>
+            {hasLogo ? (
+              <Image source={{ uri: merchant.logo_url as string }} style={styles.logo} />
+            ) : (
+              <Text style={styles.logoInitial}>{initial}</Text>
+            )}
+          </View>
         </View>
-        <Text style={styles.storeName}>{merchant.store_name || merchant.name}</Text>
+
+        <Text style={styles.storeName}>
+          {merchant.store_name || merchant.name}
+        </Text>
       </Card>
 
       {/* About Section */}
@@ -100,13 +127,13 @@ const MerchantProfileScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Información</Text>
           {merchant.address && (
             <View style={styles.infoRow}>
-              <Feather name="map-pin" size={18} color={theme.colors.muted} />
+              <Feather name="map-pin" size={20} color={theme.colors.muted} />
               <Text style={styles.infoText}>{merchant.address}</Text>
             </View>
           )}
           {merchant.contact_email && (
             <View style={styles.infoRow}>
-              <Feather name="mail" size={18} color={theme.colors.muted} />
+              <Feather name="mail" size={20} color={theme.colors.muted} />
               <Text style={styles.infoText}>{merchant.contact_email}</Text>
             </View>
           )}
@@ -134,12 +161,24 @@ const MerchantProfileScreen: React.FC = () => {
       </Card>
 
       {/* CTA Button */}
-      <Button
-        label="Comprar tarjeta"
-        onPress={() => navigation.navigate("BuyGiftCardStart", { merchantId: merchant.id })}
-        variant="primary"
-        style={styles.ctaButton}
-      />
+      <Animated.View style={ctaAnimatedStyle}>
+        <Pressable
+          onPressIn={() => {
+            ctaScale.value = withSpring(0.96, SPRING_CONFIG);
+          }}
+          onPressOut={() => {
+            ctaScale.value = withSpring(1, SPRING_CONFIG);
+          }}
+          onPress={() =>
+            navigation.navigate("BuyGiftCardStart", { merchantId: merchant.id })
+          }
+          style={styles.ctaPressable}
+          accessibilityRole="button"
+          accessibilityLabel="Comprar tarjeta"
+        >
+          <Text style={styles.ctaLabel}>Comprar tarjeta</Text>
+        </Pressable>
+      </Animated.View>
     </Screen>
   );
 };
@@ -156,37 +195,59 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "transparent"
+    backgroundColor: "rgba(0,0,0,0.04)"
   },
   headerCard: {
     alignItems: "center",
-    gap: theme.spacing(1.5),
-    paddingVertical: theme.spacing(3)
+    overflow: "hidden",
+    padding: 0,
+    paddingBottom: theme.spacing(3)
+  },
+  brandZone: {
+    height: 120,
+    width: "100%"
+  },
+  logoAnchor: {
+    alignItems: "center",
+    marginTop: -40
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: "#F8F5EF",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4
+  },
+  logoPlaceholder: {
+    backgroundColor: theme.colors.primary
   },
   logo: {
     width: "100%",
     height: "100%",
     resizeMode: "cover"
   },
+  logoInitial: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 32
+  },
   storeName: {
-    fontSize: theme.typography.heading,
+    fontSize: 26,
     fontWeight: "800",
     color: theme.colors.text,
-    textAlign: "center"
+    textAlign: "center",
+    marginTop: theme.spacing(1.5),
+    paddingHorizontal: theme.spacing(2)
   },
   sectionCard: {
-    marginTop: theme.spacing(1.5),
+    marginTop: theme.spacing(2),
     gap: theme.spacing(1)
   },
   sectionTitle: {
@@ -197,7 +258,13 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing(1)
+    gap: theme.spacing(1),
+    backgroundColor: "#FAFAFA",
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.primary,
+    paddingLeft: 12
   },
   infoText: {
     color: theme.colors.text,
@@ -210,26 +277,42 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing(0.5)
   },
   categoryChip: {
-    paddingVertical: theme.spacing(0.75),
-    paddingHorizontal: theme.spacing(1.5),
-    borderRadius: 20,
-    backgroundColor: theme.colors.background,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: "#FFF8EC",
     borderWidth: 1,
-    borderColor: theme.colors.border
+    borderColor: "rgba(252, 165, 15, 0.3)"
   },
   categoryText: {
     color: theme.colors.secondary,
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: theme.typography.small
   },
   noCategories: {
     color: theme.colors.muted,
     fontStyle: "italic"
   },
-  ctaButton: {
+  ctaPressable: {
     marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(2),
     paddingVertical: theme.spacing(1.6),
-    borderRadius: 18
+    borderRadius: 18,
+    backgroundColor: theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: theme.colors.secondary,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2
+  },
+  ctaLabel: {
+    fontSize: theme.typography.body,
+    fontWeight: "700",
+    color: theme.colors.secondary,
+    letterSpacing: 0.1,
+    textAlign: "center"
   },
   loadingText: {
     marginTop: theme.spacing(1),

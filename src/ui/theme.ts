@@ -22,7 +22,8 @@ export const theme = {
   fonts: {
     light: "SatoshiLightVariable",
     regular: "SatoshiVariable",
-    italic: "SatoshiVariableItalic"
+    italic: "SatoshiVariableItalic",
+    brand: "Raleway_700Bold"
   },
   typography: {
     heading: 24,

@@ -159,6 +159,7 @@ const HomeScreen: React.FC = () => {
             renderItem={({ item }) => (
               <View style={styles.gridItem}>
                 <MerchantGridCard
+                  merchantId={item.id}
                   name={item.store_name || item.name}
                   logoUrl={item.logo_url}
                   onPress={() => {

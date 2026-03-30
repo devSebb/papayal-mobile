@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Text, TextInput } from "react-native";
 import { useFonts } from "expo-font";
+import { Raleway_700Bold } from "@expo-google-fonts/raleway";
 import * as SplashScreen from "expo-splash-screen";
 
 import { useAuth } from "../auth/authStore";
@@ -31,7 +32,8 @@ const BootGate: React.FC<Props> = ({ children }) => {
 
   const [fontsLoaded] = useFonts({
     [theme.fonts.regular]: require("../../assets/fonts/Satoshi-Variable.ttf"),
-    [theme.fonts.italic]: require("../../assets/fonts/Satoshi-VariableItalic.ttf")
+    [theme.fonts.italic]: require("../../assets/fonts/Satoshi-VariableItalic.ttf"),
+    [theme.fonts.brand]: Raleway_700Bold
   });
 
   const isReady = fontsLoaded && hydrated;

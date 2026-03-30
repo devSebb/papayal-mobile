@@ -1,9 +1,18 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring
+} from "react-native-reanimated";
 
 import { theme } from "../theme";
+import { getMerchantColors } from "../../utils/merchantColors";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Props = {
+  merchantId?: string;
   name: string;
   logoUrl?: string | null;
   countLabel?: string;
@@ -11,21 +20,47 @@ type Props = {
   onPress?: () => void;
 };
 
-const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, countLabel, amountLabel, onPress }) => {
+const SPRING_CONFIG = { damping: 15, stiffness: 300 };
+
+const MerchantGridCard: React.FC<Props> = ({
+  merchantId,
+  name,
+  logoUrl,
+  countLabel,
+  amountLabel,
+  onPress
+}) => {
   const initial = name?.trim()?.charAt(0)?.toUpperCase?.() || "C";
   const hasLogo = Boolean(logoUrl);
   const source = hasLogo ? { uri: logoUrl as string } : undefined;
+  const colors = getMerchantColors(merchantId);
+
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  const metadataText = [countLabel, amountLabel].filter(Boolean).join(" · ");
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
+    <AnimatedPressable
+      style={[styles.card, animatedStyle]}
       onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.96, SPRING_CONFIG);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, SPRING_CONFIG);
+      }}
       accessibilityRole="button"
       accessibilityLabel={`Comercio ${name}`}
       hitSlop={6}
     >
-      <View style={styles.accent} />
-      <View style={styles.logoRow}>
+      {/* Accent bar */}
+      <View style={[styles.accent, { backgroundColor: colors.accent + "4D" }]} />
+
+      {/* Brand zone */}
+      <View style={[styles.brandZone, { backgroundColor: colors.bg }]}>
         <View style={[styles.logoWrap, !hasLogo ? styles.logoPlaceholder : null]}>
           {hasLogo && source ? (
             <Image source={source} style={styles.logoImage} />
@@ -34,73 +69,65 @@ const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, countLabel, amountLa
           )}
         </View>
       </View>
-      <Text style={styles.name} numberOfLines={2}>
-        {name}
-      </Text>
-      {(countLabel || amountLabel) && (
-        <View style={styles.badges}>
-          {countLabel && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeLabel}>{countLabel}</Text>
-            </View>
-          )}
-          {amountLabel && (
-            <View style={[styles.badge, styles.badgeSecondary]}>
-              <Text style={[styles.badgeLabel, styles.badgeLabelSecondary]}>{amountLabel}</Text>
-            </View>
-          )}
-        </View>
-      )}
-    </Pressable>
+
+      {/* Content zone */}
+      <View style={styles.contentZone}>
+        <Text style={styles.name} numberOfLines={2}>
+          {name}
+        </Text>
+        {metadataText ? (
+          <Text style={styles.metadata} numberOfLines={1}>
+            {metadataText}
+          </Text>
+        ) : null}
+      </View>
+    </AnimatedPressable>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing(1.5),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    shadowColor: theme.colors.secondary,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    overflow: "hidden",
+    minHeight: 180,
+    borderWidth: 0.5,
+    borderColor: "rgba(0,0,0,0.06)",
+    shadowColor: "#1A1A1A",
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-    gap: theme.spacing(1)
-  },
-  cardPressed: {
-    transform: [{ scale: 0.99 }],
-    opacity: 0.95
+    elevation: 3
   },
   accent: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 4,
-    borderTopLeftRadius: theme.radius.lg,
-    borderTopRightRadius: theme.radius.lg,
-    backgroundColor: theme.colors.primary
+    height: 2,
+    zIndex: 1
   },
-  logoRow: {
-    flexDirection: "row",
+  brandZone: {
+    height: 96,
     alignItems: "center",
-    justifyContent: "flex-start"
+    justifyContent: "center"
   },
   logoWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: "#F8F5EF",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2
   },
   logoPlaceholder: {
-    backgroundColor: "#F2F4F5"
+    backgroundColor: theme.colors.primary
   },
   logoImage: {
     width: "100%",
@@ -108,42 +135,24 @@ const styles = StyleSheet.create({
     resizeMode: "cover"
   },
   logoInitial: {
-    color: theme.colors.secondary,
-    fontWeight: "800",
-    fontSize: 18
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 24
+  },
+  contentZone: {
+    padding: 14,
+    gap: 4
   },
   name: {
-    color: theme.colors.text,
+    fontSize: 15,
     fontWeight: "700",
-    fontSize: theme.typography.body,
-    marginTop: theme.spacing(0.25)
+    color: theme.colors.text
   },
-  badges: {
-    flexDirection: "row",
-    gap: theme.spacing(0.5),
-    flexWrap: "wrap"
-  },
-  badge: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: "#F7F8F9",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
-  },
-  badgeSecondary: {
-    backgroundColor: "#FFF8EC",
-    borderColor: "#F5D49A"
-  },
-  badgeLabel: {
-    color: theme.colors.secondary,
-    fontWeight: "700",
-    fontSize: theme.typography.small
-  },
-  badgeLabelSecondary: {
-    color: theme.colors.secondary
+  metadata: {
+    fontSize: theme.typography.small,
+    fontWeight: "500",
+    color: theme.colors.muted
   }
 });
 
 export default MerchantGridCard;
-

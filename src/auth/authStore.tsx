@@ -2,10 +2,11 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import * as SecureStore from "expo-secure-store";
 import * as Device from "expo-device";
 
-import { authApi } from "../api/endpoints";
+import { authApi, pushTokenApi } from "../api/endpoints";
 import { configureHttpAuth, HttpError } from "../api/http";
 import { AuthTokens } from "../types/api";
 import { queryClient } from "../query/queryClient";
+import { unregisterPushToken } from "../notifications/register";
 
 type AuthState = {
   accessToken: string | null;
@@ -251,6 +252,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
+      await unregisterPushToken((t) => pushTokenApi.unregister(t));
+    } catch {
+      // best effort — don't block logout
+    }
+    try {
       const token = refreshTokenRef.current;
       if (token) {
         await authApi.logout(token);
@@ -263,6 +269,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [clearAuth]);
 
   const logoutAll = useCallback(async () => {
+    try {
+      await unregisterPushToken((t) => pushTokenApi.unregister(t));
+    } catch {
+      // best effort — don't block logout
+    }
     try {
       await authApi.logoutAll();
     } catch {

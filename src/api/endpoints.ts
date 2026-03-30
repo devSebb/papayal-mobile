@@ -140,3 +140,18 @@ export const merchantsApi = {
   }
 };
 
+export const pushTokenApi = {
+  register: async (token: string, platform: string) => {
+    await request("/api/v1/me/push_tokens", {
+      method: "POST",
+      body: { token, platform }
+    });
+  },
+  unregister: async (token: string) => {
+    await request("/api/v1/me/push_tokens", {
+      method: "DELETE",
+      body: { token }
+    });
+  }
+};
+

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Text, TextInput } from "react-native";
+import { Platform, Text, TextInput } from "react-native";
 import { useFonts } from "expo-font";
 import { Raleway_700Bold } from "@expo-google-fonts/raleway";
 import * as SplashScreen from "expo-splash-screen";
@@ -7,6 +7,11 @@ import * as SplashScreen from "expo-splash-screen";
 import { useAuth } from "../auth/authStore";
 import { theme } from "../ui/theme";
 import StartupScreen from "../screens/StartupScreen";
+import { registerForPushNotifications } from "../notifications/register";
+import { pushTokenApi } from "../api/endpoints";
+
+// Configure foreground notification display (must run at module level)
+import "../notifications/handler";
 
 // Prevent native splash from auto-hiding before we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -28,7 +33,7 @@ type Props = {
  */
 const BootGate: React.FC<Props> = ({ children }) => {
   const splashHidden = useRef(false);
-  const { hydrated } = useAuth();
+  const { hydrated, accessToken } = useAuth();
 
   const [fontsLoaded] = useFonts({
     [theme.fonts.regular]: require("../../assets/fonts/Satoshi-Variable.ttf"),
@@ -63,6 +68,16 @@ const BootGate: React.FC<Props> = ({ children }) => {
       });
     }
   }, [isReady]);
+
+  // Register push token after boot + auth
+  useEffect(() => {
+    if (!isReady || !accessToken) return;
+    registerForPushNotifications((token) =>
+      pushTokenApi.register(token, Platform.OS)
+    ).catch((err) => {
+      if (__DEV__) console.warn("[Push] Registration failed:", err);
+    });
+  }, [isReady, accessToken]);
 
   // Show branded StartupScreen while booting
   if (!isReady) {

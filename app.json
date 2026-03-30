@@ -46,6 +46,13 @@
           "photosPermission": "La app necesita acceso a tus fotos para cambiar tu foto de perfil.",
           "cameraPermission": "La app necesita acceso a la cámara para tomar una foto de perfil."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/Papayal-icon.png",
+          "color": "#FCA50F"
+        }
       ]
     ],
     "extra": {

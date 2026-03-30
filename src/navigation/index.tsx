@@ -1,7 +1,8 @@
-import React from "react";
-import { NavigationContainer, DefaultTheme, NavigatorScreenParams } from "@react-navigation/native";
+import React, { useEffect } from "react";
+import { NavigationContainer, DefaultTheme, NavigatorScreenParams, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { setupNotificationResponseListener, handleInitialNotification } from "../notifications/handler";
 
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -203,6 +204,8 @@ const AuthNavigator = () => (
   </AuthStack.Navigator>
 );
 
+const navigationRef = createNavigationContainerRef();
+
 const navTheme = {
   ...DefaultTheme,
   colors: {
@@ -218,10 +221,18 @@ const navTheme = {
 const RootNavigator = () => {
   const { accessToken } = useAuth();
 
+  // Handle notification taps (foreground + cold start)
+  useEffect(() => {
+    if (!accessToken) return;
+    const sub = setupNotificationResponseListener(navigationRef);
+    handleInitialNotification(navigationRef);
+    return () => sub.remove();
+  }, [accessToken]);
+
   // BootGate ensures we only render after hydration is complete,
   // so we can directly switch based on accessToken without a loading state.
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {accessToken ? (
           <RootStack.Screen name="App" component={AppTabs} />

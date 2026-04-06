@@ -38,7 +38,8 @@ const BootGate: React.FC<Props> = ({ children }) => {
   const [fontsLoaded] = useFonts({
     [theme.fonts.regular]: require("../../assets/fonts/Satoshi-Variable.ttf"),
     [theme.fonts.italic]: require("../../assets/fonts/Satoshi-VariableItalic.ttf"),
-    [theme.fonts.brand]: Raleway_700Bold
+    [theme.fonts.brand]: Raleway_700Bold,
+    [theme.fonts.brandBlack]: require("../../assets/fonts/Raleway-Black.ttf")
   });
 
   const isReady = fontsLoaded && hydrated;

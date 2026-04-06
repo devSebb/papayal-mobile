@@ -254,8 +254,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
-    color: theme.colors.text
+    fontFamily: theme.fonts.brandBlack,
+    color: theme.colors.secondary
   },
   subtitle: {
     fontSize: theme.typography.body,

@@ -238,28 +238,24 @@ const WelcomeScreen: React.FC = () => {
         </View>
 
         <Animated.View style={[styles.heroZone, { opacity: heroIn, transform: [{ translateY: heroTranslate }] }]}>
-          <Text style={styles.heroWordmark}>Papayal</Text>
           <Animated.View style={[styles.logoWrap, { transform: [{ translateY: floatAnim }] }]}>
             <Image source={logoTagImage} style={styles.logoImage} />
           </Animated.View>
-
-          <Animated.View style={[styles.giftCard, { transform: [{ translateY: floatAnim }] }]}>
-            <View style={styles.giftCardIconWrap}>
-              <Feather name="gift" size={16} color={theme.colors.secondary} />
-            </View>
-            <View style={styles.giftCardTextBlock}>
-              <Text style={styles.giftCardTitle}>Tarjeta de Regalo</Text>
-              <Text style={styles.giftCardSubtitle}>Envio inmediato</Text>
-            </View>
-          </Animated.View>
+          <Text style={styles.heroWordmark}>Papayal</Text>
         </Animated.View>
 
-        <Animated.View style={[styles.copyZone, { opacity: headlineIn, transform: [{ translateY: headlineTranslate }] }]}>
-          <Text style={styles.headline}>Cuida a los tuyos, desde donde estes.</Text>
+        <Animated.View
+          style={[
+            styles.copyZone,
+            styles.copyZoneTight,
+            { opacity: headlineIn, transform: [{ translateY: headlineTranslate }] }
+          ]}
+        >
+          <Text style={styles.headline}>Envía Tarjetas de Regalo Digitales</Text>
         </Animated.View>
 
         <Animated.Text style={[styles.subheadline, { opacity: subheadIn, transform: [{ translateY: subheadTranslate }] }]}>
-          Tarjetas de regalo digitales para Ecuador. {"\n"} Sin comisiones ocultas.
+          Desde donde sea,{"\n"}en segundos y con respaldo
         </Animated.Text>
 
         <Animated.View style={[styles.ctaSection, { opacity: ctaIn, transform: [{ translateY: ctaTranslate }] }]}>
@@ -372,10 +368,9 @@ const styles = StyleSheet.create({
   },
   heroWordmark: {
     color: theme.colors.secondary,
-    fontFamily: theme.fonts.brand,
-    fontSize: 58,
-    fontWeight: "800",
-    lineHeight: 62,
+    fontFamily: theme.fonts.brandBlack,
+    fontSize: 64,
+    lineHeight: 68,
     letterSpacing: 0.4
   },
   languageChip: {
@@ -395,69 +390,33 @@ const styles = StyleSheet.create({
   heroZone: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 274,
+    minHeight: 252,
     gap: theme.spacing(1.2)
   },
   logoWrap: {
-    width: 152,
-    height: 152,
+    width: 168,
+    height: 168,
     borderRadius: 999,
     justifyContent: "center",
     alignItems: "center"
   },
   logoImage: {
-    width: 150,
-    height: 150,
+    width: 166,
+    height: 166,
     resizeMode: "contain"
-  },
-  giftCard: {
-    width: 220,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.83)",
-    borderWidth: 1,
-    borderColor: "#E8DDCE",
-    padding: theme.spacing(1.4),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(1),
-    shadowColor: theme.colors.secondary,
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4
-  },
-  giftCardIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(252,165,15,0.18)"
-  },
-  giftCardTextBlock: {
-    flex: 1
-  },
-  giftCardTitle: {
-    color: theme.colors.secondary,
-    fontFamily: theme.fonts.regular,
-    fontSize: 14,
-    fontWeight: "700"
-  },
-  giftCardSubtitle: {
-    marginTop: 1,
-    color: "rgba(13,47,50,0.7)",
-    fontFamily: theme.fonts.regular,
-    fontSize: 12
   },
   copyZone: {
     alignItems: "center"
   },
+  copyZoneTight: {
+    marginTop: -theme.spacing(1.75)
+  },
   headline: {
     color: theme.colors.secondary,
     textAlign: "center",
-    fontSize: 37,
-    lineHeight: 42,
-    letterSpacing: -0.45,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.35,
     fontFamily: theme.fonts.regular,
     fontWeight: "900",
     maxWidth: 360
@@ -465,8 +424,8 @@ const styles = StyleSheet.create({
   subheadline: {
     textAlign: "center",
     color: "rgba(13,47,50,0.66)",
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 16,
+    lineHeight: 24,
     fontFamily: theme.fonts.regular,
     paddingHorizontal: theme.spacing(2)
   },

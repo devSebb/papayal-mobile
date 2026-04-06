@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
+import { Feather } from "@expo/vector-icons";
+
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import TextField from "../ui/components/TextField";
@@ -34,6 +36,17 @@ const LoginScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
+      <View style={styles.navRow}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          style={styles.backButton}
+        >
+          <Feather name="arrow-left" size={22} color={theme.colors.text} />
+        </Pressable>
+      </View>
       <View style={styles.header}>
         <Text style={styles.title}>Papayal</Text>
         <Text style={styles.subtitle}>Inicia sesión para administrar tu billetera.</Text>
@@ -81,13 +94,26 @@ const LoginScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacing(1)
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent"
+  },
   header: {
     marginBottom: theme.spacing(2)
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
-    color: theme.colors.text
+    fontFamily: theme.fonts.brandBlack,
+    color: theme.colors.secondary
   },
   subtitle: {
     fontSize: theme.typography.body,

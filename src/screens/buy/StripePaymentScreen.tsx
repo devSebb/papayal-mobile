@@ -428,7 +428,7 @@ async function waitForGiftCardGeneration(_paymentIntentId: string): Promise<void
 const styles = StyleSheet.create({
   header: {
     fontSize: 26,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   subheader: {
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   sectionHint: {
@@ -489,11 +489,11 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   summaryValue: {
     color: theme.colors.text,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   cardField: {
     width: "100%",
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     marginTop: theme.spacing(1)
   },

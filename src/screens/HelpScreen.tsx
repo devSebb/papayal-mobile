@@ -384,7 +384,7 @@ const HelpScreen: React.FC = () => {
         </Card>
 
         <View style={styles.footer}>
-          <Text style={styles.footerTitle}>Papayal</Text>
+          <Text style={styles.footerWordmark}>Papayal</Text>
           <Text style={styles.footerSubtitle}>Versión {appVersion}</Text>
         </View>
       </ScrollView>
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.secondary
   },
   subtitle: {
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   sectionSubtitle: {
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   },
   quickLabel: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     lineHeight: 22
   },
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     color: theme.colors.text,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     fontSize: theme.typography.small
   },
   chipLabelActive: {
@@ -548,11 +548,11 @@ const styles = StyleSheet.create({
   faqBadgeText: {
     fontSize: theme.typography.small,
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   faqQuestion: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     lineHeight: 22
   },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   emptySubtitle: {
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     color: theme.colors.secondary,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.small
   },
   footer: {
@@ -609,9 +609,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing(0.5),
     paddingBottom: theme.spacing(1)
   },
-  footerTitle: {
+  footerWordmark: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.brandBlack,
     color: theme.colors.text
   },
   footerSubtitle: {

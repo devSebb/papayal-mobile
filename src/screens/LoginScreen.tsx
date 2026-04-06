@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   submit: {
     marginTop: theme.spacing(1)

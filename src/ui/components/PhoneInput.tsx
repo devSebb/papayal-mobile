@@ -256,8 +256,7 @@ const styles = StyleSheet.create({
   callingCode: {
     fontSize: theme.typography.body,
     color: theme.colors.text,
-    fontFamily: theme.fonts.regular,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   divider: {
     width: 1,

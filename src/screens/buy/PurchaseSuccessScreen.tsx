@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   subtitle: {
@@ -176,13 +176,13 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing(0.5)
   },
   summaryText: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     fontSize: theme.typography.subheading
   },
   summaryAmount: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   summaryRecipient: {
@@ -212,12 +212,13 @@ const styles = StyleSheet.create({
   infoHint: {
     color: theme.colors.muted,
     fontSize: theme.typography.small - 1,
-    fontStyle: "italic"
+    fontFamily: theme.fonts.italic
   },
   debugText: {
     color: theme.colors.muted,
     fontSize: 10,
-    fontFamily: "monospace"
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.2
   },
   actions: {
     width: "100%",

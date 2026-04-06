@@ -235,12 +235,12 @@ const styles = StyleSheet.create({
   },
   logoInitial: {
     color: "#FFFFFF",
-    fontWeight: "900",
+    fontFamily: theme.fonts.black,
     fontSize: 32
   },
   storeName: {
     fontSize: 26,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text,
     textAlign: "center",
     marginTop: theme.spacing(1.5),
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   infoRow: {
@@ -286,12 +286,12 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     color: theme.colors.secondary,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.small
   },
   noCategories: {
     color: theme.colors.muted,
-    fontStyle: "italic"
+    fontFamily: theme.fonts.italic
   },
   ctaPressable: {
     marginTop: theme.spacing(2),
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   },
   ctaLabel: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.secondary,
     letterSpacing: 0.1,
     textAlign: "center"
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     marginTop: theme.spacing(1),
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   errorSubtitle: {

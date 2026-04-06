@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   missingKeyTitle: {
     color: "#C62828",
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     marginBottom: 4
   },
   missingKeyText: {
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   localhostText: {
     color: "#E65100",
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     textAlign: "center"
   },
   configError: {
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   configErrorTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text,
     marginBottom: 12
   },

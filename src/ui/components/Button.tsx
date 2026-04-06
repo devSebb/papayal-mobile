@@ -105,8 +105,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
-    fontFamily: theme.fonts.regular,
+    fontFamily: theme.fonts.bold,
     letterSpacing: 0.1,
     textAlign: "center",
     flexShrink: 1

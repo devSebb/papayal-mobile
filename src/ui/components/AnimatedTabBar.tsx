@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     letterSpacing: 0.15,
     color: theme.colors.navbarMuted
   }

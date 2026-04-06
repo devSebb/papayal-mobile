@@ -139,7 +139,7 @@ const DeliveryProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   header: {
     fontSize: 26,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   subheader: {

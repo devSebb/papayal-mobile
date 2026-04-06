@@ -368,7 +368,7 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     marginBottom: theme.spacing(1)
   },
   headerRow: {
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   muted: {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   tag: {
     color: theme.colors.secondary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   changePhotoButton: {
     marginTop: theme.spacing(0.5),
@@ -460,7 +460,8 @@ const styles = StyleSheet.create({
   errorDetail: {
     color: theme.colors.danger,
     fontSize: theme.typography.small,
-    fontFamily: "monospace"
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.2
   },
   meta: {
     marginTop: theme.spacing(1.5)
@@ -473,7 +474,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.body,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   }
 });
 

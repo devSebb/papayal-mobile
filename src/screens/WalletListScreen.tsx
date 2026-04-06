@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +22,146 @@ import { ActivityItem, GiftCardVM, TabKey } from "../domain/wallet/types";
 import { GiftCard } from "../types/api";
 
 const merchantPlaceholder = require("../../assets/merchant-default.png");
+const walletDecorationImage = require("../../assets/wallet-decoration.png");
+
+const WALLET_CARD_BG = "#F5EEDC";
+const WALLET_HEADING = "#2D3E50";
+
+/** Same top/bottom inset so "Total Disponible" and "Tarjetas Activas" align across columns */
+const WALLET_SUMMARY_PAD_V = theme.spacing(1.5);
+const WALLET_SUMMARY_LABEL_VALUE_GAP = theme.spacing(0.75);
+
+const SUMMARY_L_STROKE = 2.5;
+const SUMMARY_L_RADIUS = 14;
+const CARD_ACCENT_STROKE = 4;
+
+const SummaryLeftWithGradientBorder: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const idBase = useId().replace(/:/g, "");
+  const gradVertical = `${idBase}-sv`;
+  const gradHorizontal = `${idBase}-sh`;
+
+  const paths = useMemo(() => {
+    const { w, h } = box;
+    if (w <= 0 || h <= 0) return { vertical: "", bottom: "" };
+    const s = SUMMARY_L_STROKE / 2;
+    const r = SUMMARY_L_RADIUS;
+    const x = w - s;
+    const y = h - s;
+    const vertical = `M ${x} 0 L ${x} ${y - r}`;
+    const bottom = `M ${x} ${y - r} A ${r} ${r} 0 0 1 ${w - r - s} ${y} L 0 ${y}`;
+    return { vertical, bottom };
+  }, [box]);
+
+  return (
+    <View
+      style={styles.summaryLeftOuter}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox({ w: width, h: height });
+      }}
+    >
+      {box.w > 0 && box.h > 0 ? (
+        <Svg
+          width={box.w}
+          height={box.h}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
+          <Defs>
+            <LinearGradient
+              id={gradVertical}
+              x1="0%"
+              y1="0%"
+              x2="0%"
+              y2="100%"
+              gradientUnits="objectBoundingBox"
+            >
+              <Stop offset="0%" stopColor={theme.colors.background} />
+              <Stop offset="100%" stopColor={theme.colors.primary} />
+            </LinearGradient>
+            <LinearGradient
+              id={gradHorizontal}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="0%"
+              gradientUnits="objectBoundingBox"
+            >
+              <Stop offset="0%" stopColor={theme.colors.background} />
+              <Stop offset="100%" stopColor={theme.colors.primary} />
+            </LinearGradient>
+          </Defs>
+          <Path
+            d={paths.vertical}
+            stroke={`url(#${gradVertical})`}
+            strokeWidth={SUMMARY_L_STROKE}
+            fill="none"
+            strokeLinecap="round"
+          />
+          <Path
+            d={paths.bottom}
+            stroke={`url(#${gradHorizontal})`}
+            strokeWidth={SUMMARY_L_STROKE}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      ) : null}
+      <View style={styles.summaryLeftInner}>{children}</View>
+    </View>
+  );
+};
+
+const GiftCardRightGradientAccent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const uid = useId().replace(/:/g, "");
+  const gradId = `${uid}-card`;
+
+  const x = box.w > 0 ? box.w - CARD_ACCENT_STROKE / 2 : 0;
+
+  return (
+    <View
+      style={styles.cardAccentWrap}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox({ w: width, h: height });
+      }}
+    >
+      {children}
+      {box.w > 0 && box.h > 0 ? (
+        <Svg
+          width={box.w}
+          height={box.h}
+          style={[StyleSheet.absoluteFill, styles.cardAccentSvg]}
+          pointerEvents="none"
+        >
+          <Defs>
+            <LinearGradient
+              id={gradId}
+              x1="0%"
+              y1="0%"
+              x2="0%"
+              y2="100%"
+              gradientUnits="objectBoundingBox"
+            >
+              <Stop offset="0%" stopColor={theme.colors.background} />
+              <Stop offset="100%" stopColor={theme.colors.primary} />
+            </LinearGradient>
+          </Defs>
+          <Path
+            d={`M ${x} 0 L ${x} ${box.h}`}
+            stroke={`url(#${gradId})`}
+            strokeWidth={CARD_ACCENT_STROKE}
+            fill="none"
+            strokeLinecap="butt"
+          />
+        </Svg>
+      ) : null}
+    </View>
+  );
+};
 
 const PAGE_SIZE = 6;
 const TAB_LABELS: Record<TabKey, string> = {
@@ -87,22 +228,20 @@ const shortName = (full: string) => {
 
 const SummaryBanner: React.FC<{
   balanceLabel: string | null;
-  totalCards: number;
-  gastadoLabel: string | null;
-}> = ({ balanceLabel, totalCards, gastadoLabel }) => (
-  <View style={styles.summaryBanner}>
-    <View style={styles.summaryLeft}>
-      <Text style={styles.summaryBalanceLabel}>Saldo Disponible</Text>
-      <Text style={styles.summaryBalanceValue}>{balanceLabel ?? "—"}</Text>
-    </View>
-    <View style={styles.summaryRight}>
-      <View style={styles.summaryStatItem}>
-        <Text style={styles.summaryStatLabel}>Tarjetas</Text>
-        <Text style={styles.summaryStatValue}>{totalCards}</Text>
-      </View>
-      <View style={styles.summaryStatItem}>
-        <Text style={styles.summaryStatLabel}>Gastado</Text>
-        <Text style={styles.summaryStatValue}>{gastadoLabel ?? "—"}</Text>
+  activeCardsCount: number;
+}> = ({ balanceLabel, activeCardsCount }) => (
+  <View style={styles.walletStrip}>
+    <View style={styles.walletMainRow}>
+      <SummaryLeftWithGradientBorder>
+        <Text style={styles.summaryBalanceLabel}>Total Disponible</Text>
+        <Text style={styles.summaryBalanceValue}>{balanceLabel ?? "—"}</Text>
+      </SummaryLeftWithGradientBorder>
+      <View style={styles.activeCardsCard}>
+        <View style={styles.activeCardsTextBlock}>
+          <Text style={styles.activeCardsLabel}>Tarjetas Activas</Text>
+          <Text style={styles.activeCardsValue}>{activeCardsCount}</Text>
+        </View>
+        <Image source={walletDecorationImage} style={styles.walletDecoration} />
       </View>
     </View>
   </View>
@@ -136,32 +275,34 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.row}>
-      <Card style={styles.cardWithAccent}>
-        <View style={styles.rowTop}>
-          <View style={styles.merchantLogoContainer}>
-            <Image source={logoSource} style={styles.merchantLogoImage} />
-            {!hasLogo ? <Text style={styles.badgeInitial}>{merchantInitial}</Text> : null}
-          </View>
-          <View style={styles.rowMiddle}>
-            <Text style={styles.merchantTitle} numberOfLines={1}>
-              {item.merchantLabel}
-            </Text>
-            <View style={styles.senderRow}>
-              <Text style={styles.senderLabel}>
-                {senderName ? `de: ${senderName}` : "Propia"}
+      <GiftCardRightGradientAccent>
+        <Card style={styles.cardWithAccent}>
+          <View style={styles.rowTop}>
+            <View style={styles.merchantLogoContainer}>
+              <Image source={logoSource} style={styles.merchantLogoImage} />
+              {!hasLogo ? <Text style={styles.badgeInitial}>{merchantInitial}</Text> : null}
+            </View>
+            <View style={styles.rowMiddle}>
+              <Text style={styles.merchantTitle} numberOfLines={1}>
+                {item.merchantLabel}
               </Text>
-              <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
-                <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
+              <View style={styles.senderRow}>
+                <Text style={styles.senderLabel}>
+                  {senderName ? `de: ${senderName}` : "Propia"}
+                </Text>
+                <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
+                  <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
+                </View>
               </View>
             </View>
+            <View style={styles.cardDivider} />
+            <View style={styles.amountColumn}>
+              <Text style={styles.amount}>{item.remainingFormatted}</Text>
+              <Text style={styles.muted}>de {item.originalFormatted}</Text>
+            </View>
           </View>
-          <View style={styles.cardDivider} />
-          <View style={styles.amountColumn}>
-            <Text style={styles.amount}>{item.remainingFormatted}</Text>
-            <Text style={styles.muted}>de {item.originalFormatted}</Text>
-          </View>
-        </View>
-      </Card>
+        </Card>
+      </GiftCardRightGradientAccent>
     </TouchableOpacity>
   );
 };
@@ -357,20 +498,9 @@ const WalletListScreen: React.FC = () => {
         ? formatMoney(centsToDollars(activeBalanceCents), activeWithAmounts[0]?.currency)
         : null;
 
-    const cardsWithCurrency = mappedCards.filter((c) => !!c.currency);
-    const spentCurrencies = new Set(cardsWithCurrency.map((c) => c.currency).filter(Boolean) as string[]);
-    const canShowGastado = cardsWithCurrency.length > 0 && spentCurrencies.size === 1;
-    const gastadoCents = canShowGastado
-      ? cardsWithCurrency.reduce((sum, c) => sum + (c.redeemedDeltaCents ?? 0), 0)
-      : 0;
-    const gastadoLabel = canShowGastado
-      ? formatMoney(centsToDollars(gastadoCents), cardsWithCurrency[0]?.currency)
-      : null;
-
     return {
       activeBalanceLabel,
-      totalCards: mappedCards.length,
-      gastadoLabel
+      activeCardsCount: activeCards.length
     };
   }, [mappedCards]);
 
@@ -427,8 +557,7 @@ const WalletListScreen: React.FC = () => {
     <View style={styles.header}>
       <SummaryBanner
         balanceLabel={summary.activeBalanceLabel}
-        totalCards={summary.totalCards}
-        gastadoLabel={summary.gastadoLabel}
+        activeCardsCount={summary.activeCardsCount}
       />
       <Text style={styles.sectionTitle}>Mis Tarjetas</Text>
       <View style={styles.tabsRow}>
@@ -542,56 +671,79 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: theme.colors.background,
-    paddingVertical: theme.spacing(1),
+    paddingTop: theme.spacing(0.5),
     gap: theme.spacing(1)
   },
-  summaryBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+  walletStrip: {
     paddingBottom: theme.spacing(2)
   },
-  summaryLeft: {
-    paddingBottom: theme.spacing(1.5),
-    paddingRight: theme.spacing(2),
-    marginRight: theme.spacing(2),
-    marginLeft: theme.spacing(1),
-    borderBottomWidth: 2,
-    borderRightWidth: 2,
-    borderColor: theme.colors.primary,
-    borderBottomRightRadius: theme.radius.md,
-    gap: theme.spacing(1)
+  walletMainRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: theme.spacing(1.5)
+  },
+  summaryLeftOuter: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: theme.spacing(0.5),
+    position: "relative"
+  },
+  summaryLeftInner: {
+    paddingTop: WALLET_SUMMARY_PAD_V,
+    paddingBottom: WALLET_SUMMARY_PAD_V,
+    paddingRight: theme.spacing(1.75),
+    paddingLeft: theme.spacing(0.25),
+    gap: WALLET_SUMMARY_LABEL_VALUE_GAP
   },
   summaryBalanceLabel: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: theme.colors.text
+    fontSize: 16,
+    fontFamily: theme.fonts.semiBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.2
   },
   summaryBalanceValue: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: theme.colors.text,
-    marginTop: 2
+    fontSize: 30,
+    fontFamily: theme.fonts.extraBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.6
   },
-
-  summaryRight: {
+  activeCardsCard: {
     flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-around",
+    minWidth: 0,
+    backgroundColor: WALLET_CARD_BG,
+    borderRadius: 14,
+    paddingTop: WALLET_SUMMARY_PAD_V,
+    paddingLeft: theme.spacing(1.5),
+    paddingRight: theme.spacing(1.25),
+    paddingBottom: WALLET_SUMMARY_PAD_V,
+    overflow: "hidden",
+    justifyContent: "flex-start"
   },
-  summaryStatItem: {
-    alignItems: "center" as const,
-    gap: theme.spacing(1)
+  activeCardsTextBlock: {
+    gap: WALLET_SUMMARY_LABEL_VALUE_GAP
   },
-  summaryStatLabel: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: theme.colors.muted
+  activeCardsLabel: {
+    fontSize: 16,
+    fontFamily: theme.fonts.semiBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.2,
+    zIndex: 1
   },
-  summaryStatValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: theme.colors.text,
-    marginTop: 2,
+  activeCardsValue: {
+    fontSize: 28,
+    fontFamily: theme.fonts.extraBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.5,
+    zIndex: 1
+  },
+  walletDecoration: {
+    position: "absolute",
+    right: -2,
+    bottom: -8,
+    width: 88,
+    height: 88,
+    opacity: 0.38,
+    resizeMode: "contain"
   },
   tabsRow: {
     flexDirection: "row",
@@ -612,7 +764,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   tabLabelActive: {
     color: theme.colors.card
@@ -625,9 +777,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing(1.2)
   },
+  cardAccentWrap: {
+    width: "100%",
+    position: "relative"
+  },
+  cardAccentSvg: {
+    zIndex: 2
+  },
   cardWithAccent: {
-    borderRightWidth: 4,
-    borderRightColor: theme.colors.primary,
     overflow: "hidden"
   },
   merchantLogoContainer: {
@@ -647,7 +804,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     textAlign: "center",
     width: "100%",
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.heading,
     color: theme.colors.secondary
   },
@@ -660,7 +817,7 @@ const styles = StyleSheet.create({
   },
   merchantTitle: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   senderRow: {
@@ -677,7 +834,7 @@ const styles = StyleSheet.create({
   senderLabel: {
     flexShrink: 0,
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: theme.fonts.medium,
     color: theme.colors.muted
   },
   statusPill: {
@@ -688,7 +845,7 @@ const styles = StyleSheet.create({
     borderWidth: 1
   },
   statusText: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.small
   },
   amountColumn: {
@@ -696,7 +853,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   muted: {
@@ -713,13 +870,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     marginLeft: theme.spacing(0.5)
   },
   link: {
     color: theme.colors.secondary,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   paginationContainer: {
     flexDirection: "row",
@@ -733,7 +890,7 @@ const styles = StyleSheet.create({
   },
   paginationLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   paginationButton: {
     flexDirection: "row",
@@ -751,7 +908,7 @@ const styles = StyleSheet.create({
   },
   paginationButtonLabel: {
     color: theme.colors.text,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   activityRow: {
     flexDirection: "row",
@@ -774,7 +931,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   activityTitle: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   activitySubtitle: {
@@ -782,7 +939,7 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   activityAmount: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
   emptyCard: {

@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   },
   navTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   navSpacer: {

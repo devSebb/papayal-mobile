@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   subtitle: {
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   }
 });
 

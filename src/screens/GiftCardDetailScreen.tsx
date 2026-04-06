@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   logoInitial: {
     position: "absolute",
     color: theme.colors.secondary,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.subheading
   },
   headerText: {
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     marginBottom: theme.spacing(1)
   },
   row: {
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   value: {
     color: theme.colors.text,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   button: {
     marginTop: theme.spacing(2)
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: theme.typography.small,
     color: theme.colors.muted,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     marginBottom: theme.spacing(1),
     textTransform: "uppercase",
     letterSpacing: 0.5
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   senderInitials: {
     position: "absolute",
     color: theme.colors.secondary,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.body
   },
   senderInfo: {
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   },
   senderName: {
     fontSize: theme.typography.body,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text
   },
   senderEmail: {
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   noteText: {
     fontSize: theme.typography.body,
     color: theme.colors.text,
-    fontStyle: "italic",
+    fontFamily: theme.fonts.italic,
     lineHeight: 24
   }
 });

@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   activityTitle: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   activitySubtitle: {
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   amount: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
   muted: {

@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   },
   logoInitial: {
     color: "#FFFFFF",
-    fontWeight: "900",
+    fontFamily: theme.fonts.black,
     fontSize: 24
   },
   contentZone: {
@@ -145,12 +145,12 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   metadata: {
     fontSize: theme.typography.small,
-    fontWeight: "500",
+    fontFamily: theme.fonts.medium,
     color: theme.colors.muted
   }
 });

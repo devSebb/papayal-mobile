@@ -119,7 +119,7 @@ const RedemptionTokenScreen: React.FC = () => {
 const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     marginBottom: theme.spacing(1)
   },
   tokenContainer: {
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   tokenText: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     letterSpacing: 1.1,
     color: theme.colors.text
   },
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   countdown: {
     color: theme.colors.secondary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   button: {
     marginTop: theme.spacing(2)

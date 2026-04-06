@@ -179,9 +179,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
     color: theme.colors.text,
-    fontFamily: theme.fonts.regular
+    fontFamily: theme.fonts.bold
   },
   closeButton: {
     padding: theme.spacing(0.5)

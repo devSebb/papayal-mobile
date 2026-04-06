@@ -139,7 +139,7 @@ const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
 const styles = StyleSheet.create({
   header: {
     fontSize: 26,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   subheader: {
@@ -171,12 +171,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   link: {
     color: theme.colors.secondary,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   row: {
     flexDirection: "row",
@@ -185,11 +185,11 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   rowValue: {
     color: theme.colors.text,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     maxWidth: "65%"
   },
   hintCard: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   hintTitle: {
     color: theme.colors.secondary,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   hintBody: {
     color: theme.colors.text,

@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     marginBottom: theme.spacing(0.5)
   },
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.body,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text,
     marginBottom: theme.spacing(0.25)
   },

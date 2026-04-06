@@ -171,12 +171,12 @@ const styles = StyleSheet.create({
   step: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     marginBottom: theme.spacing(0.5),
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
   },
   subtitle: {
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     fontSize: theme.typography.small,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text,
     flexShrink: 1,
   },

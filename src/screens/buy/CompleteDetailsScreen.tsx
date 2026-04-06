@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 26,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   subheader: {
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   muted: {
@@ -338,11 +338,11 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   infoValue: {
     color: theme.colors.text,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     maxWidth: "65%"
   },
   form: {

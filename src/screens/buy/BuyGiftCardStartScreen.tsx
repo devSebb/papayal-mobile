@@ -308,7 +308,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
 const styles = StyleSheet.create({
   header: {
     fontSize: 26,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   subheader: {
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   sectionHint: {
@@ -383,14 +383,14 @@ const styles = StyleSheet.create({
   merchantInitial: {
     position: "absolute",
     color: theme.colors.secondary,
-    fontWeight: "800"
+    fontFamily: theme.fonts.extraBold
   },
   merchantText: {
     flex: 1
   },
   merchantName: {
     color: theme.colors.text,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.body
   },
   merchantDemo: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary
   },
   amountChipLabel: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
   amountChipLabelSelected: {
@@ -442,11 +442,11 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   summaryValue: {
     color: theme.colors.text,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     fontSize: theme.typography.subheading
   },
   continueButton: {

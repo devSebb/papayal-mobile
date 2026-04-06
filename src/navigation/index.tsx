@@ -125,8 +125,13 @@ const HomeStackNavigator = () => (
   </HomeStack.Navigator>
 );
 
+const walletHeaderFonts = {
+  headerTitleStyle: { fontFamily: theme.fonts.semiBold },
+  headerBackTitleStyle: { fontFamily: theme.fonts.regular }
+};
+
 const WalletStackNavigator = () => (
-  <WalletStack.Navigator>
+  <WalletStack.Navigator screenOptions={walletHeaderFonts}>
     <WalletStack.Screen
       name="WalletList"
       component={WalletListScreen}

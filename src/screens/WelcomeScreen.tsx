@@ -383,9 +383,8 @@ const styles = StyleSheet.create({
   },
   languageText: {
     color: theme.colors.secondary,
-    fontFamily: theme.fonts.regular,
-    fontSize: 12,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold,
+    fontSize: 12
   },
   heroZone: {
     alignItems: "center",
@@ -417,8 +416,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     letterSpacing: -0.35,
-    fontFamily: theme.fonts.regular,
-    fontWeight: "900",
+    fontFamily: theme.fonts.extraBold,
     maxWidth: 360
   },
   subheadline: {
@@ -472,8 +470,7 @@ const styles = StyleSheet.create({
   trustLabel: {
     color: "rgba(13,47,50,0.58)",
     fontSize: 11,
-    fontFamily: theme.fonts.regular,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   tickerWrap: {
     minHeight: 26,

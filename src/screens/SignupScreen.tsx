@@ -249,12 +249,12 @@ const styles = StyleSheet.create({
   step: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     marginBottom: theme.spacing(0.5)
   },
   title: {
     fontSize: 32,
-    fontFamily: theme.fonts.brandBlack,
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.secondary
   },
   subtitle: {
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   submit: {
     marginTop: theme.spacing(1)
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   termsLink: {
     color: theme.colors.primary,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     textDecorationLine: "underline"
   },
   termsError: {

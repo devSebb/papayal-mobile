@@ -116,11 +116,11 @@ const styles = StyleSheet.create({
   },
   backLabel: {
     color: theme.colors.text,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   title: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     marginBottom: theme.spacing(0.5)
   },

@@ -270,7 +270,7 @@ const SkeletonTile: React.FC<{ wide: boolean; key?: React.Key }> = ({ wide }) =>
 const styles = StyleSheet.create({
   title: {
     fontSize: 28,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   subtitle: {
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 28,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     lineHeight: 36,
     color: theme.colors.text
   },
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   heroActionRow: {
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   flowTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   flowSteps: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   emptySubtitle: {
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text,
     marginBottom: theme.spacing(1)
   },
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: theme.typography.subheading,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text
   },
   email: {

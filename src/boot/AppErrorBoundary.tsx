@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text,
     marginBottom: 12
   },
@@ -86,6 +86,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 12,
     color: theme.colors.danger,
-    fontFamily: "monospace"
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.3
   }
 });

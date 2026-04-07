@@ -3,6 +3,7 @@ import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, Vi
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 
@@ -411,6 +412,7 @@ const EmptyState: React.FC<{ message: string; actionLabel?: string; onAction?: (
 const WalletListScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<WalletStackParamList>>();
   const { accessToken } = useAuth();
+  const tabBarHeight = useBottomTabBarHeight();
   const isQueryEnabled = !!accessToken;
 
   const { data: user } = useQuery({
@@ -639,7 +641,7 @@ const WalletListScreen: React.FC = () => {
         renderItem={renderItem}
         ListHeaderComponent={renderHeader}
         stickyHeaderIndices={[0]}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarHeight + theme.spacing(2) }]}
         refreshControl={
           <RefreshControl
             refreshing={isBusy}
@@ -661,12 +663,10 @@ const styles = StyleSheet.create({
   },
   navContainer: {
     paddingHorizontal: theme.spacing(2),
-    paddingTop: theme.spacing(1),
-    paddingBottom: theme.spacing(0.5)
+    paddingTop: theme.spacing(2)
   },
   list: {
     gap: theme.spacing(1.5),
-    paddingBottom: theme.spacing(2),
     paddingHorizontal: theme.spacing(2)
   },
   header: {

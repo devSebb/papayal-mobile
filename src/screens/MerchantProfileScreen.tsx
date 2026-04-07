@@ -219,26 +219,28 @@ const styles = StyleSheet.create({
     marginTop: -40
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    width: "60%",
+    aspectRatio: 2,
+    borderRadius: 22,
     overflow: "hidden",
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 4
+    elevation: 6,
+    padding: 8
   },
   logoPlaceholder: {
-    backgroundColor: theme.colors.primary
+    backgroundColor: theme.colors.primary,
+    padding: 0
   },
   logo: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover"
+    resizeMode: "contain"
   },
   logoInitial: {
     color: "#FFFFFF",
@@ -246,7 +248,7 @@ const styles = StyleSheet.create({
     fontSize: 32
   },
   storeName: {
-    fontSize: 26,
+    fontSize: 20,
     fontFamily: theme.fonts.extraBold,
     color: theme.colors.text,
     textAlign: "center",
@@ -265,17 +267,18 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing(1),
-    backgroundColor: "#FAFAFA",
-    padding: 12,
-    borderRadius: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.primary,
-    paddingLeft: 12
+    gap: theme.spacing(1.5),
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing(1.5),
+    paddingHorizontal: theme.spacing(1.5),
+    borderRadius: theme.radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border
   },
   infoText: {
     color: theme.colors.text,
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     flex: 1
   },
   categoriesContainer: {

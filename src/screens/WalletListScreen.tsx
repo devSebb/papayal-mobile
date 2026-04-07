@@ -672,6 +672,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: theme.colors.background,
     paddingTop: theme.spacing(0.5),
+    paddingBottom: theme.spacing(1),
     gap: theme.spacing(1)
   },
   walletStrip: {

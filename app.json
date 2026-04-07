@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/Papayal-logoTag.png",
       "resizeMode": "contain",
-      "backgroundColor": "#EBEBE8"
+      "backgroundColor": "#FDF1E1"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -27,7 +27,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/Papayal-logoTag.png",
-        "backgroundColor": "#EBEBE8"
+        "backgroundColor": "#FDF1E1"
       },
       "permissions": [
         "android.permission.RECORD_AUDIO"

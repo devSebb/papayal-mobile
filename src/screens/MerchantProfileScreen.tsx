@@ -24,6 +24,7 @@ import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
 import { merchantsApi } from "../api/endpoints";
 import { HomeStackParamList } from "../navigation";
+import { CATEGORY_MAP } from "../constants/categories";
 import { getMerchantColors } from "../utils/merchantColors";
 
 type RouteProps = RouteProp<HomeStackParamList, "MerchantProfile">;
@@ -87,19 +88,22 @@ const MerchantProfileScreen: React.FC = () => {
   }
 
   return (
-    <Screen scrollable edges={["left", "right"]}>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-
+    <Screen
+      scrollable
+      header={
+        <View style={styles.navRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+            style={styles.backButton}
+          >
+            <Feather name="arrow-left" size={22} color={theme.colors.text} />
+          </Pressable>
+        </View>
+      }
+    >
       {/* Header Card */}
       <Card style={styles.headerCard}>
         {/* Brand zone */}
@@ -149,11 +153,15 @@ const MerchantProfileScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesContainer}
           >
-            {categories.map((category, index) => (
-              <View key={`${category}-${index}`} style={styles.categoryChip}>
-                <Text style={styles.categoryText}>{category}</Text>
-              </View>
-            ))}
+            {categories.map((category, index) => {
+              const cat = CATEGORY_MAP[category];
+              return (
+                <View key={`${category}-${index}`} style={styles.categoryChip}>
+                  {cat && <Text style={styles.categoryEmoji}>{cat.emoji}</Text>}
+                  <Text style={styles.categoryText}>{cat?.label ?? category}</Text>
+                </View>
+              );
+            })}
           </ScrollView>
         ) : (
           <Text style={styles.noCategories}>Sin categorías</Text>
@@ -186,8 +194,7 @@ const MerchantProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   navRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
+    alignItems: "center"
   },
   backButton: {
     width: 36,
@@ -195,7 +202,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.04)"
+    backgroundColor: "transparent"
   },
   headerCard: {
     alignItems: "center",
@@ -277,12 +284,18 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing(0.5)
   },
   categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 24,
     backgroundColor: "#FFF8EC",
     borderWidth: 1,
     borderColor: "rgba(252, 165, 15, 0.3)"
+  },
+  categoryEmoji: {
+    fontSize: 14
   },
   categoryText: {
     color: theme.colors.secondary,

@@ -316,7 +316,7 @@ const WelcomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#EDE8DF",
+    backgroundColor: theme.colors.background,
     paddingHorizontal: theme.spacing(2),
     paddingTop: theme.spacing(1.4),
     paddingBottom: theme.spacing(1.6),

@@ -1,5 +1,5 @@
-import React from "react";
-import { FlatList, Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { CompositeNavigationProp, useNavigation } from "@react-navigation/native";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
@@ -17,6 +17,7 @@ import { useAuth } from "../auth/authStore";
 import TopNavBar from "../ui/components/TopNavBar";
 import { formatMoney } from "../utils/money";
 import { GiftCard, Merchant } from "../types/api";
+import { CATEGORIES } from "../constants/categories";
 
 const heroImage = require("../../assets/home-hero.png");
 
@@ -65,6 +66,38 @@ const HomeScreen: React.FC = () => {
     enabled: isQueryEnabled
   });
 
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const didAutoSelect = useRef(false);
+
+  const merchantsList: Merchant[] = merchants ?? [];
+
+  // Only show category chips for categories that have at least one merchant
+  const availableCategories = useMemo(
+    () => CATEGORIES.filter((cat) => merchantsList.some((m) => m.categories?.includes(cat.key))),
+    [merchantsList]
+  );
+
+  // Client-side filter
+  const filteredMerchants = useMemo(
+    () =>
+      selectedCategory
+        ? merchantsList.filter((m) => m.categories?.includes(selectedCategory))
+        : merchantsList,
+    [merchantsList, selectedCategory]
+  );
+
+  // Auto-select first interest that has matching merchants
+  useEffect(() => {
+    if (didAutoSelect.current || !data?.interests?.length || !merchantsList.length) return;
+    const firstMatch = data.interests.find((interest) =>
+      merchantsList.some((m) => m.categories?.includes(interest))
+    );
+    if (firstMatch) {
+      setSelectedCategory(firstMatch);
+      didAutoSelect.current = true;
+    }
+  }, [data?.interests, merchantsList]);
+
   const merchantAggregates = deriveMerchantAggregates(giftCards ?? []);
 
   const merchantCards = merchantAggregates.map((agg: MerchantAggregate) => {
@@ -86,8 +119,7 @@ const HomeScreen: React.FC = () => {
 
   const isBusy = isLoading || !accessToken;
   const isMerchantBusy = isLoadingMerchants || !accessToken;
-  const merchantsList: Merchant[] = merchants ?? [];
-  const hasMerchants = merchantsList.length > 0;
+  const hasMerchants = filteredMerchants.length > 0;
 
   return (
     <Screen scrollable edges={["left", "right"]}>
@@ -135,11 +167,42 @@ const HomeScreen: React.FC = () => {
         />
       </Card>
 
-      <Card style={styles.card}>
+      <View style={styles.card}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Comercios</Text>
+          <Text style={styles.flowTitle}>Comercios</Text>
           {isMerchantBusy ? <Text style={styles.muted}>Cargando...</Text> : null}
         </View>
+
+        {/* Category filter bar — only shown when merchants have categories */}
+        {!isMerchantBusy && availableCategories.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterBar}
+            style={styles.filterBarWrapper}
+          >
+            <Pressable
+              onPress={() => setSelectedCategory(null)}
+              style={[styles.filterChip, selectedCategory === null && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterChipText, selectedCategory === null && styles.filterChipTextActive]}>
+                Todos
+              </Text>
+            </Pressable>
+            {availableCategories.map((cat) => (
+              <Pressable
+                key={cat.key}
+                onPress={() => setSelectedCategory(selectedCategory === cat.key ? null : cat.key)}
+                style={[styles.filterChip, selectedCategory === cat.key && styles.filterChipActive]}
+              >
+                <Text style={styles.filterChipEmoji}>{cat.emoji}</Text>
+                <Text style={[styles.filterChipText, selectedCategory === cat.key && styles.filterChipTextActive]}>
+                  {cat.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         {isMerchantBusy ? (
           <View style={styles.gridSkeletons}>
@@ -149,7 +212,7 @@ const HomeScreen: React.FC = () => {
           </View>
         ) : hasMerchants ? (
           <FlatList
-            data={merchantsList}
+            data={filteredMerchants}
             numColumns={numColumns}
             scrollEnabled={false}
             showsVerticalScrollIndicator={false}
@@ -171,13 +234,17 @@ const HomeScreen: React.FC = () => {
           />
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No hay comercios disponibles.</Text>
-            <Text style={styles.emptySubtitle}>
-              Los comercios aparecerán aquí cuando estén disponibles.
+            <Text style={styles.emptyTitle}>
+              {selectedCategory ? "No hay comercios en esta categoría." : "No hay comercios disponibles."}
             </Text>
+            {!selectedCategory && (
+              <Text style={styles.emptySubtitle}>
+                Los comercios aparecerán aquí cuando estén disponibles.
+              </Text>
+            )}
           </View>
         )}
-      </Card>
+      </View>
 
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Cuenta</Text>
@@ -363,6 +430,40 @@ const styles = StyleSheet.create({
   gridItem: {
     flex: 1
   },
+  filterBarWrapper: {
+    marginBottom: theme.spacing(1.5)
+  },
+  filterBar: {
+    flexDirection: "row",
+    gap: theme.spacing(0.75),
+    paddingVertical: theme.spacing(0.25)
+  },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    paddingVertical: theme.spacing(0.6),
+    paddingHorizontal: theme.spacing(1.25),
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background
+  },
+  filterChipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary
+  },
+  filterChipEmoji: {
+    fontSize: 14
+  },
+  filterChipText: {
+    fontSize: theme.typography.small,
+    fontFamily: theme.fonts.semiBold,
+    color: theme.colors.text
+  },
+  filterChipTextActive: {
+    color: theme.colors.secondary
+  },
   gridSkeletons: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -370,11 +471,11 @@ const styles = StyleSheet.create({
   },
   skeletonCard: {
     flexBasis: "48%",
-    height: 150,
-    borderRadius: theme.radius.lg,
-    backgroundColor: "#F4F6F7",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+    height: 124,
+    borderRadius: 20,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1.5,
+    borderColor: "rgba(252, 165, 15, 0.35)"
   },
   skeletonThird: {
     flexBasis: "31%"

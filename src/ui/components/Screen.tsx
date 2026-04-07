@@ -8,6 +8,8 @@ type Props = ViewProps & {
   centerContent?: boolean;
   safeAreaColor?: string;
   edges?: ("top" | "bottom" | "left" | "right")[];
+  /** When used with scrollable, rendered above the ScrollView so it does not scroll away */
+  header?: React.ReactNode;
 };
 
 const Screen: React.FC<Props> = ({
@@ -17,13 +19,24 @@ const Screen: React.FC<Props> = ({
   centerContent = false,
   safeAreaColor,
   edges = ["top", "left", "right"],
+  header,
   ...rest
 }) => {
   const flattenedStyle = StyleSheet.flatten(style) || {};
   const backgroundColor = safeAreaColor ?? flattenedStyle.backgroundColor ?? theme.colors.background;
 
+  const hasFixedHeader = Boolean(header) && scrollable;
+
   const content = (
-    <View style={[styles.inner, centerContent ? styles.center : null, style]} {...rest}>
+    <View
+      style={[
+        styles.inner,
+        centerContent ? styles.center : null,
+        hasFixedHeader ? styles.innerBelowFixedHeader : null,
+        style
+      ]}
+      {...rest}
+    >
       {children}
     </View>
   );
@@ -32,6 +45,7 @@ const Screen: React.FC<Props> = ({
 
   return (
     <SafeAreaView style={safeStyles} edges={edges}>
+      {hasFixedHeader ? <View style={styles.fixedHeader}>{header}</View> : null}
       {scrollable ? (
         <ScrollView
           style={[styles.scroll, { backgroundColor }]}
@@ -53,8 +67,14 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    padding: theme.spacing(2),
-    // backgroundColor: "blue"
+    padding: theme.spacing(2)
+  },
+  innerBelowFixedHeader: {
+    paddingTop: 0
+  },
+  fixedHeader: {
+    paddingHorizontal: theme.spacing(2),
+    paddingBottom: theme.spacing(1)
   },
   scroll: {
     flex: 1

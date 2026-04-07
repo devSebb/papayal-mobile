@@ -20,6 +20,10 @@ import { theme } from "../../ui/theme";
 import { giftCardApi, merchantsApi } from "../../api/endpoints";
 import { GiftCard, Merchant } from "../../types/api";
 import { formatMoney } from "../../utils/money";
+import {
+  GIFT_CARD_MAX_AMOUNT_USD as MAX_AMOUNT,
+  GIFT_CARD_MIN_AMOUNT_USD as MIN_AMOUNT
+} from "../../domain/purchase/giftCardAmountLimits";
 import { usePurchaseDraft, MerchantSelection } from "../../domain/purchase/purchaseDraftStore";
 import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
@@ -29,8 +33,6 @@ type MerchantOption = MerchantSelection & { id: string; isDemo?: boolean };
 const merchantPlaceholder = require("../../../assets/merchant-default.png");
 
 const presetAmounts = [30, 50, 60, 100, 150, 200];
-const MIN_AMOUNT = 5;
-const MAX_AMOUNT = 500;
 
 const deriveMerchantLabel = (card: GiftCard) => {
   const candidates = [

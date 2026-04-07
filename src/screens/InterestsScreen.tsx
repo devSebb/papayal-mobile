@@ -10,27 +10,11 @@ import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
 import { useAuth } from "../auth/authStore";
 import { HttpError } from "../api/http";
+import { CATEGORIES } from "../constants/categories";
 import type { AuthStackParamList } from "../navigation";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
 type Route = RouteProp<AuthStackParamList, "Interests">;
-
-const INTEREST_CATEGORIES = [
-  { key: "salud_y_medicina", label: "Salud y medicina", emoji: "\u{1F48A}" },
-  { key: "mascotas", label: "Mascotas", emoji: "\u{1F43E}" },
-  { key: "servicios", label: "Servicios", emoji: "\u{1F50C}" },
-  { key: "supermercado", label: "Supermercado", emoji: "\u{1F6D2}" },
-  { key: "hogar", label: "Hogar", emoji: "\u{1F3E0}" },
-  { key: "tecnologia", label: "Tecnolog\u00EDa", emoji: "\u{1F4BB}" },
-  { key: "ropa_y_moda", label: "Ropa y moda", emoji: "\u{1F457}" },
-  { key: "belleza", label: "Belleza", emoji: "\u{1F484}" },
-  { key: "deportes_y_fitness", label: "Deportes y fitness", emoji: "\u26BD" },
-  { key: "entretenimiento", label: "Entretenimiento", emoji: "\u{1F3AC}" },
-  { key: "restaurantes", label: "Restaurantes", emoji: "\u{1F37D}\uFE0F" },
-  { key: "educacion", label: "Educaci\u00F3n", emoji: "\u{1F4DA}" },
-  { key: "viajes", label: "Viajes", emoji: "\u2708\uFE0F" },
-  { key: "bebes_y_ninos", label: "Beb\u00E9s y ni\u00F1os", emoji: "\u{1F476}" },
-] as const;
 
 const InterestsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
@@ -107,7 +91,7 @@ const InterestsScreen: React.FC = () => {
 
       <Card>
         <View style={styles.grid}>
-          {INTEREST_CATEGORIES.map((cat) => {
+          {CATEGORIES.map((cat) => {
             const isSelected = selected.has(cat.key);
             return (
               <Pressable

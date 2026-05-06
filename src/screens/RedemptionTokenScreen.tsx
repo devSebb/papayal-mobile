@@ -20,6 +20,13 @@ const formatCountdown = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
+// Visual-only: groups the 10-char token as XXXX-XXX-XXX for easier manual
+// reading. Never used as input to QR/barcode or sent to the API.
+const formatTokenForDisplay = (token: string) => {
+  if (!token || token.length !== 10) return token;
+  return `${token.slice(0, 4)}-${token.slice(4, 7)}-${token.slice(7)}`;
+};
+
 const RedemptionTokenScreen: React.FC = () => {
   const route = useRoute<RouteProp<WalletStackParamList, "RedemptionToken">>();
   const { id } = route.params;
@@ -97,7 +104,7 @@ const RedemptionTokenScreen: React.FC = () => {
                 }}
               />
             </View>
-            <Text style={styles.tokenText}>{data.token}</Text>
+            <Text style={styles.tokenText}>{formatTokenForDisplay(data.token)}</Text>
             <Text style={styles.muted}>Expira: {data.expires_at}</Text>
             <Text style={styles.countdown}>Tiempo restante: {formatCountdown(remaining)}</Text>
           </View>

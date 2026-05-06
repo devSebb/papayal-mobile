@@ -23,6 +23,7 @@ export type User = {
   avatar_url?: string | null;
   avatar_thumb_url?: string | null;
   interests?: string[];
+  preferred_channel?: "whatsapp" | "sms";
 };
 
 export type GiftCardSender = {

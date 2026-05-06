@@ -76,6 +76,7 @@ export const meApi = {
     address?: string;
     country_of_residence?: string;
     date_of_birth?: string;
+    preferred_channel?: "whatsapp" | "sms";
   }) => {
     const { data } = await request<User>("/api/v1/me", {
       method: "PATCH",

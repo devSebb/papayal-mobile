@@ -76,11 +76,16 @@ const BootGate: React.FC<Props> = ({ children }) => {
       { fontFamily: theme.fonts.regular, color: theme.colors.text }
     ];
 
-    Text.defaultProps = Text.defaultProps || {};
-    Text.defaultProps.style = applyFont(Text.defaultProps.style);
+    // React 19 removed `defaultProps` from function-component types, but RN
+    // 0.81's Text/TextInput still honor it at runtime. Cast to keep behavior.
+    const TextAny = Text as any;
+    const TextInputAny = TextInput as any;
 
-    TextInput.defaultProps = TextInput.defaultProps || {};
-    TextInput.defaultProps.style = applyFont(TextInput.defaultProps.style);
+    TextAny.defaultProps = TextAny.defaultProps || {};
+    TextAny.defaultProps.style = applyFont(TextAny.defaultProps.style);
+
+    TextInputAny.defaultProps = TextInputAny.defaultProps || {};
+    TextInputAny.defaultProps.style = applyFont(TextInputAny.defaultProps.style);
   }, [fontsLoaded]);
 
   // Hide native splash when ready

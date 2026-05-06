@@ -238,7 +238,6 @@ const EditProfileScreen: React.FC = () => {
                 value={country}
                 onChangeText={setCountry}
                 placeholder="Ej: Ecuador"
-                autoComplete="country-name"
                 onBlur={() => setTouched((prev) => ({ ...prev, country_of_residence: true }))}
                 error={touched.country_of_residence ? errors.country_of_residence : undefined}
               />

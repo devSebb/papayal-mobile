@@ -239,7 +239,6 @@ const CompleteDetailsScreen: React.FC = () => {
               setFieldErrors((prev) => ({ ...prev, country_of_residence: undefined }));
             }}
             placeholder="Ej: Ecuador"
-            autoComplete="country-name"
             onBlur={() => setTouched((prev) => ({ ...prev, country_of_residence: true }))}
             error={errorFor("country_of_residence")}
           />

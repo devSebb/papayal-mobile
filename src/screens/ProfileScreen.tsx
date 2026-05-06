@@ -309,13 +309,19 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.error}>No pudimos cargar el perfil.</Text>
             {__DEV__ && (() => {
               const httpError = error as unknown as HttpError;
-              const errorMessage = 
-                httpError?.error?.message || 
-                httpError?.error?.code || 
-                (typeof httpError?.raw === 'string' ? httpError.raw : 
-                 httpError?.raw?.message || 
-                 JSON.stringify(httpError?.raw)?.slice(0, 200) ||
-                 (error instanceof Error ? error.message : "Unknown error"));
+              const raw = httpError?.raw;
+              const rawObj =
+                raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+              const rawMessage =
+                rawObj && typeof rawObj.message === "string" ? rawObj.message : null;
+              const errorMessage =
+                httpError?.error?.message ||
+                httpError?.error?.code ||
+                (typeof raw === "string"
+                  ? raw
+                  : rawMessage ||
+                    (rawObj ? JSON.stringify(rawObj).slice(0, 200) : null) ||
+                    (error instanceof Error ? error.message : "Unknown error"));
               const status = httpError?.status;
               return (
                 <View style={styles.errorDetails}>
@@ -324,9 +330,9 @@ const ProfileScreen: React.FC = () => {
                   {httpError?.requestId && (
                     <Text style={styles.errorDetail}>Request ID: {httpError.requestId}</Text>
                   )}
-                  {httpError?.raw && typeof httpError.raw === 'object' && (
+                  {rawObj && (
                     <Text style={styles.errorDetail}>
-                      Raw: {JSON.stringify(httpError.raw).slice(0, 300)}
+                      Raw: {JSON.stringify(rawObj).slice(0, 300)}
                     </Text>
                   )}
                 </View>

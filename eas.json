@@ -16,6 +16,9 @@
       "environment": "production",
       "ios": {
         "image": "sdk-54"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.papayal.app"
       }
     }
   },

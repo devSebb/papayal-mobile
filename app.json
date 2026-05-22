@@ -15,7 +15,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.papayal.app",
       "deploymentTarget": "15.1",
       "buildNumber": "1",
@@ -25,13 +25,12 @@
       "appleTeamId": "DLFL9SP5JG"
     },
     "android": {
+      "package": "com.papayal.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/Papayal-logoTag.png",
         "backgroundColor": "#FDF1E1"
-      },
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      }
     },
     "web": {
       "bundler": "metro",

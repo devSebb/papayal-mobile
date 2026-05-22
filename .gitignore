@@ -40,3 +40,6 @@ ios/build/
 .env
 .env.local
 .env.*.local
+
+# Internal launch planning docs (not for repo history)
+LAUNCH_PLAN.md

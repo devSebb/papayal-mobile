@@ -131,6 +131,13 @@ const SettingsScreen: React.FC = () => {
           style={styles.button}
           disabled={!!busyAction}
         />
+        <Button
+          label="Eliminar cuenta"
+          onPress={() => navigation.navigate("DeleteAccount")}
+          variant="danger"
+          style={styles.button}
+          disabled={!!busyAction}
+        />
       </Card>
 
       <Card style={styles.channelCard}>

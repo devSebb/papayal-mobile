@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import * as SecureStore from "expo-secure-store";
 import * as Device from "expo-device";
 
-import { authApi, pushTokenApi } from "../api/endpoints";
+import { authApi, meApi, pushTokenApi } from "../api/endpoints";
 import { configureHttpAuth, HttpError } from "../api/http";
 import { AuthTokens } from "../types/api";
 import { queryClient } from "../query/queryClient";
@@ -28,6 +28,7 @@ type AuthContextValue = AuthState & {
   }) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
   refreshTokens: () => Promise<string | null>;
   hydrateFromStorage: () => Promise<void>;
 };
@@ -285,6 +286,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [clearAuth]);
 
+  // Account deletion. Unlike logout, the API call must succeed before we
+  // wipe local state — if it fails (wrong password, merchant account,
+  // network), we re-throw so the calling screen can show an inline error
+  // and keep the user signed in. On success we run the same cleanup as
+  // logout: revoke push token, clear secure storage, dump query cache.
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      // Server-side deletion. Throws HttpError on failure; do NOT swallow.
+      await meApi.destroy(password);
+
+      // From here the account is gone. Best-effort cleanup of local state.
+      try {
+        await unregisterPushToken((t) => pushTokenApi.unregister(t));
+      } catch {
+        // push token row was already destroyed by the server; tolerate 4xx
+      }
+      await clearAuth();
+    },
+    [clearAuth]
+  );
+
   useEffect(() => {
     configureHttpAuth({
       getAccessToken: () => accessTokenRef.current,
@@ -304,10 +326,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signup,
       logout,
       logoutAll,
+      deleteAccount,
       refreshTokens,
       hydrateFromStorage
     }),
-    [hydrateFromStorage, login, logout, logoutAll, refreshTokens, signup, state]
+    [deleteAccount, hydrateFromStorage, login, logout, logoutAll, refreshTokens, signup, state]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

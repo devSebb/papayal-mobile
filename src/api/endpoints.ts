@@ -102,6 +102,21 @@ export const meApi = {
       body: formData
     });
     return data;
+  },
+  deletionPreview: async () => {
+    const { data } = await request<{
+      balance_cents: number;
+      active_card_count: number;
+      is_merchant: boolean;
+      currency: string;
+    }>("/api/v1/me/deletion_preview");
+    return data;
+  },
+  destroy: async (password: string) => {
+    await request<{ deleted: boolean }>("/api/v1/me", {
+      method: "DELETE",
+      body: { password }
+    });
   }
 };
 

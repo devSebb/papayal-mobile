@@ -16,6 +16,7 @@ import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import LegalPrivacyScreen from "../screens/settings/LegalPrivacyScreen";
+import DeleteAccountScreen from "../screens/settings/DeleteAccountScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import ActivityScreen from "../screens/ActivityScreen";
 import HelpScreen from "../screens/HelpScreen";
@@ -81,6 +82,7 @@ export type ProfileStackParamList = {
   Profile: undefined;
   Settings: undefined;
   LegalPrivacy: undefined;
+  DeleteAccount: undefined;
   EditProfile: undefined;
   Help: undefined;
 };
@@ -158,6 +160,7 @@ const ProfileStackNavigator = () => (
     <ProfileStack.Screen name="Profile" component={ProfileScreen} />
     <ProfileStack.Screen name="Settings" component={SettingsScreen} />
     <ProfileStack.Screen name="LegalPrivacy" component={LegalPrivacyScreen} />
+    <ProfileStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
     <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
     <ProfileStack.Screen name="Help" component={HelpScreen} />
   </ProfileStack.Navigator>

@@ -58,6 +58,9 @@ export type GiftCard = {
   note?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  /** ISO timestamp. If present AND in the future, the card is on a
+   *  security hold and not yet redeemable. Cleared when the hold expires. */
+  held_until?: string | null;
 };
 
 export type RedemptionToken = {

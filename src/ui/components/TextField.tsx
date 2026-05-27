@@ -7,14 +7,21 @@ type Props = TextInputProps & {
   error?: string;
 };
 
-const TextField: React.FC<Props> = ({ label, error, style, ...rest }) => {
+const TextField: React.FC<Props> = ({ label, error, style, multiline, ...rest }) => {
   return (
     <View style={styles.container}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
-        style={[styles.input, error ? styles.inputError : null, style]}
+        style={[
+          styles.input,
+          multiline ? styles.multilineInput : null,
+          error ? styles.inputError : null,
+          style
+        ]}
+        multiline={multiline}
         placeholderTextColor={theme.colors.lightText}
         {...rest}
+        returnKeyType={rest.returnKeyType ?? (multiline ? "default" : undefined)}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
@@ -43,6 +50,10 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontFamily: theme.fonts.light
   },
+  multilineInput: {
+    minHeight: 96,
+    textAlignVertical: "top"
+  },
   inputError: {
     borderColor: theme.colors.danger
   },
@@ -55,4 +66,3 @@ const styles = StyleSheet.create({
 });
 
 export default TextField;
-

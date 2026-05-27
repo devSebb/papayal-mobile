@@ -1,5 +1,12 @@
 import React from "react";
-import { ScrollView, StyleSheet, View, ViewProps } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  ViewProps
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme";
 
@@ -10,6 +17,9 @@ type Props = ViewProps & {
   edges?: ("top" | "bottom" | "left" | "right")[];
   /** When used with scrollable, rendered above the ScrollView so it does not scroll away */
   header?: React.ReactNode;
+  /** Keeps focused inputs visible when the keyboard opens on scrollable screens */
+  keyboardAware?: boolean;
+  keyboardVerticalOffset?: number;
 };
 
 const Screen: React.FC<Props> = ({
@@ -20,6 +30,8 @@ const Screen: React.FC<Props> = ({
   safeAreaColor,
   edges = ["top", "left", "right"],
   header,
+  keyboardAware = true,
+  keyboardVerticalOffset = 0,
   ...rest
 }) => {
   const flattenedStyle = StyleSheet.flatten(style) || {};
@@ -42,17 +54,34 @@ const Screen: React.FC<Props> = ({
   );
 
   const safeStyles = [styles.safe, { backgroundColor }];
+  const scrollView = (
+    <ScrollView
+      style={[styles.scroll, { backgroundColor }]}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+      showsVerticalScrollIndicator={false}
+    >
+      {content}
+    </ScrollView>
+  );
 
   return (
     <SafeAreaView style={safeStyles} edges={edges}>
       {hasFixedHeader ? <View style={styles.fixedHeader}>{header}</View> : null}
       {scrollable ? (
-        <ScrollView
-          style={[styles.scroll, { backgroundColor }]}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {content}
-        </ScrollView>
+        keyboardAware ? (
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoider}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={keyboardVerticalOffset}
+          >
+            {scrollView}
+          </KeyboardAvoidingView>
+        ) : (
+          scrollView
+        )
       ) : (
         content
       )}
@@ -76,6 +105,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing(2),
     paddingBottom: theme.spacing(1)
   },
+  keyboardAvoider: {
+    flex: 1
+  },
   scroll: {
     flex: 1
   },
@@ -90,4 +122,3 @@ const styles = StyleSheet.create({
 });
 
 export default Screen;
-

@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
+import AppHeader from "../ui/components/AppHeader";
 import Button from "../ui/components/Button";
 import TextField from "../ui/components/TextField";
 import PhoneInput from "../ui/components/PhoneInput";
@@ -162,19 +162,13 @@ const EditProfileScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-        <Text style={styles.navTitle}>Editar perfil</Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <AppHeader
+        title="Editar perfil"
+        subtitle="Actualiza tus datos personales y de contacto."
+        icon="user"
+        onBack={() => navigation.goBack()}
+        style={styles.header}
+      />
 
       <Card>
         <View style={styles.form}>
@@ -267,28 +261,8 @@ const EditProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  header: {
     marginBottom: theme.spacing(1.5)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
-  navTitle: {
-    fontSize: theme.typography.subheading,
-    fontFamily: theme.fonts.extraBold,
-    color: theme.colors.text
-  },
-  navSpacer: {
-    width: 36,
-    height: 36
   },
   form: {
     gap: theme.spacing(1.5)
@@ -302,5 +276,4 @@ const styles = StyleSheet.create({
 });
 
 export default EditProfileScreen;
-
 

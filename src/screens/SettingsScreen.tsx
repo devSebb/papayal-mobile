@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
+import AppHeader from "../ui/components/AppHeader";
 import TopNavBar from "../ui/components/TopNavBar";
 import { theme } from "../ui/theme";
 import { useAuth } from "../auth/authStore";
@@ -165,21 +166,13 @@ const SettingsScreen: React.FC = () => {
     <Screen scrollable edges={["left", "right"]}>
       <TopNavBar />
       <Card>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={handleBack}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-          >
-            <Feather name="arrow-left" size={20} color={theme.colors.text} />
-            <Text style={styles.backLabel}>Volver</Text>
-          </TouchableOpacity>
-          <Feather name="settings" size={20} color={theme.colors.text} />
-        </View>
-
-        <Text style={styles.title}>Ajustes</Text>
-        <Text style={styles.subtitle}>Gestiona tu perfil y sesiones activas.</Text>
+        <AppHeader
+          title="Ajustes"
+          subtitle="Gestiona tu perfil y sesiones activas."
+          icon="settings"
+          onBack={handleBack}
+          style={styles.cardHeader}
+        />
 
         <View style={styles.settingsList}>
           <SettingsRow
@@ -279,32 +272,7 @@ const SettingsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(0.5),
-    paddingVertical: theme.spacing(0.5),
-    paddingHorizontal: theme.spacing(0.5),
-    borderRadius: theme.radius.md
-  },
-  backLabel: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.semiBold
-  },
-  title: {
-    fontSize: theme.typography.subheading,
-    fontFamily: theme.fonts.bold,
-    color: theme.colors.text,
-    marginBottom: theme.spacing(0.5)
-  },
-  subtitle: {
-    color: theme.colors.muted,
+  cardHeader: {
     marginBottom: theme.spacing(1.5)
   },
   sectionCard: {

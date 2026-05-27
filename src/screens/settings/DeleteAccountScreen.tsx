@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
+import AppHeader from "../../ui/components/AppHeader";
 import TopNavBar from "../../ui/components/TopNavBar";
 import Button from "../../ui/components/Button";
 import TextField from "../../ui/components/TextField";
@@ -103,24 +104,15 @@ const DeleteAccountScreen: React.FC = () => {
     <Screen scrollable edges={["left", "right"]}>
       <TopNavBar />
       <Card>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={handleBack}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-            disabled={submitting}
-          >
-            <Feather name="arrow-left" size={20} color={theme.colors.text} />
-            <Text style={styles.backLabel}>Volver</Text>
-          </TouchableOpacity>
-          <Feather name="trash-2" size={20} color={theme.colors.danger} />
-        </View>
-
-        <Text style={styles.title}>Eliminar cuenta</Text>
-        <Text style={styles.subtitle}>
-          Esta acción es permanente. Eliminaremos toda tu información personal y no podremos restaurar tu cuenta.
-        </Text>
+        <AppHeader
+          title="Eliminar cuenta"
+          subtitle="Esta acción es permanente. Eliminaremos toda tu información personal y no podremos restaurar tu cuenta."
+          icon="trash-2"
+          onBack={handleBack}
+          disabledBack={submitting}
+          danger
+          style={styles.cardHeader}
+        />
 
         <View style={styles.consequences}>
           <Text style={styles.consequencesTitle}>Al eliminar tu cuenta:</Text>
@@ -198,34 +190,8 @@ const DeleteAccountScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(0.5),
-    paddingVertical: theme.spacing(0.5),
-    paddingHorizontal: theme.spacing(0.5),
-    borderRadius: theme.radius.md
-  },
-  backLabel: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.semiBold
-  },
-  title: {
-    fontSize: theme.typography.subheading,
-    fontFamily: theme.fonts.bold,
-    color: theme.colors.danger,
-    marginBottom: theme.spacing(0.5)
-  },
-  subtitle: {
-    color: theme.colors.muted,
-    marginBottom: theme.spacing(2),
-    lineHeight: 20
+  cardHeader: {
+    marginBottom: theme.spacing(2)
   },
   consequences: {
     backgroundColor: "#FFF5F5",

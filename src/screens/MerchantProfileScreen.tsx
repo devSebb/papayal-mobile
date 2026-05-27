@@ -19,6 +19,7 @@ import Animated, {
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
+import AppHeader from "../ui/components/AppHeader";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { merchantsApi } from "../api/endpoints";
@@ -105,17 +106,7 @@ const MerchantProfileScreen: React.FC = () => {
     <Screen
       scrollable
       header={
-        <View style={styles.navRow}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-            style={styles.backButton}
-          >
-            <Feather name="arrow-left" size={22} color={theme.colors.text} />
-          </Pressable>
-        </View>
+        <AppHeader onBack={() => navigation.goBack()} showBackLabel={false} />
       }
     >
       {/* Header Card */}
@@ -206,18 +197,6 @@ const MerchantProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center"
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
   headerCard: {
     alignItems: "center",
     overflow: "hidden",

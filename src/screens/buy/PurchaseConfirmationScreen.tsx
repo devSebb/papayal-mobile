@@ -114,8 +114,8 @@ const PurchaseConfirmationScreen: React.FC = () => {
       <Card style={styles.hintCard}>
         <Text style={styles.hintTitle}>Tarifas y entrega</Text>
         <Text style={styles.hintBody}>
-          Aún no aplicamos comisiones. La entrega al destinatario se activará cuando completemos el
-          endpoint de pago del backend.
+          Aún no aplicamos comisiones. Después de confirmar el pago, enviaremos la tarjeta al
+          destinatario y también aparecerá en tu billetera.
         </Text>
       </Card>
 
@@ -212,4 +212,3 @@ const styles = StyleSheet.create({
 });
 
 export default PurchaseConfirmationScreen;
-

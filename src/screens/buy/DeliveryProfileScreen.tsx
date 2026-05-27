@@ -13,13 +13,6 @@ import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 
-const SAMPLE_RECIPIENT = {
-  name: "Ana Ejemplo",
-  email: "ana.ejemplo@demo.com",
-  phone: "+593991112233",
-  note: ""
-};
-
 const DeliveryProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { draft, setRecipient } = usePurchaseDraft();
@@ -27,7 +20,7 @@ const DeliveryProfileScreen: React.FC = () => {
   const [email, setEmail] = useState(draft.recipient?.email ?? "");
   const [phoneE164, setPhoneE164] = useState<string | null>(draft.recipient?.phone ?? null);
   const [phoneValid, setPhoneValid] = useState(false);
-  const [note, setNote] = useState(draft.recipient?.note ?? SAMPLE_RECIPIENT.note);
+  const [note, setNote] = useState(draft.recipient?.note ?? "");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Check if phone is valid when E.164 changes
@@ -178,4 +171,3 @@ const styles = StyleSheet.create({
 });
 
 export default DeliveryProfileScreen;
-

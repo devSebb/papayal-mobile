@@ -33,7 +33,6 @@ const WALLET_SUMMARY_LABEL_VALUE_GAP = theme.spacing(0.75);
 
 const SUMMARY_L_STROKE = 2.5;
 const SUMMARY_L_RADIUS = 14;
-const CARD_ACCENT_STROKE = 4;
 
 const SummaryLeftWithGradientBorder: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -110,55 +109,6 @@ const SummaryLeftWithGradientBorder: React.FC<{ children: React.ReactNode }> = (
         </Svg>
       ) : null}
       <View style={styles.summaryLeftInner}>{children}</View>
-    </View>
-  );
-};
-
-const GiftCardRightGradientAccent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  const uid = useId().replace(/:/g, "");
-  const gradId = `${uid}-card`;
-
-  const x = box.w > 0 ? box.w - CARD_ACCENT_STROKE / 2 : 0;
-
-  return (
-    <View
-      style={styles.cardAccentWrap}
-      onLayout={(e) => {
-        const { width, height } = e.nativeEvent.layout;
-        setBox({ w: width, h: height });
-      }}
-    >
-      {children}
-      {box.w > 0 && box.h > 0 ? (
-        <Svg
-          width={box.w}
-          height={box.h}
-          style={[StyleSheet.absoluteFill, styles.cardAccentSvg]}
-          pointerEvents="none"
-        >
-          <Defs>
-            <LinearGradient
-              id={gradId}
-              x1="0%"
-              y1="0%"
-              x2="0%"
-              y2="100%"
-              gradientUnits="objectBoundingBox"
-            >
-              <Stop offset="0%" stopColor={theme.colors.background} />
-              <Stop offset="100%" stopColor={theme.colors.primary} />
-            </LinearGradient>
-          </Defs>
-          <Path
-            d={`M ${x} 0 L ${x} ${box.h}`}
-            stroke={`url(#${gradId})`}
-            strokeWidth={CARD_ACCENT_STROKE}
-            fill="none"
-            strokeLinecap="butt"
-          />
-        </Svg>
-      ) : null}
     </View>
   );
 };
@@ -275,37 +225,35 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.row}>
-      <GiftCardRightGradientAccent>
-        <Card style={styles.cardWithAccent}>
-          <View style={styles.rowTop}>
-            <View style={styles.merchantLogoContainer}>
-              {logoSource ? (
-                <Image source={logoSource} style={styles.merchantLogoImage} />
-              ) : (
-                <Text style={styles.badgeInitial}>{merchantInitial}</Text>
-              )}
-            </View>
-            <View style={styles.rowMiddle}>
-              <Text style={styles.merchantTitle} numberOfLines={1}>
-                {item.merchantLabel}
+      <Card style={styles.cardWithAccent}>
+        <View style={styles.rowTop}>
+          <View style={styles.merchantLogoContainer}>
+            {logoSource ? (
+              <Image source={logoSource} style={styles.merchantLogoImage} />
+            ) : (
+              <Text style={styles.badgeInitial}>{merchantInitial}</Text>
+            )}
+          </View>
+          <View style={styles.rowMiddle}>
+            <Text style={styles.merchantTitle} numberOfLines={1}>
+              {item.merchantLabel}
+            </Text>
+            <View style={styles.senderRow}>
+              <Text style={styles.senderLabel}>
+                {senderName ? `de: ${senderName}` : "Propia"}
               </Text>
-              <View style={styles.senderRow}>
-                <Text style={styles.senderLabel}>
-                  {senderName ? `de: ${senderName}` : "Propia"}
-                </Text>
-                <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
-                  <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
-                </View>
+              <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
+                <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
               </View>
             </View>
-            <View style={styles.cardDivider} />
-            <View style={styles.amountColumn}>
-              <Text style={styles.amount}>{item.remainingFormatted}</Text>
-              <Text style={styles.muted}>de {item.originalFormatted}</Text>
-            </View>
           </View>
-        </Card>
-      </GiftCardRightGradientAccent>
+          <View style={styles.cardDivider} />
+          <View style={styles.amountColumn}>
+            <Text style={styles.amount}>{item.remainingFormatted}</Text>
+            <Text style={styles.muted}>de {item.originalFormatted}</Text>
+          </View>
+        </View>
+      </Card>
     </TouchableOpacity>
   );
 };
@@ -404,7 +352,7 @@ const WalletSkeletonRows: React.FC = () => (
     {Array.from({ length: 4 }).map((_, index) => (
       <Card key={`wallet-skeleton-${index}`} style={styles.cardWithAccent}>
         <View style={styles.rowTop}>
-          <SkeletonBlock width={56} height={56} radius={16} />
+          <SkeletonBlock width={64} height={42} radius={12} />
           <View style={styles.rowMiddle}>
             <SkeletonBlock width="76%" height={18} radius={9} />
             <SkeletonBlock width="58%" height={28} radius={14} style={styles.skeletonLine} />
@@ -837,27 +785,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing(1.2)
   },
-  cardAccentWrap: {
-    width: "100%",
-    position: "relative"
-  },
-  cardAccentSvg: {
-    zIndex: 2
-  },
   cardWithAccent: {
     overflow: "hidden"
   },
   merchantLogoContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 64,
+    height: 42,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: "rgba(252, 165, 15, 0.32)",
-    padding: theme.spacing(0.7)
+    backgroundColor: "#F8FAFB",
+    paddingHorizontal: theme.spacing(0.9),
+    paddingVertical: theme.spacing(0.55)
   },
   merchantLogoImage: {
     width: "100%",
@@ -867,7 +807,7 @@ const styles = StyleSheet.create({
   badgeInitial: {
     textAlign: "center",
     fontFamily: theme.fonts.black,
-    fontSize: 24,
+    fontSize: 20,
     color: theme.colors.secondary
   },
   rowMiddle: {

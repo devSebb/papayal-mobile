@@ -22,8 +22,7 @@ import TopNavBar from "../ui/components/TopNavBar";
 import { theme } from "../ui/theme";
 import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
-import { API_BASE_URL } from "../config/env";
-import { HttpError, getLastRequestId } from "../api/http";
+import { HttpError } from "../api/http";
 import { ProfileStackParamList } from "../navigation";
 
 const avatarPlaceholder = require("../../assets/avatar-default.png");
@@ -60,7 +59,6 @@ const ProfileScreen: React.FC = () => {
     setAvatarLoadError(false);
   }, [data?.avatar_thumb_url, data?.avatar_url]);
 
-  const requestId = __DEV__ ? getLastRequestId() : null;
   const avatarSource = useMemo(() => {
     // If there was a load error, use placeholder
     if (avatarLoadError) {
@@ -362,13 +360,6 @@ const ProfileScreen: React.FC = () => {
         <Button label="Ir a Ayuda" onPress={() => navigation.navigate("Help")} />
       </Card>
 
-      {__DEV__ ? (
-        <Card style={styles.meta}>
-          <Text style={styles.sectionTitle}>Información de la app</Text>
-          <Text style={styles.muted}>URL base de la API: {API_BASE_URL}</Text>
-          {requestId ? <Text style={styles.muted}>ID de la última solicitud: {requestId}</Text> : null}
-        </Card>
-      ) : null}
     </Screen>
   );
 };
@@ -470,9 +461,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small,
     fontFamily: theme.fonts.medium,
     letterSpacing: 0.2
-  },
-  meta: {
-    marginTop: theme.spacing(1.5)
   },
   sectionTitleRow: {
     flexDirection: "row",

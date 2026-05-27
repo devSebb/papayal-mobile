@@ -22,7 +22,6 @@ import { buildActivityFeed } from "../domain/wallet/buildActivityFeed";
 import { ActivityItem, GiftCardVM, TabKey } from "../domain/wallet/types";
 import { GiftCard } from "../types/api";
 
-const merchantPlaceholder = require("../../assets/merchant-default.png");
 const walletDecorationImage = require("../../assets/wallet-decoration.png");
 
 const WALLET_CARD_BG = "#F5EEDC";
@@ -271,7 +270,7 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
   const statusStyle = statusStyles[item.status];
   const merchantInitial = item.merchantLabel.charAt(0).toUpperCase();
   const hasLogo = Boolean(item.merchantLogoUrl);
-  const logoSource = hasLogo ? { uri: item.merchantLogoUrl as string } : merchantPlaceholder;
+  const logoSource = hasLogo ? { uri: item.merchantLogoUrl as string } : null;
   const statusLabel = statusLabels[item.status] ?? item.status;
 
   return (
@@ -280,8 +279,11 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
         <Card style={styles.cardWithAccent}>
           <View style={styles.rowTop}>
             <View style={styles.merchantLogoContainer}>
-              <Image source={logoSource} style={styles.merchantLogoImage} />
-              {!hasLogo ? <Text style={styles.badgeInitial}>{merchantInitial}</Text> : null}
+              {logoSource ? (
+                <Image source={logoSource} style={styles.merchantLogoImage} />
+              ) : (
+                <Text style={styles.badgeInitial}>{merchantInitial}</Text>
+              )}
             </View>
             <View style={styles.rowMiddle}>
               <Text style={styles.merchantTitle} numberOfLines={1}>
@@ -789,12 +791,16 @@ const styles = StyleSheet.create({
     overflow: "hidden"
   },
   merchantLogoContainer: {
-    width: 55,
-    height: 55,
-    borderRadius: 35,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden"
+    overflow: "hidden",
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: "rgba(252, 165, 15, 0.32)",
+    padding: theme.spacing(0.7)
   },
   merchantLogoImage: {
     width: "100%",
@@ -802,11 +808,9 @@ const styles = StyleSheet.create({
     resizeMode: "contain"
   },
   badgeInitial: {
-    position: "absolute",
     textAlign: "center",
-    width: "100%",
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.typography.heading,
+    fontFamily: theme.fonts.black,
+    fontSize: 24,
     color: theme.colors.secondary
   },
   rowMiddle: {
@@ -952,4 +956,3 @@ const styles = StyleSheet.create({
 });
 
 export default WalletListScreen;
-

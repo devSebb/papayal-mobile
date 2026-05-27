@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   Pressable,
@@ -6,7 +6,7 @@ import {
   Text,
   View
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
@@ -28,6 +28,7 @@ import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
 
 type MerchantOption = MerchantSelection & { id: string };
+type BuyGiftCardStartRoute = RouteProp<HomeStackParamList, "BuyGiftCardStart">;
 
 const merchantPlaceholder = require("../../../assets/merchant-default.png");
 
@@ -82,9 +83,12 @@ const MerchantCard: React.FC<{
 
 const BuyGiftCardStartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const route = useRoute<BuyGiftCardStartRoute>();
   const { accessToken } = useAuth();
   const { draft, setMerchant, setAmount } = usePurchaseDraft();
   const isQueryEnabled = !!accessToken;
+  const requestedMerchantId = route.params?.merchantId?.toString() ?? null;
+  const appliedMerchantParamRef = useRef<string | null>(null);
   const {
     data: merchants,
     isLoading: isLoadingMerchants,
@@ -106,7 +110,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
   }, [merchants]);
 
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(
-    draft.merchant?.id ?? null
+    requestedMerchantId ?? draft.merchant?.id ?? null
   );
   const [selectedAmount, setSelectedAmount] = useState<number | null>(
     draft.amount_cents ? draft.amount_cents / 100 : null
@@ -119,6 +123,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
   );
 
   const selectedMerchant = merchantOptions.find((m) => m.id === selectedMerchantId) ?? null;
+  const requestedMerchantExists = requestedMerchantId
+    ? merchantOptions.some((merchant) => merchant.id === requestedMerchantId)
+    : false;
+  const requestedMerchantMissing = Boolean(
+    requestedMerchantId && merchantOptions.length > 0 && !requestedMerchantExists
+  );
 
   useEffect(() => {
     if (merchantOptions.length === 0) {
@@ -126,11 +136,24 @@ const BuyGiftCardStartScreen: React.FC = () => {
       return;
     }
 
+    if (requestedMerchantId && appliedMerchantParamRef.current !== requestedMerchantId) {
+      appliedMerchantParamRef.current = requestedMerchantId;
+      setSelectedMerchantId(requestedMerchantExists ? requestedMerchantId : null);
+      return;
+    }
+
     const selectedStillExists = merchantOptions.some((merchant) => merchant.id === selectedMerchantId);
     if (!selectedMerchantId || !selectedStillExists) {
+      if (requestedMerchantMissing) return;
       setSelectedMerchantId(merchantOptions[0]?.id ?? null);
     }
-  }, [merchantOptions, selectedMerchantId]);
+  }, [
+    merchantOptions,
+    requestedMerchantExists,
+    requestedMerchantId,
+    requestedMerchantMissing,
+    selectedMerchantId
+  ]);
 
   const parsedCustomAmount = Number.parseFloat(customAmount.replace(/,/g, "."));
   const amountValue = useCustomAmount ? parsedCustomAmount : selectedAmount ?? null;
@@ -190,17 +213,27 @@ const BuyGiftCardStartScreen: React.FC = () => {
         {isMerchantBusy ? (
           <Text style={styles.muted}>Cargando comercios...</Text>
         ) : hasMerchantOptions ? (
-          <View style={styles.merchantList}>
-            {merchantOptions.map((item, index) => (
-              <React.Fragment key={item.id}>
-                {index > 0 && <View style={{ height: theme.spacing(1) }} />}
-                <MerchantCard
-                  merchant={item}
-                  selected={item.id === selectedMerchantId}
-                  onPress={() => setSelectedMerchantId(item.id)}
-                />
-              </React.Fragment>
-            ))}
+          <View style={styles.merchantListWrap}>
+            {requestedMerchantMissing ? (
+              <View style={styles.merchantWarning}>
+                <Feather name="alert-circle" size={18} color={theme.colors.secondary} />
+                <Text style={styles.merchantWarningText}>
+                  No encontramos el comercio seleccionado. Puedes elegir otro comercio disponible.
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.merchantList}>
+              {merchantOptions.map((item, index) => (
+                <React.Fragment key={item.id}>
+                  {index > 0 && <View style={{ height: theme.spacing(1) }} />}
+                  <MerchantCard
+                    merchant={item}
+                    selected={item.id === selectedMerchantId}
+                    onPress={() => setSelectedMerchantId(item.id)}
+                  />
+                </React.Fragment>
+              ))}
+            </View>
           </View>
         ) : (
           <View style={styles.emptyMerchantState}>
@@ -373,6 +406,25 @@ const styles = StyleSheet.create({
   },
   merchantList: {
     gap: 0 // Spacing handled by separators in the map
+  },
+  merchantListWrap: {
+    gap: theme.spacing(1)
+  },
+  merchantWarning: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacing(0.75),
+    padding: theme.spacing(1.2),
+    borderRadius: theme.radius.md,
+    backgroundColor: "#FFF7E6",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(252, 165, 15, 0.55)"
+  },
+  merchantWarningText: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.typography.small,
+    lineHeight: 18
   },
   emptyMerchantState: {
     alignItems: "center",

@@ -10,6 +10,7 @@ import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
 import MerchantGridCard from "../ui/components/MerchantGridCard";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { giftCardApi, merchantsApi, meApi } from "../api/endpoints";
 import { AppTabsParamList, HomeStackParamList } from "../navigation";
@@ -60,7 +61,11 @@ const HomeScreen: React.FC = () => {
     queryFn: giftCardApi.list,
     enabled: isQueryEnabled
   });
-  const { data: merchants, isLoading: isLoadingMerchants } = useQuery<Merchant[]>({
+  const {
+    data: merchants,
+    isLoading: isLoadingMerchants,
+    refetch: refetchMerchants
+  } = useQuery<Merchant[]>({
     queryKey: ["merchants"],
     queryFn: merchantsApi.list,
     enabled: isQueryEnabled
@@ -233,23 +238,30 @@ const HomeScreen: React.FC = () => {
             )}
           />
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>
-              {selectedCategory ? "No hay comercios en esta categoría." : "No hay comercios disponibles."}
-            </Text>
-            {!selectedCategory && (
-              <Text style={styles.emptySubtitle}>
-                Los comercios aparecerán aquí cuando estén disponibles.
-              </Text>
-            )}
-          </View>
+          <EmptyStateCard
+            icon="shopping-bag"
+            title={selectedCategory ? "No hay comercios en esta categoría" : "No hay comercios disponibles"}
+            message={
+              selectedCategory
+                ? "Prueba con otra categoría o vuelve a ver todos los comercios."
+                : "Los comercios aparecerán aquí cuando estén disponibles."
+            }
+            actionLabel={selectedCategory ? "Ver todos" : "Reintentar"}
+            onAction={() => {
+              if (selectedCategory) {
+                setSelectedCategory(null);
+                return;
+              }
+              void refetchMerchants();
+            }}
+          />
         )}
       </View>
 
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Cuenta</Text>
         {isBusy ? (
-          <Text style={styles.muted}>Cargando...</Text>
+          <AccountSkeleton />
         ) : data ? (
           <>
             <View style={styles.userInfo}>
@@ -332,6 +344,15 @@ const deriveMerchantAggregates = (giftCards: GiftCard[]): MerchantAggregate[] =>
 
 const SkeletonTile: React.FC<{ wide: boolean; key?: React.Key }> = ({ wide }) => (
   <View style={[styles.skeletonCard, wide ? styles.skeletonThird : undefined]} />
+);
+
+const AccountSkeleton: React.FC = () => (
+  <View style={styles.accountSkeleton}>
+    <SkeletonBlock width="58%" height={22} radius={11} />
+    <SkeletonBlock width="72%" height={18} radius={9} />
+    <SkeletonBlock width="42%" height={18} radius={9} />
+    <SkeletonBlock height={46} radius={theme.radius.md} style={styles.accountSkeletonButton} />
+  </View>
 );
 
 const styles = StyleSheet.create({
@@ -480,22 +501,11 @@ const styles = StyleSheet.create({
   skeletonThird: {
     flexBasis: "31%"
   },
-  emptyState: {
-    alignItems: "center",
-    gap: theme.spacing(0.5)
+  accountSkeleton: {
+    gap: theme.spacing(0.85)
   },
-  emptyTitle: {
-    fontSize: theme.typography.subheading,
-    fontFamily: theme.fonts.bold,
-    color: theme.colors.text
-  },
-  emptySubtitle: {
-    color: theme.colors.muted,
-    textAlign: "center",
-    marginBottom: theme.spacing(1)
-  },
-  emptyCta: {
-    width: "100%"
+  accountSkeletonButton: {
+    marginTop: theme.spacing(0.75)
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
@@ -523,4 +533,3 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
-

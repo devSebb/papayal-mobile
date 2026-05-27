@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
-import { useNavigation } from "@react-navigation/native";
+import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useQuery } from "@tanstack/react-query";
@@ -9,11 +9,11 @@ import { Feather } from "@expo/vector-icons";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
-import Button from "../ui/components/Button";
 import TopNavBar from "../ui/components/TopNavBar";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi } from "../api/endpoints";
-import { WalletStackParamList } from "../navigation";
+import { AppTabsParamList, WalletStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import { centsToDollars, formatMoney } from "../utils/money";
 import { mapGiftCardVM } from "../domain/wallet/mapGiftCardVM";
@@ -313,6 +313,7 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
 type ListItem =
   | { type: "card"; key: string; card: GiftCardVM }
   | { type: "empty"; key: string }
+  | { type: "skeleton"; key: string }
   | { type: "activity"; key: string }
   | { type: "pagination"; key: string };
 
@@ -398,21 +399,52 @@ const LatestActivitySection: React.FC<{
   </View>
 );
 
-const EmptyState: React.FC<{ message: string; actionLabel?: string; onAction?: () => void }> = ({
+const WalletSkeletonRows: React.FC = () => (
+  <View style={styles.skeletonRows}>
+    {Array.from({ length: 4 }).map((_, index) => (
+      <Card key={`wallet-skeleton-${index}`} style={styles.cardWithAccent}>
+        <View style={styles.rowTop}>
+          <SkeletonBlock width={56} height={56} radius={16} />
+          <View style={styles.rowMiddle}>
+            <SkeletonBlock width="76%" height={18} radius={9} />
+            <SkeletonBlock width="58%" height={28} radius={14} style={styles.skeletonLine} />
+          </View>
+          <View style={styles.cardDivider} />
+          <View style={styles.amountColumn}>
+            <SkeletonBlock width={72} height={22} radius={11} />
+            <SkeletonBlock width={48} height={16} radius={8} style={styles.skeletonLine} />
+          </View>
+        </View>
+      </Card>
+    ))}
+  </View>
+);
+
+const EmptyState: React.FC<{
+  icon?: keyof typeof Feather.glyphMap;
+  title: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}> = ({
+  icon = "credit-card",
+  title,
   message,
   actionLabel,
   onAction
 }) => (
-  <Card style={styles.emptyCard}>
-    <Text style={styles.muted}>{message}</Text>
-    {actionLabel && onAction ? (
-      <Button label={actionLabel} variant="ghost" onPress={onAction} style={styles.emptyAction} />
-    ) : null}
-  </Card>
+  <EmptyStateCard
+    icon={icon}
+    title={title}
+    message={message}
+    actionLabel={actionLabel}
+    onAction={onAction}
+  />
 );
 
 const WalletListScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<WalletStackParamList>>();
+  const tabNavigation = navigation.getParent<NavigationProp<AppTabsParamList>>();
   const { accessToken } = useAuth();
   const tabBarHeight = useBottomTabBarHeight();
   const isQueryEnabled = !!accessToken;
@@ -518,6 +550,8 @@ const WalletListScreen: React.FC = () => {
   const rangeStart = totalCards === 0 ? 0 : startIndex + 1;
   const rangeEnd = totalCards === 0 ? 0 : endIndex;
   const pagedCards = tabCards.slice(startIndex, endIndex);
+  const isBusy = !isQueryEnabled || isLoading || isRefetching;
+  const isInitialLoading = !isQueryEnabled || (isLoading && !giftCards);
 
   useEffect(() => {
     setPageByTab((prev) => {
@@ -530,6 +564,10 @@ const WalletListScreen: React.FC = () => {
 
   const listData = useMemo(() => {
     const items: ListItem[] = [];
+    if (isInitialLoading) {
+      items.push({ type: "skeleton", key: "wallet-skeleton" });
+      return items;
+    }
     if (pagedCards.length === 0) {
       items.push({ type: "empty", key: `empty-${activeTab}` });
     } else {
@@ -540,7 +578,7 @@ const WalletListScreen: React.FC = () => {
     }
     items.push({ type: "activity", key: `activity-${activeTab}` });
     return items;
-  }, [activeTab, currentPage, pageCount, pagedCards]);
+  }, [activeTab, currentPage, isInitialLoading, pageCount, pagedCards]);
 
   const changePage = useCallback(
     (delta: number) => {
@@ -554,8 +592,6 @@ const WalletListScreen: React.FC = () => {
     },
     [activeTab, pageCount]
   );
-
-  const isBusy = !isQueryEnabled || isLoading || isRefetching;
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -604,6 +640,8 @@ const WalletListScreen: React.FC = () => {
       if (!classification.hasSenderRecipientFields && (activeTab === "received" || activeTab === "sent")) {
         return (
           <EmptyState
+            icon="info"
+            title="No podemos separar estas tarjetas todavía"
             message="Clasificar recibidas/enviadas requiere campos de remitente y destinatario."
             actionLabel="Ver todas"
             onAction={() => setActiveTab("all")}
@@ -611,13 +649,26 @@ const WalletListScreen: React.FC = () => {
         );
       }
       if (!classification.canClassifyTransfers && (activeTab === "received" || activeTab === "sent")) {
-        return <EmptyState message="Obteniendo datos de la cuenta para clasificar transferencias..." />;
+        return (
+          <EmptyState
+            icon="user"
+            title="Preparando tu clasificación"
+            message="Estamos obteniendo los datos de tu cuenta para separar recibidas y enviadas."
+          />
+        );
       }
       return (
         <EmptyState
-          message={isBusy ? "Cargando tarjetas de regalo..." : "Aún no hay tarjetas en esta pestaña."}
+          icon="gift"
+          title="Aún no hay tarjetas"
+          message="Cuando compres o recibas una tarjeta, aparecerá en esta sección."
+          actionLabel="Comprar tarjeta"
+          onAction={() => tabNavigation?.navigate("HomeTab")}
         />
       );
+    }
+    if (item.type === "skeleton") {
+      return <WalletSkeletonRows />;
     }
     if (item.type === "card") {
       return (
@@ -774,6 +825,12 @@ const styles = StyleSheet.create({
   },
   row: {
     width: "100%"
+  },
+  skeletonRows: {
+    gap: theme.spacing(1.5)
+  },
+  skeletonLine: {
+    marginTop: theme.spacing(0.6)
   },
   rowTop: {
     flexDirection: "row",
@@ -947,12 +1004,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
-  emptyCard: {
-    width: "100%"
-  },
-  emptyAction: {
-    marginTop: theme.spacing(1)
-  }
 });
 
 export default WalletListScreen;

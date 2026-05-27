@@ -7,6 +7,7 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi } from "../api/endpoints";
 import { WalletStackParamList } from "../navigation";
@@ -102,12 +103,46 @@ const GiftCardDetailScreen: React.FC = () => {
   const merchantInitial = merchantLabel.charAt(0).toUpperCase();
   const logoSource = hasLogo ? { uri: data?.merchant_logo_url as string } : merchantPlaceholder;
 
+  if (isBusy) {
+    return (
+      <Screen scrollable edges={["left", "right"]}>
+        <Card style={styles.loadingCard}>
+          <View style={styles.header}>
+            <SkeletonBlock width={64} height={64} radius={32} />
+            <View style={styles.headerText}>
+              <SkeletonBlock width="72%" height={22} radius={11} />
+              <SkeletonBlock width="54%" height={18} radius={9} />
+            </View>
+          </View>
+          <View style={styles.loadingRows}>
+            <SkeletonBlock height={28} />
+            <SkeletonBlock height={28} />
+            <SkeletonBlock height={28} />
+          </View>
+          <SkeletonBlock height={48} radius={theme.radius.md} style={styles.loadingButton} />
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Screen centerContent edges={["left", "right"]}>
+        <EmptyStateCard
+          icon="credit-card"
+          title="No pudimos cargar la tarjeta"
+          message="Revisa tu conexión o vuelve a intentarlo desde tu wallet."
+          actionLabel="Volver"
+          onAction={() => navigation.goBack()}
+          style={styles.fullWidthCard}
+        />
+      </Screen>
+    );
+  }
+
   return (
     <Screen scrollable edges={["left", "right"]}>
-      {isBusy ? <Text style={styles.muted}>Cargando...</Text> : null}
-      {error ? <Text style={styles.error}>No pudimos cargar la tarjeta.</Text> : null}
-      {data ? (
-        <Card>
+      <Card>
           <View style={styles.header}>
             <View style={styles.logoWrapper}>
               <Image source={logoSource} style={styles.logo} />
@@ -189,8 +224,7 @@ const GiftCardDetailScreen: React.FC = () => {
           ) : isHeld ? null : (
             <Text style={styles.muted}>Esta tarjeta no es elegible para canje.</Text>
           )}
-        </Card>
-      ) : null}
+      </Card>
     </Screen>
   );
 };
@@ -268,9 +302,18 @@ const styles = StyleSheet.create({
   muted: {
     color: theme.colors.muted
   },
-  error: {
-    color: theme.colors.danger,
-    marginBottom: theme.spacing(1)
+  loadingCard: {
+    gap: theme.spacing(1.5)
+  },
+  loadingRows: {
+    gap: theme.spacing(1),
+    marginTop: theme.spacing(0.5)
+  },
+  loadingButton: {
+    marginTop: theme.spacing(1)
+  },
+  fullWidthCard: {
+    width: "100%"
   },
   // Sender section styles
   senderSection: {
@@ -348,4 +391,3 @@ const styles = StyleSheet.create({
 });
 
 export default GiftCardDetailScreen;
-

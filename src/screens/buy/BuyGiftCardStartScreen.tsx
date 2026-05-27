@@ -15,6 +15,7 @@ import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
 import TextField from "../../ui/components/TextField";
+import { SkeletonBlock } from "../../ui/components/StateViews";
 import { theme } from "../../ui/theme";
 import { merchantsApi } from "../../api/endpoints";
 import { Merchant } from "../../types/api";
@@ -81,6 +82,19 @@ const MerchantCard: React.FC<{
     </Pressable>
   );
 };
+
+const MerchantListSkeleton: React.FC = () => (
+  <View style={styles.merchantListWrap}>
+    {Array.from({ length: 4 }).map((_, index) => (
+      <View key={`merchant-skeleton-${index}`} style={styles.merchantRow}>
+        <SkeletonBlock width={48} height={48} radius={24} />
+        <View style={styles.merchantText}>
+          <SkeletonBlock width="68%" height={18} radius={9} />
+        </View>
+      </View>
+    ))}
+  </View>
+);
 
 const BuyGiftCardStartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -204,7 +218,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
           </Text>
         </View>
         {isMerchantBusy ? (
-          <Text style={styles.muted}>Cargando comercios...</Text>
+          <MerchantListSkeleton />
         ) : hasMerchantOptions ? (
           <View style={styles.merchantListWrap}>
             {requestedMerchantMissing ? (

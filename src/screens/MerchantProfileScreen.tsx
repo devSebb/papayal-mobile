@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -20,7 +19,7 @@ import Animated, {
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
-import Button from "../ui/components/Button";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { merchantsApi } from "../api/endpoints";
 import { HomeStackParamList } from "../navigation";
@@ -62,9 +61,27 @@ const MerchantProfileScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Screen centerContent>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Cargando comercio...</Text>
+      <Screen scrollable>
+        <Card style={styles.headerCard}>
+          <SkeletonBlock height={120} radius={0} />
+          <View style={styles.logoAnchor}>
+            <SkeletonBlock width="60%" height={82} radius={22} />
+          </View>
+          <SkeletonBlock width="58%" height={22} radius={11} style={styles.loadingTitleLine} />
+        </Card>
+        <Card style={styles.sectionCard}>
+          <SkeletonBlock width="42%" height={20} radius={10} />
+          <SkeletonBlock height={54} />
+          <SkeletonBlock height={54} />
+        </Card>
+        <Card style={styles.sectionCard}>
+          <SkeletonBlock width="36%" height={20} radius={10} />
+          <View style={styles.loadingChipRow}>
+            <SkeletonBlock width={92} height={38} radius={19} />
+            <SkeletonBlock width={116} height={38} radius={19} />
+            <SkeletonBlock width={84} height={38} radius={19} />
+          </View>
+        </Card>
       </Screen>
     );
   }
@@ -72,16 +89,13 @@ const MerchantProfileScreen: React.FC = () => {
   if (isError || !merchant) {
     return (
       <Screen centerContent>
-        <Feather name="alert-circle" size={48} color={theme.colors.danger} />
-        <Text style={styles.errorTitle}>Error al cargar</Text>
-        <Text style={styles.errorSubtitle}>
-          No pudimos obtener la información del comercio.
-        </Text>
-        <Button
-          label="Volver"
-          onPress={() => navigation.goBack()}
-          variant="secondary"
-          style={styles.errorButton}
+        <EmptyStateCard
+          icon="alert-circle"
+          title="No pudimos cargar el comercio"
+          message="Revisa tu conexión e intenta abrirlo nuevamente."
+          actionLabel="Volver"
+          onAction={() => navigation.goBack()}
+          style={styles.errorCard}
         />
       </Screen>
     );
@@ -330,23 +344,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
     textAlign: "center"
   },
-  loadingText: {
-    marginTop: theme.spacing(1),
-    color: theme.colors.muted
-  },
-  errorTitle: {
-    marginTop: theme.spacing(1),
-    fontSize: theme.typography.subheading,
-    fontFamily: theme.fonts.bold,
-    color: theme.colors.text
-  },
-  errorSubtitle: {
-    color: theme.colors.muted,
-    textAlign: "center",
-    marginTop: theme.spacing(0.5)
-  },
-  errorButton: {
+  loadingTitleLine: {
     marginTop: theme.spacing(2)
+  },
+  loadingChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing(1),
+    paddingVertical: theme.spacing(0.5)
+  },
+  errorCard: {
+    width: "100%"
   }
 });
 

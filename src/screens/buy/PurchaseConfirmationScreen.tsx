@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -13,6 +12,7 @@ import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { formatMoney } from "../../utils/money";
 import { checkoutApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
+import CheckoutHeader from "./CheckoutHeader";
 
 const PurchaseConfirmationScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -72,19 +72,12 @@ const PurchaseConfirmationScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-      <Text style={styles.header}>Confirma tu compra</Text>
-      <Text style={styles.subheader}>Revisa los datos antes de ir al pago.</Text>
+      <CheckoutHeader
+        step="confirm"
+        title="Confirma tu compra"
+        subtitle="Revisa los datos antes de continuar al pago."
+        onBack={() => navigation.goBack()}
+      />
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
@@ -137,29 +130,6 @@ const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
 );
 
 const styles = StyleSheet.create({
-  header: {
-    fontSize: 26,
-    fontFamily: theme.fonts.extraBold,
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
   sectionCard: {
     gap: theme.spacing(1),
     marginBottom: theme.spacing(1.5)

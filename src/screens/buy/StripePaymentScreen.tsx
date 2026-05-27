@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
-  Pressable,
   StyleSheet,
   Text,
   View
@@ -24,6 +23,7 @@ import {
   isPaymentError,
   PaymentError
 } from "../../api/payments";
+import CheckoutHeader from "./CheckoutHeader";
 
 type PaymentPhase = "input" | "processing" | "confirming" | "generating";
 
@@ -260,22 +260,12 @@ const StripePaymentScreen: React.FC = () => {
           </Card>
         </View>
       )}
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={handleGoBack}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-
-      <Text style={styles.header}>Pago</Text>
-      <Text style={styles.subheader}>
-        Completa tu compra de forma segura con Stripe.
-      </Text>
+      <CheckoutHeader
+        step="payment"
+        title="Pago"
+        subtitle="Completa tu compra de forma segura con Stripe."
+        onBack={handleGoBack}
+      />
 
       {errorBanner ? (
         <Card style={[styles.sectionCard, styles.errorBanner]}>
@@ -426,32 +416,9 @@ async function waitForGiftCardGeneration(_paymentIntentId: string): Promise<void
 }
 
 const styles = StyleSheet.create({
-  header: {
-    fontSize: 26,
-    fontFamily: theme.fonts.extraBold,
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
   sectionCard: {
     marginBottom: theme.spacing(1.5),
     gap: theme.spacing(1)
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
   },
   sectionHeader: {
     flexDirection: "row",

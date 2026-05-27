@@ -26,6 +26,7 @@ import {
 import { usePurchaseDraft, MerchantSelection } from "../../domain/purchase/purchaseDraftStore";
 import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
+import CheckoutHeader from "./CheckoutHeader";
 
 type MerchantOption = MerchantSelection & { id: string };
 type BuyGiftCardStartRoute = RouteProp<HomeStackParamList, "BuyGiftCardStart">;
@@ -183,21 +184,13 @@ const BuyGiftCardStartScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-      <Text style={styles.header}>Compra una tarjeta de regalo</Text>
-      <Text style={styles.subheader}>
-        Selecciona el comercio y el monto. Podrás añadir destinatario y pagar en el siguiente paso.
-      </Text>
+      <CheckoutHeader
+        step="merchant"
+        title="Compra una tarjeta de regalo"
+        subtitle="Selecciona el comercio y el monto para empezar tu compra."
+        onBack={() => navigation.goBack()}
+        showSummary={false}
+      />
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
@@ -317,35 +310,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  header: {
-    fontSize: 26,
-    fontFamily: theme.fonts.extraBold,
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
   muted: {
     color: theme.colors.muted
   },
   sectionCard: {
     marginBottom: theme.spacing(1.5),
     gap: theme.spacing(1)
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
   },
   sectionHeader: {
     flexDirection: "row",

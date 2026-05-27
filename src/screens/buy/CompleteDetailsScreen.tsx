@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +15,7 @@ import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
 import { HttpError } from "../../api/http";
 import { toDisplayDate, toIsoDate, formatDateInput } from "../../utils/date";
+import CheckoutHeader from "./CheckoutHeader";
 
 const CompleteDetailsScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -185,21 +185,12 @@ const CompleteDetailsScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={handleGoBack}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-      <Text style={styles.header}>Completa tus datos</Text>
-      <Text style={styles.subheader}>
-        Necesitamos estos datos para procesar tu compra de forma segura.
-      </Text>
+      <CheckoutHeader
+        step="payment"
+        title="Completa tus datos"
+        subtitle="Necesitamos estos datos para procesar tu compra de forma segura."
+        onBack={handleGoBack}
+      />
 
       <Card style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Tu perfil</Text>
@@ -292,29 +283,6 @@ const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) =
 );
 
 const styles = StyleSheet.create({
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
-  header: {
-    fontSize: 26,
-    fontFamily: theme.fonts.extraBold,
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
   sectionCard: {
     gap: theme.spacing(1),
     marginBottom: theme.spacing(1.25)
@@ -355,5 +323,4 @@ const styles = StyleSheet.create({
 });
 
 export default CompleteDetailsScreen;
-
 

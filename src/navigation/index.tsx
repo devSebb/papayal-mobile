@@ -68,6 +68,7 @@ export type HomeStackParamList = {
     amountLabel?: string;
     recipientEmail?: string;
     paymentIntentId?: string;
+    cardReady?: boolean;
   };
 };
 
@@ -266,4 +267,3 @@ const RootNavigator = () => {
 };
 
 export default RootNavigator;
-

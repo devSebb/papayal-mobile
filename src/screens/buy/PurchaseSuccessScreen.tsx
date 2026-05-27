@@ -22,6 +22,7 @@ const PurchaseSuccessScreen: React.FC = () => {
   const amountLabel = route.params?.amountLabel ?? "";
   const recipientEmail = route.params?.recipientEmail ?? "";
   const paymentIntentId = route.params?.paymentIntentId;
+  const cardReady = route.params?.cardReady ?? false;
 
   // Only reset draft when leaving the screen, not when mounting
   useFocusEffect(
@@ -83,15 +84,22 @@ const PurchaseSuccessScreen: React.FC = () => {
           ) : null}
         </View>
 
-        {/* Info notice about gift card generation - webhook delay messaging */}
         <View style={styles.infoBox}>
-          <Feather name="clock" size={16} color={theme.colors.secondary} />
+          <Feather
+            name={cardReady ? "check-circle" : "clock"}
+            size={16}
+            color={theme.colors.secondary}
+          />
           <View style={styles.infoContent}>
             <Text style={styles.infoText}>
-              La tarjeta puede tardar unos segundos en aparecer en tu billetera.
+              {cardReady
+                ? "Tu tarjeta ya fue creada y está lista para aparecer en tu billetera."
+                : "La tarjeta puede tardar unos segundos en aparecer en tu billetera."}
             </Text>
             <Text style={styles.infoHint}>
-              Si no la ves de inmediato, desliza para actualizar.
+              {cardReady
+                ? "Abre tu billetera para ver los detalles."
+                : "Si no la ves de inmediato, desliza para actualizar."}
             </Text>
           </View>
         </View>

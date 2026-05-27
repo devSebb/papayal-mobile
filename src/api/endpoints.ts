@@ -138,6 +138,12 @@ export const giftCardApi = {
     const { data } = await request<GiftCard>(`/api/v1/me/gift_cards/${id}`);
     return data;
   },
+  byPaymentIntent: async (paymentIntentId: string) => {
+    const { data } = await request<GiftCard | { gift_card?: GiftCard | null; status?: string }>(
+      `/api/v1/gift_cards/by_payment_intent/${encodeURIComponent(paymentIntentId)}`
+    );
+    return data;
+  },
   redemptionToken: async (id: string) => {
     const { data } = await request<RedemptionToken>(`/api/v1/me/gift_cards/${id}/redemption_token`, {
       method: "POST"
@@ -171,4 +177,3 @@ export const pushTokenApi = {
     });
   }
 };
-

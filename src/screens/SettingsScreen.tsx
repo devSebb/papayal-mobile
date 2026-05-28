@@ -98,6 +98,9 @@ const ChannelOption: React.FC<ChannelOptionProps> = ({
   </TouchableOpacity>
 );
 
+// Hidden until Twilio is enabled in production
+const SHOW_NOTIFICATION_CHANNEL_PICKER = false;
+
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
   const { logout, logoutAll, accessToken } = useAuth();
@@ -193,37 +196,39 @@ const SettingsScreen: React.FC = () => {
         </View>
       </Card>
 
-      <Card style={styles.channelCard}>
-        <Text style={styles.sectionTitle}>Notificaciones</Text>
-        <Text style={styles.sectionSubtitle}>
-          Elige cómo recibir códigos de tarjeta y avisos importantes.
-        </Text>
-        <View style={styles.currentPreference}>
-          <Feather name="bell" size={15} color={theme.colors.muted} />
-          <Text style={styles.currentPreferenceText}>
-            Actual: {currentChannel === "whatsapp" ? "WhatsApp" : "SMS"}
+      {SHOW_NOTIFICATION_CHANNEL_PICKER && (
+        <Card style={styles.channelCard}>
+          <Text style={styles.sectionTitle}>Notificaciones</Text>
+          <Text style={styles.sectionSubtitle}>
+            Elige cómo recibir códigos de tarjeta y avisos importantes.
           </Text>
-          {savingChannel ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-        </View>
-        <View style={styles.channelRow}>
-          <ChannelOption
-            channel="whatsapp"
-            icon="message-circle"
-            label="WhatsApp"
-            selected={currentChannel === "whatsapp"}
-            disabled={savingChannel}
-            onPress={() => handleSelectChannel("whatsapp")}
-          />
-          <ChannelOption
-            channel="sms"
-            icon="smartphone"
-            label="SMS"
-            selected={currentChannel === "sms"}
-            disabled={savingChannel}
-            onPress={() => handleSelectChannel("sms")}
-          />
-        </View>
-      </Card>
+          <View style={styles.currentPreference}>
+            <Feather name="bell" size={15} color={theme.colors.muted} />
+            <Text style={styles.currentPreferenceText}>
+              Actual: {currentChannel === "whatsapp" ? "WhatsApp" : "SMS"}
+            </Text>
+            {savingChannel ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+          </View>
+          <View style={styles.channelRow}>
+            <ChannelOption
+              channel="whatsapp"
+              icon="message-circle"
+              label="WhatsApp"
+              selected={currentChannel === "whatsapp"}
+              disabled={savingChannel}
+              onPress={() => handleSelectChannel("whatsapp")}
+            />
+            <ChannelOption
+              channel="sms"
+              icon="smartphone"
+              label="SMS"
+              selected={currentChannel === "sms"}
+              disabled={savingChannel}
+              onPress={() => handleSelectChannel("sms")}
+            />
+          </View>
+        </Card>
+      )}
 
       <Card style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Sesiones</Text>

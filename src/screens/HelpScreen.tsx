@@ -48,7 +48,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Cómo recibo mi tarjeta digital o token de canje?",
     answer:
-      "Te llega por SMS o correo con un enlace seguro. Al abrirlo verás tu tarjeta digital y tu código visible. No compartas capturas del código."
+      "Te llega una notificación por SMS o correo con la información de la tarjeta y un enlace seguro. El QR y el código de canje solo se muestran dentro de Papayal cuando estés listo para usarla."
   },
   {
     id: "donde-usar",
@@ -76,7 +76,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Cómo consulto mi saldo y movimientos?",
     answer:
-      "En tu token verás saldo disponible y últimos canjes. Si un comercio devuelve un monto, también aparecerá como reverso."
+      "En tu billetera verás el saldo disponible y los últimos canjes. Si un comercio devuelve un monto, también aparecerá como reverso."
   },
   {
     id: "parcial",
@@ -90,7 +90,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Mi tarjeta expira?",
     answer:
-      "La mayoría tiene vigencia de 12 meses desde la emisión. La fecha aparece en tu token. Antes de vencer te avisamos con recordatorios."
+      "La mayoría tiene vigencia de 12 meses desde la emisión. La fecha aparece en los detalles de la tarjeta. Antes de vencer te avisamos con recordatorios."
   },
   {
     id: "reembolso",
@@ -111,14 +111,14 @@ const FAQS: FaqItem[] = [
     category: "Seguridad",
     question: "Perdí mi teléfono, ¿pierdo mi saldo?",
     answer:
-      "No. Tu token sigue protegido. Escríbenos y bloqueamos el código anterior y te emitimos uno nuevo si es necesario."
+      "No. Tu saldo sigue protegido en tu cuenta. Escríbenos para revisar tu acceso y bloquear cualquier sesión o código activo si es necesario."
   },
   {
     id: "codigo-expuesto",
     category: "Seguridad",
     question: "Alguien vio mi código, ¿está en riesgo?",
     answer:
-      "Si crees que alguien lo vio, contáctanos de inmediato para rotar el código. Evita compartir capturas y no publiques el QR."
+      "Si crees que alguien vio tu código de canje, contáctanos de inmediato. Evita compartir capturas y no publiques el QR."
   },
   {
     id: "login",
@@ -153,7 +153,7 @@ const FAQS: FaqItem[] = [
     category: "Comercios",
     question: "¿Recibo comprobante o factura?",
     answer:
-      "El comercio entrega su comprobante habitual. En tu token verás el registro del canje con fecha, comercio y monto."
+      "El comercio entrega su comprobante habitual. En tu actividad verás el registro del canje con fecha, comercio y monto."
   },
   {
     id: "tiendas-online",
@@ -620,5 +620,4 @@ const styles = StyleSheet.create({
 });
 
 export default HelpScreen;
-
 

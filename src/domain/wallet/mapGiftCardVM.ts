@@ -31,6 +31,8 @@ export const mapGiftCardVM = (card: GiftCard, now = new Date()): GiftCardVM => {
   const amount = centsToDollars(card.amount_cents);
   const remaining = centsToDollars(card.remaining_balance_cents);
   const expiresDate = parseDate(card.expires_at);
+  const heldUntilDate = parseDate(card.held_until);
+  const isHeld = Boolean(heldUntilDate && heldUntilDate.getTime() > now.getTime());
 
   const isExpired = Boolean(
     expiresDate && card.remaining_balance_cents > 0 && expiresDate.getTime() < now.getTime()
@@ -55,6 +57,8 @@ export const mapGiftCardVM = (card: GiftCard, now = new Date()): GiftCardVM => {
     rawStatus: card.status,
     isExpired,
     isRedeemed,
+    isHeld,
+    heldUntil: card.held_until ?? null,
     createdAt: card.created_at ?? null,
     updatedAt: card.updated_at ?? null,
     senderId: card.sender_id ?? undefined,
@@ -62,4 +66,3 @@ export const mapGiftCardVM = (card: GiftCard, now = new Date()): GiftCardVM => {
     redeemedDeltaCents
   };
 };
-

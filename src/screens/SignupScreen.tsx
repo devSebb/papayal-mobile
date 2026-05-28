@@ -161,6 +161,7 @@ const SignupScreen: React.FC = () => {
             label="Contraseña"
             value={password}
             secureTextEntry
+            secureToggle
             onChangeText={(text) => {
               setPassword(text);
               setFieldErrors((prev) => ({ ...prev, password: undefined }));
@@ -173,6 +174,7 @@ const SignupScreen: React.FC = () => {
             label="Confirmar contraseña"
             value={confirmPassword}
             secureTextEntry
+            secureToggle
             onChangeText={(text) => {
               setConfirmPassword(text);
               setFieldErrors((prev) => ({ ...prev, password_confirmation: undefined }));
@@ -336,5 +338,4 @@ const styles = StyleSheet.create({
 });
 
 export default SignupScreen;
-
 

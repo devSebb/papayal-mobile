@@ -463,15 +463,23 @@ const WalletListScreen: React.FC = () => {
   }, [giftCards, user?.id]);
 
   const summary = useMemo(() => {
-    const activeCards = mappedCards.filter((card) => card.status === "Active");
-    const activeWithAmounts = activeCards.filter(
+    const spendableCards = classification.canClassifyTransfers
+      ? classification.received.filter(
+          (card) =>
+            card.status === "Active" &&
+            !card.isHeld &&
+            (card.remainingBalanceCents ?? 0) > 0
+        )
+      : [];
+    const activeWithAmounts = spendableCards.filter(
       (card) => typeof card.remainingBalanceCents === "number" && !!card.currency
     );
     const currencies = new Set(
       activeWithAmounts.map((card) => card.currency).filter(Boolean) as string[]
     );
     const canShowActiveBalance =
-      activeWithAmounts.length === activeCards.length &&
+      classification.canClassifyTransfers &&
+      activeWithAmounts.length === spendableCards.length &&
       activeWithAmounts.length > 0 &&
       currencies.size === 1;
     const activeBalanceCents = canShowActiveBalance
@@ -484,9 +492,9 @@ const WalletListScreen: React.FC = () => {
 
     return {
       activeBalanceLabel,
-      activeCardsCount: activeCards.length
+      activeCardsCount: spendableCards.length
     };
-  }, [mappedCards]);
+  }, [classification]);
 
   const tabCards = classification[activeTab] ?? [];
   const totalCards = tabCards.length;

@@ -161,6 +161,7 @@ const DeleteAccountScreen: React.FC = () => {
             }}
             placeholder="Tu contraseña"
             secureTextEntry
+            secureToggle
             autoCapitalize="none"
             autoCorrect={false}
             textContentType="password"

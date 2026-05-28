@@ -65,6 +65,7 @@ const LoginScreen: React.FC = () => {
             label="Contraseña"
             value={password}
             secureTextEntry
+            secureToggle
             onChangeText={setPassword}
             autoComplete="password"
             style={styles.inputSpacing}
@@ -144,4 +145,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-

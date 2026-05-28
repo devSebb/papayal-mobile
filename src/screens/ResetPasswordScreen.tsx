@@ -136,6 +136,7 @@ const ResetPasswordScreen: React.FC = () => {
               label="Nueva contraseña"
               value={password}
               secureTextEntry
+              secureToggle
               onChangeText={(text) => {
                 setPassword(text);
                 setFieldErrors((prev) => ({ ...prev, password: undefined }));
@@ -149,6 +150,7 @@ const ResetPasswordScreen: React.FC = () => {
               label="Confirmar nueva contraseña"
               value={confirmPassword}
               secureTextEntry
+              secureToggle
               onChangeText={(text) => {
                 setConfirmPassword(text);
                 setFieldErrors((prev) => ({ ...prev, password_confirmation: undefined }));
@@ -230,4 +232,3 @@ const styles = StyleSheet.create({
 });
 
 export default ResetPasswordScreen;
-

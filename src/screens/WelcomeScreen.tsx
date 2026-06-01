@@ -29,6 +29,7 @@ const socialProofMessages = [
 
 const WelcomeScreen: React.FC = () => {
   const navigation = useNavigation<AuthNav>();
+  const rootNavigation = navigation.getParent();
   const heroIn = useRef(new Animated.Value(0)).current;
   const headlineIn = useRef(new Animated.Value(0)).current;
   const subheadIn = useRef(new Animated.Value(0)).current;
@@ -275,6 +276,13 @@ const WelcomeScreen: React.FC = () => {
             style={styles.secondaryButton}
             accessibilityLabel="Ya tengo cuenta, ir a iniciar sesion"
           />
+          <Button
+            label="Explorar comercios"
+            onPress={() => rootNavigation?.navigate("GuestApp" as never)}
+            variant="ghost"
+            style={styles.secondaryButton}
+            accessibilityLabel="Explorar comercios sin iniciar sesion"
+          />
         </Animated.View>
 
         <View style={styles.trustRow}>
@@ -495,5 +503,4 @@ const styles = StyleSheet.create({
 });
 
 export default WelcomeScreen;
-
 

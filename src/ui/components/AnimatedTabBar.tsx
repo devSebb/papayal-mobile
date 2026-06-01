@@ -38,8 +38,9 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
   const panX = useSharedValue(0);
   
   const railPaddingX = theme.spacing(0.5);
+  const railWidth = Math.min(width, 620);
 
-  const railInnerWidth = width - railPaddingX * 2;
+  const railInnerWidth = railWidth - railPaddingX * 2;
 
   const tabWidth = useMemo(() => {
     return Math.max(railInnerWidth / state.routes.length, 96);
@@ -144,7 +145,7 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
           railStyle
         ]}
       >
-        <View style={styles.rail} pointerEvents="box-none">
+        <View style={[styles.rail, { width: railWidth, paddingBottom: bottomInset + theme.spacing(2) }]} pointerEvents="box-none">
           <Animated.View style={[styles.indicator, { width: indicatorWidth }, indicatorStyle]} />
           {state.routes.map((route, index) => {
             const options = descriptors[route.key]?.options || {};
@@ -222,6 +223,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    alignItems: "center",
     // paddingBottom: theme.spacing(3),
     backgroundColor: theme.colors.background
   },
@@ -275,5 +277,4 @@ const styles = StyleSheet.create({
 });
 
 export default AnimatedTabBar;
-
 

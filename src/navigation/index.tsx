@@ -20,6 +20,9 @@ import DeleteAccountScreen from "../screens/settings/DeleteAccountScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import ActivityScreen from "../screens/ActivityScreen";
 import HelpScreen from "../screens/HelpScreen";
+import GuestBrowseScreen from "../screens/guest/GuestBrowseScreen";
+import GuestMerchantProfileScreen from "../screens/guest/GuestMerchantProfileScreen";
+import AuthRequiredScreen from "../screens/guest/AuthRequiredScreen";
 import { useAuth } from "../auth/authStore";
 import { theme } from "../ui/theme";
 import BuyGiftCardStartScreen from "../screens/buy/BuyGiftCardStartScreen";
@@ -31,6 +34,7 @@ import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import MerchantProfileScreen from "../screens/MerchantProfileScreen";
 import InterestsScreen from "../screens/InterestsScreen";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
+import { consumePendingPostAuthIntent } from "./postAuthIntent";
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -94,12 +98,31 @@ export type AppTabsParamList = {
   ProfileTab: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
-const RootStack = createNativeStackNavigator();
+export type GuestHomeStackParamList = {
+  GuestHome: undefined;
+  GuestMerchantProfile: { id: string };
+};
+
+export type GuestTabsParamList = {
+  HomeTab: NavigatorScreenParams<GuestHomeStackParamList> | undefined;
+  WalletTab: undefined;
+  ProfileTab: undefined;
+};
+
+export type RootStackParamList = {
+  Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
+  GuestApp: undefined;
+  App: NavigatorScreenParams<AppTabsParamList> | undefined;
+};
+
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const WalletStack = createNativeStackNavigator<WalletStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+const GuestHomeStack = createNativeStackNavigator<GuestHomeStackParamList>();
 const Tab = createBottomTabNavigator<AppTabsParamList>();
+const GuestTab = createBottomTabNavigator<GuestTabsParamList>();
 
 const HomeStackNavigator = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
@@ -167,6 +190,13 @@ const ProfileStackNavigator = () => (
   </ProfileStack.Navigator>
 );
 
+const GuestHomeStackNavigator = () => (
+  <GuestHomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <GuestHomeStack.Screen name="GuestHome" component={GuestBrowseScreen} />
+    <GuestHomeStack.Screen name="GuestMerchantProfile" component={GuestMerchantProfileScreen} />
+  </GuestHomeStack.Navigator>
+);
+
 const AppTabs = () => (
   <Tab.Navigator
     tabBar={(props) => <AnimatedTabBar {...props} />}
@@ -189,6 +219,28 @@ const AppTabs = () => (
     />
     <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: "Perfil" }} />
   </Tab.Navigator>
+);
+
+const GuestWalletGate = () => <AuthRequiredScreen kind="wallet" />;
+const GuestProfileGate = () => <AuthRequiredScreen kind="profile" />;
+
+const GuestAppTabs = () => (
+  <GuestTab.Navigator
+    tabBar={(props) => <AnimatedTabBar {...props} />}
+    screenOptions={{
+      headerShown: false,
+      tabBarShowLabel: false,
+      tabBarStyle: {
+        position: "absolute",
+        elevation: 0,
+        borderTopWidth: 0
+      }
+    }}
+  >
+    <GuestTab.Screen name="HomeTab" component={GuestHomeStackNavigator} options={{ title: "Explorar" }} />
+    <GuestTab.Screen name="WalletTab" component={GuestWalletGate} options={{ title: "Billetera" }} />
+    <GuestTab.Screen name="ProfileTab" component={GuestProfileGate} options={{ title: "Perfil" }} />
+  </GuestTab.Navigator>
 );
 
 const AuthNavigator = () => (
@@ -226,7 +278,7 @@ const AuthNavigator = () => (
   </AuthStack.Navigator>
 );
 
-const navigationRef = createNavigationContainerRef();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const navTheme = {
   ...DefaultTheme,
@@ -251,6 +303,28 @@ const RootNavigator = () => {
     return () => sub.remove();
   }, [accessToken]);
 
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const intent = consumePendingPostAuthIntent();
+    if (!intent) return;
+
+    const timer = setTimeout(() => {
+      if (!navigationRef.isReady()) return;
+      if (intent.type === "buy_gift_card") {
+        navigationRef.navigate("App", {
+          screen: "HomeTab",
+          params: {
+            screen: "BuyGiftCardStart",
+            params: { merchantId: intent.merchantId }
+          }
+        });
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [accessToken]);
+
   // BootGate ensures we only render after hydration is complete,
   // so we can directly switch based on accessToken without a loading state.
   return (
@@ -259,7 +333,10 @@ const RootNavigator = () => {
         {accessToken ? (
           <RootStack.Screen name="App" component={AppTabs} />
         ) : (
-          <RootStack.Screen name="Auth" component={AuthNavigator} />
+          <>
+            <RootStack.Screen name="Auth" component={AuthNavigator} />
+            <RootStack.Screen name="GuestApp" component={GuestAppTabs} />
+          </>
         )}
       </RootStack.Navigator>
     </NavigationContainer>

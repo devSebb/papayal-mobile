@@ -54,6 +54,9 @@ const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, onPress }) => {
           </View>
         )}
       </View>
+      <Text style={styles.name} numberOfLines={2}>
+        {name}
+      </Text>
     </AnimatedPressable>
   );
 };
@@ -64,9 +67,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: "rgba(252, 165, 15, 0.42)",
-    minHeight: 120,
+    minHeight: 146,
     paddingVertical: theme.spacing(2),
-    paddingHorizontal: theme.spacing(2)
+    paddingHorizontal: theme.spacing(2),
+    gap: theme.spacing(1)
   },
   logoArea: {
     flexGrow: 1,
@@ -92,6 +96,13 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontFamily: theme.fonts.black,
     fontSize: 26
+  },
+  name: {
+    color: theme.colors.text,
+    fontFamily: theme.fonts.bold,
+    fontSize: theme.typography.small,
+    lineHeight: 18,
+    textAlign: "center"
   }
 });
 

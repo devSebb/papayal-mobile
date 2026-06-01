@@ -163,6 +163,17 @@ export const merchantsApi = {
   }
 };
 
+export const publicMerchantsApi = {
+  list: async () => {
+    const { data } = await request<Merchant[]>("/api/v1/public/merchants");
+    return data;
+  },
+  detail: async (id: string) => {
+    const { data } = await request<Merchant>(`/api/v1/public/merchants/${id}`);
+    return data;
+  }
+};
+
 export const pushTokenApi = {
   register: async (token: string, platform: string) => {
     await request("/api/v1/me/push_tokens", {

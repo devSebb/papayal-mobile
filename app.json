@@ -17,7 +17,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.papayal.app",
-      "deploymentTarget": "15.1",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -47,6 +46,10 @@
     "android": {
       "package": "com.papayal.app",
       "versionCode": 1,
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/Papayal-logoTag.png",
         "backgroundColor": "#FDF1E1"
@@ -72,7 +75,8 @@
           "icon": "./assets/Papayal-icon.png",
           "color": "#FCA50F"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

@@ -397,7 +397,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: theme.spacing(3)
+    marginTop: theme.spacing(1.5),
+    marginBottom: -theme.spacing(5)
   }, 
   heroImage: {
     width: 220,

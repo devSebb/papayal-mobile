@@ -30,6 +30,13 @@ const tabRootScreens: Record<string, string> = {
   ProfileTab: "Profile"
 };
 
+const shouldHideTabBar = (options: BottomTabBarProps["descriptors"][string]["options"]) => {
+  const tabBarStyle = StyleSheet.flatten(options.tabBarStyle as any) as
+    | { display?: string }
+    | undefined;
+  return tabBarStyle?.display === "none";
+};
+
 const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -136,14 +143,20 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
     transform: [{ translateX: indicatorX.value + panX.value * 0.12 }]
   }));
 
+  const focusedRoute = state.routes[state.index];
+  const focusedOptions = focusedRoute ? descriptors[focusedRoute.key]?.options : undefined;
+  const isHidden = Boolean(focusedOptions && shouldHideTabBar(focusedOptions));
+
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View
         style={[
           styles.wrapper,
+          isHidden ? styles.hidden : null,
           // { paddingBottom: bottomPadding },
           railStyle
         ]}
+        pointerEvents={isHidden ? "none" : "auto"}
       >
         <View style={[styles.rail, { width: railWidth, paddingBottom: bottomInset + theme.spacing(2) }]} pointerEvents="box-none">
           <Animated.View style={[styles.indicator, { width: indicatorWidth }, indicatorStyle]} />
@@ -227,6 +240,9 @@ const styles = StyleSheet.create({
     // paddingBottom: theme.spacing(3),
     backgroundColor: theme.colors.background
   },
+  hidden: {
+    display: "none"
+  },
   rail: {
     flexDirection: "row",
     alignItems: "center",
@@ -277,4 +293,3 @@ const styles = StyleSheet.create({
 });
 
 export default AnimatedTabBar;
-

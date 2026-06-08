@@ -77,6 +77,16 @@ export type Merchant = {
   contact_email?: string | null;
   address?: string | null;
   categories?: string[];
+  brandColor?: string | null;
+  brand_color?: string | null;
+  amountPresets?: number[] | null;
+  amount_presets?: number[] | null;
+  locationsCount?: number | null;
+  locations_count?: number | null;
+  isNational?: boolean | null;
+  is_national?: boolean | null;
+  coverageText?: string | null;
+  coverage_text?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -91,4 +101,3 @@ export type ApiEnvelope<T> = {
   data: T;
   request_id: string;
 };
-

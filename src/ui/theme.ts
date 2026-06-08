@@ -14,6 +14,9 @@ export const theme = {
     muted: "#6A7780",
     captionMuted: "#5E7D80",
     border: "#D7DBD9",
+    subtleTealBorder: "rgba(13, 47, 50, 0.06)",
+    mutedTeal42: "rgba(13, 47, 50, 0.42)",
+    mutedTeal55: "rgba(13, 47, 50, 0.55)",
     navbar: "#0D2F32",
     navbarMuted: "#6A848A",
     success: "#39B66E",
@@ -23,7 +26,8 @@ export const theme = {
   radius: {
     sm: 8,
     md: 12,
-    lg: 16
+    lg: 16,
+    xl: 24
   },
   fonts: {
     thin: "Raleway_100Thin",
@@ -57,6 +61,13 @@ export const theme = {
       shadowOpacity: 0.1,
       shadowRadius: 12,
       elevation: 4
+    },
+    md: {
+      shadowColor: "#0D2F32",
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.1,
+      shadowRadius: 24,
+      elevation: 6
     }
   }
 };

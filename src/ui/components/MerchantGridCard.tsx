@@ -1,5 +1,5 @@
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,6 +13,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 type Props = {
   merchantId?: string;
   name: string;
+  categoryLabel?: string;
   logoUrl?: string | null;
   countLabel?: string;
   amountLabel?: string;
@@ -20,8 +21,27 @@ type Props = {
 };
 
 const SPRING_CONFIG = { damping: 15, stiffness: 300 };
+export const MERCHANT_SHELF_PAGE_PADDING = 20;
+export const MERCHANT_SHELF_CARD_GAP = 14;
 
-const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, onPress }) => {
+export const getMerchantShelfCardMetrics = (width: number) => {
+  const cardsVisible = width >= 900 ? 4.5 : 2.5;
+  const cardWidth = Math.round(
+    (width - MERCHANT_SHELF_PAGE_PADDING - MERCHANT_SHELF_CARD_GAP * cardsVisible) /
+      cardsVisible
+  );
+
+  return {
+    cardWidth,
+    cardHeight: Math.round(cardWidth / 1.5),
+    cardGap: MERCHANT_SHELF_CARD_GAP,
+    pagePadding: MERCHANT_SHELF_PAGE_PADDING
+  };
+};
+
+const MerchantGridCard: React.FC<Props> = React.memo(({ name, categoryLabel = "Comercio", logoUrl, onPress }) => {
+  const { width } = useWindowDimensions();
+  const { cardWidth, cardHeight } = getMerchantShelfCardMetrics(width);
   const initial = name?.trim()?.charAt(0)?.toUpperCase?.() || "C";
   const hasLogo = Boolean(logoUrl);
   const source = hasLogo ? { uri: logoUrl as string } : undefined;
@@ -42,10 +62,10 @@ const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, onPress }) => {
         scale.value = withSpring(1, SPRING_CONFIG);
       }}
       accessibilityRole="button"
-      accessibilityLabel={`Comercio ${name}`}
+      accessibilityLabel={`${name}, ${categoryLabel}`}
       hitSlop={6}
     >
-      <View style={styles.card}>
+      <View style={[styles.card, { width: cardWidth, height: cardHeight }]}>
         <View style={styles.logoArea}>
           {hasLogo && source ? (
             <Image source={source} style={styles.logoImage} resizeMode="contain" />
@@ -56,48 +76,48 @@ const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, onPress }) => {
           )}
         </View>
       </View>
-      <Text style={styles.name} numberOfLines={2}>
-        {name}
-      </Text>
+      <View style={[styles.labelBlock, { width: cardWidth }]}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={styles.category} numberOfLines={1}>
+          {categoryLabel}
+        </Text>
+      </View>
     </AnimatedPressable>
   );
-};
+});
+
+MerchantGridCard.displayName = "MerchantGridCard";
 
 const styles = StyleSheet.create({
   tile: {
-    width: "100%",
-    gap: theme.spacing(0.75)
+    alignSelf: "flex-start"
   },
   card: {
     backgroundColor: theme.colors.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(252, 165, 15, 0.28)",
-    minHeight: 96,
-    paddingVertical: theme.spacing(1),
-    paddingHorizontal: theme.spacing(1.5),
+    borderColor: theme.colors.cardBorder,
+    alignItems: "center",
     justifyContent: "center",
-    shadowColor: theme.colors.secondary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4
+    padding: theme.spacing(2),
+    ...theme.shadow.sm
   },
   logoArea: {
-    minHeight: 72,
     width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center"
   },
   logoImage: {
     width: "100%",
-    height: 72,
-    maxHeight: 96
+    height: "100%"
   },
   logoFallback: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     backgroundColor: theme.colors.secondary,
     alignItems: "center",
     justifyContent: "center"
@@ -107,14 +127,22 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.black,
     fontSize: 26
   },
+  labelBlock: {
+    marginTop: 10,
+    paddingLeft: 2
+  },
   name: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.bold,
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.extraBold,
     fontSize: theme.typography.small,
-    lineHeight: 18,
-    minHeight: 32,
-    paddingHorizontal: theme.spacing(0.5),
-    textAlign: "center"
+    lineHeight: 18
+  },
+  category: {
+    color: theme.colors.captionMuted,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 1
   }
 });
 

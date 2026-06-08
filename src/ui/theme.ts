@@ -9,8 +9,10 @@ export const theme = {
     background: "#FDF1E1",
     lightText: "#545353",
     card: "#FFFFFF",
+    cardBorder: "#F1E2CB",
     text: "#2C3A43",
     muted: "#6A7780",
+    captionMuted: "#5E7D80",
     border: "#D7DBD9",
     navbar: "#0D2F32",
     navbarMuted: "#6A848A",
@@ -47,5 +49,14 @@ export const theme = {
     subheading: 20,
     body: 18,
     small: 14
+  },
+  shadow: {
+    sm: {
+      shadowColor: "#0D2F32",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 4
+    }
   }
 };

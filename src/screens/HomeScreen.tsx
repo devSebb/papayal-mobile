@@ -493,11 +493,16 @@ const styles = StyleSheet.create({
   },
   skeletonCard: {
     flexBasis: "48%",
-    height: 124,
-    borderRadius: 20,
+    height: 134,
+    borderRadius: 18,
     backgroundColor: theme.colors.card,
-    borderWidth: 1.5,
-    borderColor: "rgba(252, 165, 15, 0.35)"
+    borderWidth: 1,
+    borderColor: "rgba(252, 165, 15, 0.24)",
+    shadowColor: theme.colors.secondary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3
   },
   skeletonThird: {
     flexBasis: "31%"

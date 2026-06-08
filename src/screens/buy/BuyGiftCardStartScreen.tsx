@@ -71,7 +71,7 @@ const MerchantCard: React.FC<{
       accessibilityRole="button"
       accessibilityState={{ selected }}
     >
-      <View style={styles.merchantAvatar}>
+      <View style={styles.merchantLogoContainer}>
         <Image source={logoSource} style={styles.merchantImage} />
         {!hasLogo ? <Text style={styles.merchantInitial}>{initial}</Text> : null}
       </View>
@@ -87,7 +87,7 @@ const MerchantListSkeleton: React.FC = () => (
   <View style={styles.merchantListWrap}>
     {Array.from({ length: 4 }).map((_, index) => (
       <View key={`merchant-skeleton-${index}`} style={styles.merchantRow}>
-        <SkeletonBlock width={48} height={48} radius={24} />
+        <SkeletonBlock width={64} height={42} radius={12} />
         <View style={styles.merchantText}>
           <SkeletonBlock width="68%" height={18} radius={9} />
         </View>
@@ -359,16 +359,18 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: "#FFF7E6"
   },
-  merchantAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  merchantLogoContainer: {
+    width: 64,
+    height: 42,
+    borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#EEF2F3",
+    backgroundColor: "#F8FAFB",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing(0.9),
+    paddingVertical: theme.spacing(0.55)
   },
   merchantImage: {
     width: "100%",

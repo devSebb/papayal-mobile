@@ -33,7 +33,7 @@ const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, onPress }) => {
 
   return (
     <AnimatedPressable
-      style={[styles.card, animatedStyle]}
+      style={[styles.tile, animatedStyle]}
       onPress={onPress}
       onPressIn={() => {
         scale.value = withSpring(0.97, SPRING_CONFIG);
@@ -45,14 +45,16 @@ const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, onPress }) => {
       accessibilityLabel={`Comercio ${name}`}
       hitSlop={6}
     >
-      <View style={styles.logoArea}>
-        {hasLogo && source ? (
-          <Image source={source} style={styles.logoImage} resizeMode="contain" />
-        ) : (
-          <View style={styles.logoFallback}>
-            <Text style={styles.logoInitial}>{initial}</Text>
-          </View>
-        )}
+      <View style={styles.card}>
+        <View style={styles.logoArea}>
+          {hasLogo && source ? (
+            <Image source={source} style={styles.logoImage} resizeMode="contain" />
+          ) : (
+            <View style={styles.logoFallback}>
+              <Text style={styles.logoInitial}>{initial}</Text>
+            </View>
+          )}
+        </View>
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {name}
@@ -62,18 +64,26 @@ const MerchantGridCard: React.FC<Props> = ({ name, logoUrl, onPress }) => {
 };
 
 const styles = StyleSheet.create({
+  tile: {
+    width: "100%",
+    gap: theme.spacing(0.75)
+  },
   card: {
     backgroundColor: theme.colors.card,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: "rgba(252, 165, 15, 0.42)",
-    minHeight: 146,
-    paddingVertical: theme.spacing(2),
-    paddingHorizontal: theme.spacing(2),
-    gap: theme.spacing(1)
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(252, 165, 15, 0.28)",
+    minHeight: 96,
+    paddingVertical: theme.spacing(1),
+    paddingHorizontal: theme.spacing(1.5),
+    justifyContent: "center",
+    shadowColor: theme.colors.secondary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4
   },
   logoArea: {
-    flexGrow: 1,
     minHeight: 72,
     width: "100%",
     alignItems: "center",
@@ -81,7 +91,7 @@ const styles = StyleSheet.create({
   },
   logoImage: {
     width: "100%",
-    height: 80,
+    height: 72,
     maxHeight: 96
   },
   logoFallback: {
@@ -102,6 +112,8 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
     fontSize: theme.typography.small,
     lineHeight: 18,
+    minHeight: 32,
+    paddingHorizontal: theme.spacing(0.5),
     textAlign: "center"
   }
 });

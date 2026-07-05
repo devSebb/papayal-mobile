@@ -364,7 +364,7 @@ const HelpScreen: React.FC = () => {
             <Button
               label="Enviar email"
               variant="secondary"
-              onPress={() => handleLinkPress("mailto:soporte@papayal.com")}
+              onPress={() => handleLinkPress("mailto:hola@papayal.app")}
               style={styles.supportButton}
             />
             <Button

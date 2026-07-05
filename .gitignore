@@ -44,3 +44,4 @@ ios/build/
 # Internal launch planning docs (not for repo history)
 LAUNCH_PLAN.md
 GIFT_CARD_TRANSFER_PLAN.md
+.design-sync/

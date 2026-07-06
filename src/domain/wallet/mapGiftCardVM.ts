@@ -22,8 +22,9 @@ const deriveMerchantLabel = (card: GiftCard) => {
   ];
   const label = candidates.find((val) => typeof val === "string" && val.trim().length > 0);
   if (label) return label.trim();
-  if (card.merchant_id) return `Merchant #${card.merchant_id}`;
-  return "Gift Card";
+  // Never surface raw merchant IDs (UUIDs) to the user.
+  if (card.merchant_id) return "Comercio";
+  return "Tarjeta de regalo";
 };
 
 export const mapGiftCardVM = (card: GiftCard, now = new Date()): GiftCardVM => {

@@ -1,12 +1,13 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, type NavigationProp } from "@react-navigation/native";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
 import { theme } from "../../ui/theme";
+import type { RootStackParamList } from "../../navigation";
 
 type Props = {
   kind: "wallet" | "profile";
@@ -29,7 +30,19 @@ const copy = {
 
 const AuthRequiredScreen: React.FC<Props> = ({ kind }) => {
   const navigation = useNavigation();
-  const rootNavigation = navigation.getParent()?.getParent() as any;
+  // The Auth routes live on the root stack. This screen is mounted directly
+  // on the guest tab navigator (one level below the root), so walk up to the
+  // top-most navigator instead of hardcoding a depth — this keeps the
+  // buttons working even if the screen is ever nested differently.
+  const rootNavigation = React.useMemo(() => {
+    let nav = navigation;
+    let parent = nav.getParent();
+    while (parent) {
+      nav = parent;
+      parent = nav.getParent();
+    }
+    return nav as unknown as NavigationProp<RootStackParamList>;
+  }, [navigation]);
   const content = copy[kind];
 
   return (
@@ -44,12 +57,12 @@ const AuthRequiredScreen: React.FC<Props> = ({ kind }) => {
           <View style={styles.actions}>
             <Button
               label="Iniciar sesión"
-              onPress={() => rootNavigation?.navigate("Auth", { screen: "Login" })}
+              onPress={() => rootNavigation.navigate("Auth", { screen: "Login" })}
             />
             <Button
               label="Crear cuenta"
               variant="ghost"
-              onPress={() => rootNavigation?.navigate("Auth", { screen: "Signup" })}
+              onPress={() => rootNavigation.navigate("Auth", { screen: "Signup" })}
             />
           </View>
         </Card>

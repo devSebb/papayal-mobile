@@ -33,6 +33,8 @@ import StripePaymentScreen from "../screens/buy/StripePaymentScreen";
 import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import MerchantProfileScreen from "../screens/MerchantProfileScreen";
 import InterestsScreen from "../screens/InterestsScreen";
+import ClaimVerificationScreen from "../screens/ClaimVerificationScreen";
+import type { ClaimVerificationDetails } from "../types/api";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
 import { consumePendingPostAuthIntent } from "./postAuthIntent";
 
@@ -49,6 +51,20 @@ export type AuthStackParamList = {
       password_confirmation: string;
       phone: string;
     };
+  };
+  ClaimVerification: {
+    /** Full signup payload (including interests) to re-POST with the OTP. */
+    formData: {
+      first_name: string;
+      last_name: string;
+      email: string;
+      password: string;
+      password_confirmation: string;
+      phone: string;
+      interests: string[];
+    };
+    /** Masked channel info from the 409 auth.claim_verification_required. */
+    details: ClaimVerificationDetails;
   };
   ForgotPassword: { email?: string };
   ResetPassword: { token?: string };
@@ -263,6 +279,11 @@ const AuthNavigator = () => (
     <AuthStack.Screen
       name="Interests"
       component={InterestsScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
+      name="ClaimVerification"
+      component={ClaimVerificationScreen}
       options={{ headerShown: false }}
     />
     <AuthStack.Screen

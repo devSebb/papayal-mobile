@@ -90,15 +90,15 @@ const GiftCardDetailScreen: React.FC = () => {
     expired: "Vencida",
     inactive: "Inactiva"
   };
-  const statusLabel = data?.status ? statusLabelMap[data.status] ?? data.status : "";
+  // Never surface the raw English status enum or a merchant UUID to the user.
+  const statusLabel = data?.status ? statusLabelMap[data.status] ?? "—" : "—";
   const merchantLabel =
     data?.merchant_store_name?.trim() ||
     data?.store_name?.trim() ||
     data?.merchant_name?.trim() ||
     data?.store?.name?.trim() ||
     data?.merchant?.name?.trim() ||
-    data?.merchant_id ||
-    "N/D";
+    "Comercio";
   const hasLogo = Boolean(data?.merchant_logo_url);
   const merchantInitial = merchantLabel.charAt(0).toUpperCase();
   const logoSource = hasLogo ? { uri: data?.merchant_logo_url as string } : merchantPlaceholder;
@@ -131,7 +131,7 @@ const GiftCardDetailScreen: React.FC = () => {
         <EmptyStateCard
           icon="credit-card"
           title="No pudimos cargar la tarjeta"
-          message="Revisa tu conexión o vuelve a intentarlo desde tu wallet."
+          message="Revisa tu conexión o vuelve a intentarlo desde tu billetera."
           actionLabel="Volver"
           onAction={() => navigation.goBack()}
           style={styles.fullWidthCard}

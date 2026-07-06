@@ -12,6 +12,27 @@ export const toDisplayDate = (value?: string | null) => {
 };
 
 /**
+ * Formats an ISO datetime as local time for the es-EC locale (e.g. "18:30")
+ */
+export const toDisplayTime = (value?: string | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  try {
+    return new Intl.DateTimeFormat("es-EC", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(date);
+  } catch {
+    // Intl should always exist on Hermes; fall back to manual HH:MM just in case
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }
+};
+
+/**
  * Converts display format (dd/mm/yyyy) to ISO date string (YYYY-MM-DD)
  */
 export const toIsoDate = (value: string) => {

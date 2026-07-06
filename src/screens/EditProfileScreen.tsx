@@ -15,6 +15,7 @@ import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
 import { ProfileStackParamList } from "../navigation";
 import { HttpError } from "../api/http";
+import { formatValidationDetails } from "../utils/formErrors";
 import { toDisplayDate, toIsoDate, formatDateInput } from "../utils/date";
 
 type EditProfileNav = NativeStackNavigationProp<ProfileStackParamList, "EditProfile">;
@@ -86,22 +87,11 @@ const EditProfileScreen: React.FC = () => {
 
   const friendlyError = (err: HttpError) => {
     const details = err?.error?.details;
-    if (err?.status === 422 && details) {
-      if (typeof details === "string") return details;
-      if (Array.isArray(details)) return details.filter(Boolean).join(", ");
-      if (typeof details === "object") {
-        const parts = Object.entries(details as Record<string, unknown>)
-          .map(([key, value]) => {
-            if (!value) return null;
-            if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
-            return `${key}: ${String(value)}`;
-          })
-          .filter(Boolean)
-          .join(" ");
-        if (parts) return parts;
-      }
+    if (err?.status === 422 && details && typeof details === "object" && !Array.isArray(details)) {
+      const translated = formatValidationDetails(details as Record<string, string[] | string>);
+      if (translated) return translated;
     }
-    return err?.error?.message ?? "No pudimos actualizar tu perfil. Inténtalo de nuevo.";
+    return "No pudimos actualizar tu perfil. Inténtalo de nuevo.";
   };
 
   const handleSubmit = async () => {

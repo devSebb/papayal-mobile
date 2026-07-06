@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+import * as Sentry from "@sentry/react-native";
 
 import { theme } from "../ui/theme";
 
@@ -37,6 +38,16 @@ export class AppErrorBoundary extends Component<Props, State> {
     this.setState({ errorInfo });
     // Hide native splash so our fallback UI is visible
     SplashScreen.hideAsync().catch(() => {});
+    // Report to Sentry. captureException is already a no-op when Sentry.init
+    // never ran (no EXPO_PUBLIC_SENTRY_DSN); the getClient() guard makes the
+    // "only when initialized" intent explicit.
+    if (Sentry.getClient() !== undefined) {
+      Sentry.captureException(error, {
+        contexts: {
+          react: { componentStack: errorInfo.componentStack ?? null }
+        }
+      });
+    }
     // Log for debugging (visible in Xcode console for TestFlight builds)
     if (__DEV__) {
       console.error("[AppErrorBoundary] Caught error:", error, errorInfo);

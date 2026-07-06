@@ -12,6 +12,7 @@ import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { formatMoney } from "../../utils/money";
 import { checkoutApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
+import { formatValidationDetails } from "../../utils/formErrors";
 import CheckoutHeader from "./CheckoutHeader";
 
 const PurchaseConfirmationScreen: React.FC = () => {
@@ -32,20 +33,11 @@ const PurchaseConfirmationScreen: React.FC = () => {
 
   const friendlyError = (err: HttpError) => {
     const details = err?.error?.details;
-    if (typeof details === "string") return details;
-    if (Array.isArray(details)) return details.filter(Boolean).join(", ");
-    if (typeof details === "object" && details) {
-      const parts = Object.entries(details as Record<string, unknown>)
-        .map(([key, value]) => {
-          if (!value) return null;
-          if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
-          return `${key}: ${String(value)}`;
-        })
-        .filter(Boolean)
-        .join(" ");
-      if (parts) return parts;
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+      const translated = formatValidationDetails(details as Record<string, string[] | string>);
+      if (translated) return translated;
     }
-    return err?.error?.message ?? "No pudimos validar tus datos. Inténtalo de nuevo.";
+    return "No pudimos validar tus datos. Inténtalo de nuevo.";
   };
 
   const handleContinue = async () => {

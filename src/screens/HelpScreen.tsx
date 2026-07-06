@@ -21,6 +21,7 @@ import Button from "../ui/components/Button";
 import TextField from "../ui/components/TextField";
 import { theme } from "../ui/theme";
 import { AppTabsParamList, ProfileStackParamList } from "../navigation";
+import { openLegal } from "../utils/openExternal";
 import appConfig from "../../app.json";
 
 type BaseCategory = "Cuenta" | "Tarjeta" | "Pagos" | "Seguridad" | "Comercios";
@@ -48,7 +49,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Cómo recibo mi tarjeta digital o token de canje?",
     answer:
-      "Te llega una notificación por SMS o correo con la información de la tarjeta y un enlace seguro. El QR y el código de canje solo se muestran dentro de Papayal cuando estés listo para usarla."
+      "Cuando alguien te envía una tarjeta de regalo, te avisamos por correo y aparece en tu billetera dentro de Papayal. El QR y el código de canje solo se muestran en la app cuando estés listo para usarla."
   },
   {
     id: "donde-usar",
@@ -90,14 +91,14 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Mi tarjeta expira?",
     answer:
-      "La mayoría tiene vigencia de 12 meses desde la emisión. La fecha aparece en los detalles de la tarjeta. Antes de vencer te avisamos con recordatorios."
+      "No. Tus tarjetas de regalo no tienen fecha de vencimiento. El saldo queda disponible en tu billetera hasta que lo uses."
   },
   {
     id: "reembolso",
     category: "Pagos",
     question: "¿Hay reembolsos o reversos?",
     answer:
-      "Si el comercio anula la compra el mismo día, se reversa de inmediato. Reversos posteriores pueden tardar hasta 48 horas hábiles en reflejarse."
+      "Si necesitas un reembolso, escríbenos a soporte o acude al comercio donde hiciste la compra. Los reembolsos se devuelven al medio de pago original y el tiempo en reflejarse depende de tu banco."
   },
   {
     id: "pago-rechazado",
@@ -111,7 +112,7 @@ const FAQS: FaqItem[] = [
     category: "Seguridad",
     question: "Perdí mi teléfono, ¿pierdo mi saldo?",
     answer:
-      "No. Tu saldo sigue protegido en tu cuenta. Escríbenos para revisar tu acceso y bloquear cualquier sesión o código activo si es necesario."
+      "No. Tu saldo está asociado a tu cuenta, no al dispositivo. Inicia sesión con tu correo y contraseña desde otro teléfono. Si crees que alguien puede acceder a tu cuenta, escríbenos para revisar tu acceso."
   },
   {
     id: "codigo-expuesto",
@@ -121,32 +122,18 @@ const FAQS: FaqItem[] = [
       "Si crees que alguien vio tu código de canje, contáctanos de inmediato. Evita compartir capturas y no publiques el QR."
   },
   {
-    id: "login",
-    category: "Cuenta",
-    question: "No recibo el código SMS para entrar",
-    answer:
-      "Revisa tu señal y que el número tenga formato internacional. Si no llega, prueba reenviar en 60 segundos o pide el código por email si está habilitado."
-  },
-  {
     id: "cambiar-numero",
     category: "Cuenta",
     question: "¿Puedo cambiar mi número de teléfono?",
     answer:
-      "Sí. Escríbenos desde el correo registrado o un canal verificado indicando el número anterior y el nuevo. Por seguridad pedimos una verificación rápida."
+      "Sí. Entra a tu perfil, elige Editar perfil y actualiza tu número de teléfono. Los cambios se guardan al instante."
   },
   {
     id: "costos",
     category: "Pagos",
     question: "¿Tiene comisiones o costos adicionales?",
     answer:
-      "Recibir tu tarjeta no tiene costo. En comercios no cobramos comisión. Algunas recargas internacionales pueden incluir pequeña tarifa de procesamiento que verás antes de pagar."
-  },
-  {
-    id: "tipo-cambio",
-    category: "Pagos",
-    question: "¿Qué tipo de cambio usan para mis recargas?",
-    answer:
-      "Usamos una tasa competitiva cercana al mercado del día y la mostramos antes de que aceptes. No hacemos ajustes posteriores al canje."
+      "No. Por ahora no cobramos comisiones al comprar ni al canjear tu tarjeta de regalo. Si esto cambia, verás cualquier costo claramente antes de pagar."
   },
   {
     id: "comprobante",
@@ -174,7 +161,7 @@ const FAQS: FaqItem[] = [
     category: "Cuenta",
     question: "¿En cuánto tiempo responde soporte?",
     answer:
-      "Respondemos en menos de 24 horas hábiles. En horarios pico de comercios priorizamos casos de pago en curso."
+      "Normalmente respondemos dentro de un día hábil. Priorizamos los casos de pago o canje en curso."
   }
 ];
 
@@ -367,17 +354,12 @@ const HelpScreen: React.FC = () => {
               onPress={() => handleLinkPress("mailto:hola@papayal.app")}
               style={styles.supportButton}
             />
-            <Button
-              label="WhatsApp"
-              onPress={() => handleLinkPress("https://wa.me/593999000111")}
-              style={styles.supportButton}
-            />
           </View>
           <View style={styles.linksRow}>
-            <Pressable style={styles.linkPill} onPress={() => handleLinkPress("https://papayal.com/terminos")}>
+            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/terminos")}>
               <Text style={styles.linkText}>Ver términos</Text>
             </Pressable>
-            <Pressable style={styles.linkPill} onPress={() => handleLinkPress("https://papayal.com/privacidad")}>
+            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/privacidad")}>
               <Text style={styles.linkText}>Ver privacidad</Text>
             </Pressable>
           </View>

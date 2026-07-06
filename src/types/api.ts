@@ -91,6 +91,19 @@ export type Merchant = {
   updated_at?: string | null;
 };
 
+/**
+ * Details payload of the 409 `auth.claim_verification_required` error
+ * returned by POST /api/v1/auth/signup when the email/phone matches a
+ * pending recipient account (gift cards waiting to be claimed).
+ */
+export type ClaimVerificationDetails = {
+  channels?: string[];
+  masked_email?: string | null;
+  masked_phone?: string | null;
+  /** Present when a code was sent recently; seconds until a resend is allowed. */
+  retry_in_seconds?: number;
+};
+
 export type ApiError = {
   code: string;
   message: string;

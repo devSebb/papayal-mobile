@@ -261,6 +261,7 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
 type ListItem =
   | { type: "card"; key: string; card: GiftCardVM }
   | { type: "empty"; key: string }
+  | { type: "error"; key: string }
   | { type: "skeleton"; key: string }
   | { type: "activity"; key: string }
   | { type: "pagination"; key: string };
@@ -407,6 +408,7 @@ const WalletListScreen: React.FC = () => {
     data: giftCards,
     isLoading,
     isRefetching,
+    error,
     refetch
   } = useQuery({
     queryKey: ["giftCards"],
@@ -508,6 +510,9 @@ const WalletListScreen: React.FC = () => {
   const pagedCards = tabCards.slice(startIndex, endIndex);
   const isBusy = !isQueryEnabled || isLoading || isRefetching;
   const isInitialLoading = !isQueryEnabled || (isLoading && !giftCards);
+  // Only surface the error state when there is no cached data to show;
+  // with cached cards we keep rendering them (pull-to-refresh still works).
+  const hasLoadError = Boolean(error) && !giftCards;
 
   useEffect(() => {
     setPageByTab((prev) => {
@@ -524,6 +529,10 @@ const WalletListScreen: React.FC = () => {
       items.push({ type: "skeleton", key: "wallet-skeleton" });
       return items;
     }
+    if (hasLoadError) {
+      items.push({ type: "error", key: "wallet-error" });
+      return items;
+    }
     if (pagedCards.length === 0) {
       items.push({ type: "empty", key: `empty-${activeTab}` });
     } else {
@@ -534,7 +543,7 @@ const WalletListScreen: React.FC = () => {
     }
     items.push({ type: "activity", key: `activity-${activeTab}` });
     return items;
-  }, [activeTab, currentPage, isInitialLoading, pageCount, pagedCards]);
+  }, [activeTab, currentPage, hasLoadError, isInitialLoading, pageCount, pagedCards]);
 
   const changePage = useCallback(
     (delta: number) => {
@@ -589,6 +598,17 @@ const WalletListScreen: React.FC = () => {
           total={totalCards}
           onPrev={() => changePage(-1)}
           onNext={() => changePage(1)}
+        />
+      );
+    }
+    if (item.type === "error") {
+      return (
+        <EmptyState
+          icon="wifi-off"
+          title="No pudimos cargar tus tarjetas"
+          message="Revisa tu conexión e inténtalo de nuevo."
+          actionLabel="Reintentar"
+          onAction={() => refetch()}
         />
       );
     }

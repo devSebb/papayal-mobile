@@ -79,6 +79,7 @@ const ActivityScreen: React.FC = () => {
     data: giftCards,
     isLoading,
     isRefetching,
+    error,
     refetch
   } = useQuery({
     queryKey: ["giftCards"],
@@ -92,6 +93,9 @@ const ActivityScreen: React.FC = () => {
   );
 
   const isBusy = isLoading || isRefetching || !isQueryEnabled;
+  // Only surface the error state when there is no cached data to show;
+  // with cached cards we keep rendering the feed (pull-to-refresh still works).
+  const hasLoadError = Boolean(error) && !giftCards;
 
   return (
     <Screen style={styles.screen} edges={["left", "right"]}>
@@ -103,6 +107,14 @@ const ActivityScreen: React.FC = () => {
         ListEmptyComponent={
           isBusy ? (
             <ActivitySkeleton />
+          ) : hasLoadError ? (
+            <EmptyStateCard
+              icon="wifi-off"
+              title="No pudimos cargar tu actividad"
+              message="Revisa tu conexión e inténtalo de nuevo."
+              actionLabel="Reintentar"
+              onAction={() => refetch()}
+            />
           ) : (
             <EmptyStateCard
               icon="clock"

@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StripeProvider } from "@stripe/stripe-react-native";
 import * as Device from "expo-device";
+import * as Sentry from "@sentry/react-native";
 
 import RootNavigator from "./src/navigation";
 import { queryClient } from "./src/query/queryClient";
@@ -18,6 +19,23 @@ import { AppErrorBoundary } from "./src/boot/AppErrorBoundary";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
+
+/**
+ * Crash reporting. Fully dormant unless EXPO_PUBLIC_SENTRY_DSN is set at
+ * build time (EXPO_PUBLIC_* vars are inlined into the bundle): without it we
+ * never call Sentry.init, and every Sentry.* call elsewhere (captureException,
+ * wrap) is a no-op on the uninitialized SDK. Init runs synchronously at module
+ * top, before the component tree mounts, so early errors are captured too.
+ */
+const sentryEnabled = SENTRY_DSN.length > 0;
+if (sentryEnabled) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    tracesSampleRate: 0,
+    sendDefaultPii: false
+  });
+}
 
 /**
  * StripeProvider with empty publishableKey can crash the native Stripe SDK
@@ -177,4 +195,7 @@ const styles = StyleSheet.create({
   }
 });
 
-export default App;
+// Sentry.wrap adds native-touch breadcrumbs and the app-start profiler. Only
+// applied when Sentry was initialized above; without a DSN the tree is
+// byte-for-byte identical to the pre-Sentry app.
+export default sentryEnabled ? Sentry.wrap(App) : App;

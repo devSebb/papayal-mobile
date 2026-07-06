@@ -72,6 +72,15 @@ const StripePaymentScreen: React.FC = () => {
     return () => subscription.remove();
   }, [phase]);
 
+  // BackHandler only covers Android hardware back; iOS swipe-back must be
+  // blocked via the navigator gesture while a payment is in flight.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: phase === "input" });
+    return () => {
+      navigation.setOptions({ gestureEnabled: true });
+    };
+  }, [navigation, phase]);
+
   const amountLabel = formatMoney(
     draft.amount_cents ? draft.amount_cents / 100 : null,
     draft.currency

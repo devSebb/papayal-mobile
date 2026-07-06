@@ -11,6 +11,7 @@ import { theme } from "../ui/theme";
 import { useAuth } from "../auth/authStore";
 import { HttpError } from "../api/http";
 import { CATEGORIES } from "../constants/categories";
+import type { ClaimVerificationDetails } from "../types/api";
 import type { AuthStackParamList } from "../navigation";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
@@ -70,6 +71,18 @@ const InterestsScreen: React.FC = () => {
       await signup({ ...route.params.formData, interests });
     } catch (err) {
       const httpErr = err as HttpError;
+
+      // Gift cards are waiting for this email/phone: the backend sent an
+      // OTP to the pending account's contact channels and wants it back
+      // before letting the signup claim the account.
+      if (httpErr?.status === 409 && httpErr?.error?.code === "auth.claim_verification_required") {
+        navigation.navigate("ClaimVerification", {
+          formData: { ...route.params.formData, interests },
+          details: (httpErr.error?.details as ClaimVerificationDetails) ?? {}
+        });
+        return;
+      }
+
       const details = httpErr?.error?.details;
       let friendly =
         (httpErr?.error?.message as string | undefined) ??

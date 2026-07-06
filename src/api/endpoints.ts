@@ -18,6 +18,13 @@ export const authApi = {
     phone: string;
     device_id?: string;
     interests?: string[];
+    /**
+     * OTP proving control of a pending recipient account's contact channel.
+     * Omitted on the first attempt; the backend answers 409
+     * `auth.claim_verification_required` when the email/phone matches a
+     * pending account, and the signup is retried with the code.
+     */
+    claim_otp?: string;
   }) => {
     const { data } = await request<AuthTokens>("/api/v1/auth/signup", {
       method: "POST",

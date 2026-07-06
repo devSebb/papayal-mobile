@@ -16,6 +16,8 @@ type RequestOptions = {
   headers?: Record<string, string>;
   body?: unknown;
   allowRefresh?: boolean;
+  /** Per-request timeout in ms. Defaults to DEFAULT_TIMEOUT_MS. */
+  timeoutMs?: number;
 };
 
 export type HttpError = {
@@ -25,8 +27,19 @@ export type HttpError = {
   raw?: unknown;
 };
 
+type RefreshResult = { token: string } | { token: null; reason: "auth" | "transient" };
+
+const DEFAULT_TIMEOUT_MS = 15000;
+const NETWORK_ERROR_MESSAGE = "Sin conexión. Verifica tu internet e inténtalo de nuevo.";
+
+const networkError = (raw?: unknown): HttpError => ({
+  status: 0,
+  error: { code: "network_error", message: NETWORK_ERROR_MESSAGE },
+  raw
+});
+
 let authHandlers: AuthHandlers | null = null;
-let refreshPromise: Promise<string | null> | null = null;
+let refreshPromise: Promise<RefreshResult> | null = null;
 let lastRequestId: string | undefined;
 
 export const configureHttpAuth = (handlers: AuthHandlers) => {
@@ -122,17 +135,42 @@ const buildHeaders = (base: Record<string, string>, body?: unknown) => {
   return headers;
 };
 
-const refreshAccessToken = async (): Promise<string | null> => {
+// Only a definitive rejection of the refresh token itself justifies wiping the
+// session. Anything else (offline, timeout, 5xx, proxy hiccup) is transient:
+// the stored refresh token is still valid and must survive.
+const classifyRefreshFailure = (error: unknown): "auth" | "transient" => {
+  const httpErr = error as HttpError | undefined;
+  const status = typeof httpErr?.status === "number" ? httpErr.status : undefined;
+  const code = httpErr?.error?.code ?? "";
+  if (status === 401 || status === 403 || code.startsWith("auth.")) {
+    return "auth";
+  }
+  return "transient";
+};
+
+const refreshAccessToken = async (): Promise<RefreshResult> => {
   if (!authHandlers?.refreshTokens) {
-    return null;
+    return { token: null, reason: "auth" };
   }
   if (!refreshPromise) {
-    refreshPromise = (async () => {
+    // Single-flight: concurrent 401s share one refresh call AND one classified
+    // result, so a transient failure is never double-reported as auth.
+    refreshPromise = (async (): Promise<RefreshResult> => {
       try {
-        return await authHandlers.refreshTokens();
+        const token = await authHandlers!.refreshTokens();
+        if (token) {
+          return { token };
+        }
+        // No refresh token available — nothing to recover from.
+        return { token: null, reason: "auth" };
       } catch (error) {
-        await authHandlers.clearAuth?.();
-        return null;
+        const reason = classifyRefreshFailure(error);
+        if (__DEV__) {
+          console.warn("[http][refresh_failed]", { reason, error });
+        }
+        // Deliberately no clearAuth here: the caller in request() decides,
+        // and transient failures must keep the SecureStore refresh token.
+        return { token: null, reason };
       } finally {
         refreshPromise = null;
       }
@@ -145,7 +183,7 @@ export const getLastRequestId = () => lastRequestId;
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<{ data: T; requestId?: string }> {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-  const { method = "GET", body, allowRefresh = true } = options;
+  const { method = "GET", body, allowRefresh = true, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
   const headers = buildHeaders(options.headers ?? {}, body);
   const bearer = headers.Authorization?.startsWith("Bearer ")
     ? headers.Authorization.slice("Bearer ".length)
@@ -166,7 +204,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       }
     }
   }
-  const init: RequestInit = { method, headers };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const init: RequestInit = { method, headers, signal: controller.signal };
   if (body !== undefined) {
     if (body instanceof FormData) {
       // Don't set Content-Type for FormData - let fetch set it with boundary
@@ -181,17 +221,16 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   let response: Response;
   try {
+    // Abort (timeout) and connection failures collapse into the same
+    // retry-able network_error shape (status 0).
     response = await fetch(url, init);
   } catch (error) {
     if (__DEV__) {
       logNetworkError(url, method, error);
     }
-    const fallback: HttpError = {
-      status: 0,
-      error: { code: "network_error", message: "Network error" },
-      raw: error
-    };
-    throw fallback;
+    throw networkError(error);
+  } finally {
+    clearTimeout(timeoutId);
   }
   lastRequestId = response.headers.get("x-request-id") ?? undefined;
 
@@ -245,11 +284,22 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     };
     if (allowRefresh && shouldAttemptRefresh(response.status, parsed?.error?.code)) {
       const refreshed = await refreshAccessToken();
-      if (refreshed) {
+      if (refreshed.token !== null) {
         return request<T>(path, { ...options, allowRefresh: false });
       }
+      if (refreshed.reason === "transient") {
+        // Refresh failed for network/server reasons: session survives,
+        // caller gets a retry-able error. Do NOT clear auth.
+        throw networkError(error);
+      }
+      // reason === "auth": refresh token definitively rejected.
+      await authHandlers?.clearAuth?.();
+      throw error;
     }
-    if (response.status === 401) {
+    // Only nuke the session for a 401 on a request that actually carried a
+    // bearer token and where refresh was not applicable. A 401 from login or
+    // an unauthenticated endpoint must never log the user out.
+    if (response.status === 401 && bearer) {
       await authHandlers?.clearAuth?.();
     }
     throw error;

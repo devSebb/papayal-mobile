@@ -7,6 +7,7 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi } from "../api/endpoints";
 import { WalletStackParamList } from "../navigation";
@@ -16,6 +17,17 @@ import { getInitials } from "../utils/initials";
 
 const merchantPlaceholder = require("../../assets/merchant-default.png");
 const avatarPlaceholder = require("../../assets/avatar-default.png");
+
+// Spanish-formatted unlock time for the hold banner. Keeps the format
+// consistent across the app (e.g. "25 de mayo a las 14:30").
+const HOLD_UNLOCK_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
+const formatHoldUnlock = (d: Date) => HOLD_UNLOCK_FORMATTER.format(d);
 
 const GiftCardDetailScreen: React.FC = () => {
   const route = useRoute<RouteProp<WalletStackParamList, "GiftCardDetail">>();
@@ -65,32 +77,72 @@ const GiftCardDetailScreen: React.FC = () => {
 
   const amount = centsToDollars(data?.amount_cents);
   const remaining = centsToDollars(data?.remaining_balance_cents);
-  const canRedeem = data?.status === "active" && (data?.remaining_balance_cents ?? 0) > 0;
+
+  // Security hold: backend only sends held_until while it's still in the
+  // future; once the hold expires the field is null so we don't need to
+  // re-compare against Date.now() except for safety as a tick-perfect guard.
+  const heldUntilDate = data?.held_until ? new Date(data.held_until) : null;
+  const isHeld = !!heldUntilDate && heldUntilDate.getTime() > Date.now();
+  const canRedeem = data?.status === "active" && (data?.remaining_balance_cents ?? 0) > 0 && !isHeld;
   const statusLabelMap: Record<string, string> = {
     active: "Activa",
     redeemed: "Canjeada",
     expired: "Vencida",
     inactive: "Inactiva"
   };
-  const statusLabel = data?.status ? statusLabelMap[data.status] ?? data.status : "";
+  // Never surface the raw English status enum or a merchant UUID to the user.
+  const statusLabel = data?.status ? statusLabelMap[data.status] ?? "—" : "—";
   const merchantLabel =
     data?.merchant_store_name?.trim() ||
     data?.store_name?.trim() ||
     data?.merchant_name?.trim() ||
     data?.store?.name?.trim() ||
     data?.merchant?.name?.trim() ||
-    data?.merchant_id ||
-    "N/D";
+    "Comercio";
   const hasLogo = Boolean(data?.merchant_logo_url);
   const merchantInitial = merchantLabel.charAt(0).toUpperCase();
   const logoSource = hasLogo ? { uri: data?.merchant_logo_url as string } : merchantPlaceholder;
 
+  if (isBusy) {
+    return (
+      <Screen scrollable edges={["left", "right"]}>
+        <Card style={styles.loadingCard}>
+          <View style={styles.header}>
+            <SkeletonBlock width={64} height={64} radius={32} />
+            <View style={styles.headerText}>
+              <SkeletonBlock width="72%" height={22} radius={11} />
+              <SkeletonBlock width="54%" height={18} radius={9} />
+            </View>
+          </View>
+          <View style={styles.loadingRows}>
+            <SkeletonBlock height={28} />
+            <SkeletonBlock height={28} />
+            <SkeletonBlock height={28} />
+          </View>
+          <SkeletonBlock height={48} radius={theme.radius.md} style={styles.loadingButton} />
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Screen centerContent edges={["left", "right"]}>
+        <EmptyStateCard
+          icon="credit-card"
+          title="No pudimos cargar la tarjeta"
+          message="Revisa tu conexión o vuelve a intentarlo desde tu billetera."
+          actionLabel="Volver"
+          onAction={() => navigation.goBack()}
+          style={styles.fullWidthCard}
+        />
+      </Screen>
+    );
+  }
+
   return (
     <Screen scrollable edges={["left", "right"]}>
-      {isBusy ? <Text style={styles.muted}>Cargando...</Text> : null}
-      {error ? <Text style={styles.error}>No pudimos cargar la tarjeta.</Text> : null}
-      {data ? (
-        <Card>
+      <Card>
           <View style={styles.header}>
             <View style={styles.logoWrapper}>
               <Image source={logoSource} style={styles.logo} />
@@ -154,17 +206,25 @@ const GiftCardDetailScreen: React.FC = () => {
             </View>
           ) : null}
 
+          {isHeld && heldUntilDate ? (
+            <View style={styles.holdBanner}>
+              <Text style={styles.holdBannerTitle}>Verificación de seguridad</Text>
+              <Text style={styles.holdBannerText}>
+                Esta tarjeta estará disponible para canje el {formatHoldUnlock(heldUntilDate)}.
+              </Text>
+            </View>
+          ) : null}
+
           {canRedeem ? (
             <Button
               label="Generar token de canje"
               onPress={() => navigation.navigate("RedemptionToken", { id })}
               style={styles.button}
             />
-          ) : (
+          ) : isHeld ? null : (
             <Text style={styles.muted}>Esta tarjeta no es elegible para canje.</Text>
           )}
-        </Card>
-      ) : null}
+      </Card>
     </Screen>
   );
 };
@@ -189,12 +249,12 @@ const styles = StyleSheet.create({
   logo: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover"
+    resizeMode: "contain"
   },
   logoInitial: {
     position: "absolute",
     color: theme.colors.secondary,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.subheading
   },
   headerText: {
@@ -203,7 +263,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     marginBottom: theme.spacing(1)
   },
   row: {
@@ -216,17 +276,44 @@ const styles = StyleSheet.create({
   },
   value: {
     color: theme.colors.text,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   button: {
     marginTop: theme.spacing(2)
   },
+  holdBanner: {
+    marginTop: theme.spacing(2),
+    padding: theme.spacing(1.5),
+    borderRadius: theme.radius.md,
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#F59E0B"
+  },
+  holdBannerTitle: {
+    fontFamily: theme.fonts.bold,
+    color: "#78350F",
+    marginBottom: theme.spacing(0.5)
+  },
+  holdBannerText: {
+    color: "#78350F",
+    fontSize: theme.typography.small,
+    lineHeight: 18
+  },
   muted: {
     color: theme.colors.muted
   },
-  error: {
-    color: theme.colors.danger,
-    marginBottom: theme.spacing(1)
+  loadingCard: {
+    gap: theme.spacing(1.5)
+  },
+  loadingRows: {
+    gap: theme.spacing(1),
+    marginTop: theme.spacing(0.5)
+  },
+  loadingButton: {
+    marginTop: theme.spacing(1)
+  },
+  fullWidthCard: {
+    width: "100%"
   },
   // Sender section styles
   senderSection: {
@@ -238,7 +325,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: theme.typography.small,
     color: theme.colors.muted,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     marginBottom: theme.spacing(1),
     textTransform: "uppercase",
     letterSpacing: 0.5
@@ -267,7 +354,7 @@ const styles = StyleSheet.create({
   senderInitials: {
     position: "absolute",
     color: theme.colors.secondary,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.body
   },
   senderInfo: {
@@ -276,7 +363,7 @@ const styles = StyleSheet.create({
   },
   senderName: {
     fontSize: theme.typography.body,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     color: theme.colors.text
   },
   senderEmail: {
@@ -298,10 +385,9 @@ const styles = StyleSheet.create({
   noteText: {
     fontSize: theme.typography.body,
     color: theme.colors.text,
-    fontStyle: "italic",
+    fontFamily: theme.fonts.italic,
     lineHeight: 24
   }
 });
 
 export default GiftCardDetailScreen;
-

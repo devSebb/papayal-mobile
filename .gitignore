@@ -40,3 +40,9 @@ ios/build/
 .env
 .env.local
 .env.*.local
+
+# Internal launch planning docs (not for repo history)
+LAUNCH_PLAN.md
+GIFT_CARD_TRANSFER_PLAN.md
+.design-sync/
+.design-sync/

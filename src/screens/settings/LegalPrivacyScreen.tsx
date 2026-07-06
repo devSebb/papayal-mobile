@@ -5,6 +5,7 @@ import { Feather } from "@expo/vector-icons";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
+import AppHeader from "../../ui/components/AppHeader";
 import TopNavBar from "../../ui/components/TopNavBar";
 import { theme } from "../../ui/theme";
 import { ProfileStackParamList } from "../../navigation";
@@ -45,23 +46,13 @@ const LegalPrivacyScreen: React.FC = () => {
     <Screen scrollable edges={["left", "right"]}>
       <TopNavBar />
       <Card>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={handleBack}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-          >
-            <Feather name="arrow-left" size={20} color={theme.colors.text} />
-            <Text style={styles.backLabel}>Volver</Text>
-          </TouchableOpacity>
-          <Feather name="file-text" size={20} color={theme.colors.text} />
-        </View>
-
-        <Text style={styles.title}>Legal y Privacidad</Text>
-        <Text style={styles.subtitle}>
-          Documentos legales y políticas de Papayal. Toca cualquier documento para verlo en detalle.
-        </Text>
+        <AppHeader
+          title="Legal y Privacidad"
+          subtitle="Documentos legales y políticas de Papayal. Toca cualquier documento para verlo en detalle."
+          icon="file-text"
+          onBack={handleBack}
+          style={styles.cardHeader}
+        />
 
         <View style={styles.list}>
           {LEGAL_ITEMS.map((item, index) => (
@@ -99,34 +90,8 @@ const LegalPrivacyScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(0.5),
-    paddingVertical: theme.spacing(0.5),
-    paddingHorizontal: theme.spacing(0.5),
-    borderRadius: theme.radius.md
-  },
-  backLabel: {
-    color: theme.colors.text,
-    fontWeight: "600"
-  },
-  title: {
-    fontSize: theme.typography.subheading,
-    fontWeight: "700",
-    color: theme.colors.text,
-    marginBottom: theme.spacing(0.5)
-  },
-  subtitle: {
-    color: theme.colors.muted,
-    marginBottom: theme.spacing(2),
-    lineHeight: 20
+  cardHeader: {
+    marginBottom: theme.spacing(2)
   },
   list: {
     gap: 0
@@ -154,7 +119,7 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: theme.typography.body,
     color: theme.colors.text,
-    fontWeight: "500",
+    fontFamily: theme.fonts.medium,
     flex: 1
   },
   footer: {
@@ -172,4 +137,3 @@ const styles = StyleSheet.create({
 });
 
 export default LegalPrivacyScreen;
-

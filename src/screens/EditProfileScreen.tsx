@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
+import AppHeader from "../ui/components/AppHeader";
 import Button from "../ui/components/Button";
 import TextField from "../ui/components/TextField";
 import PhoneInput from "../ui/components/PhoneInput";
@@ -15,6 +15,7 @@ import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
 import { ProfileStackParamList } from "../navigation";
 import { HttpError } from "../api/http";
+import { formatValidationDetails } from "../utils/formErrors";
 import { toDisplayDate, toIsoDate, formatDateInput } from "../utils/date";
 
 type EditProfileNav = NativeStackNavigationProp<ProfileStackParamList, "EditProfile">;
@@ -86,22 +87,11 @@ const EditProfileScreen: React.FC = () => {
 
   const friendlyError = (err: HttpError) => {
     const details = err?.error?.details;
-    if (err?.status === 422 && details) {
-      if (typeof details === "string") return details;
-      if (Array.isArray(details)) return details.filter(Boolean).join(", ");
-      if (typeof details === "object") {
-        const parts = Object.entries(details as Record<string, unknown>)
-          .map(([key, value]) => {
-            if (!value) return null;
-            if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
-            return `${key}: ${String(value)}`;
-          })
-          .filter(Boolean)
-          .join(" ");
-        if (parts) return parts;
-      }
+    if (err?.status === 422 && details && typeof details === "object" && !Array.isArray(details)) {
+      const translated = formatValidationDetails(details as Record<string, string[] | string>);
+      if (translated) return translated;
     }
-    return err?.error?.message ?? "No pudimos actualizar tu perfil. Inténtalo de nuevo.";
+    return "No pudimos actualizar tu perfil. Inténtalo de nuevo.";
   };
 
   const handleSubmit = async () => {
@@ -162,19 +152,13 @@ const EditProfileScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-        <Text style={styles.navTitle}>Editar perfil</Text>
-        <View style={styles.navSpacer} />
-      </View>
+      <AppHeader
+        title="Editar perfil"
+        subtitle="Actualiza tus datos personales y de contacto."
+        icon="user"
+        onBack={() => navigation.goBack()}
+        style={styles.header}
+      />
 
       <Card>
         <View style={styles.form}>
@@ -238,7 +222,6 @@ const EditProfileScreen: React.FC = () => {
                 value={country}
                 onChangeText={setCountry}
                 placeholder="Ej: Ecuador"
-                autoComplete="country-name"
                 onBlur={() => setTouched((prev) => ({ ...prev, country_of_residence: true }))}
                 error={touched.country_of_residence ? errors.country_of_residence : undefined}
               />
@@ -268,28 +251,8 @@ const EditProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  header: {
     marginBottom: theme.spacing(1.5)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
-  navTitle: {
-    fontSize: theme.typography.subheading,
-    fontWeight: "800",
-    color: theme.colors.text
-  },
-  navSpacer: {
-    width: 36,
-    height: 36
   },
   form: {
     gap: theme.spacing(1.5)
@@ -303,5 +266,4 @@ const styles = StyleSheet.create({
 });
 
 export default EditProfileScreen;
-
 

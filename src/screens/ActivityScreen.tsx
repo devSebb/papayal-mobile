@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
@@ -47,6 +48,23 @@ const ActivityRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
   );
 };
 
+const ActivitySkeleton: React.FC = () => (
+  <View style={styles.skeletonList}>
+    {Array.from({ length: 5 }).map((_, index) => (
+      <Card key={`activity-skeleton-${index}`} style={styles.activityCard}>
+        <View style={styles.activityRow}>
+          <SkeletonBlock width={36} height={36} radius={18} />
+          <View style={styles.activityText}>
+            <SkeletonBlock width="72%" height={18} radius={9} />
+            <SkeletonBlock width="54%" height={15} radius={8} style={styles.skeletonLine} />
+          </View>
+          <SkeletonBlock width={58} height={18} radius={9} />
+        </View>
+      </Card>
+    ))}
+  </View>
+);
+
 const ActivityScreen: React.FC = () => {
   const { accessToken } = useAuth();
   const isQueryEnabled = !!accessToken;
@@ -61,6 +79,7 @@ const ActivityScreen: React.FC = () => {
     data: giftCards,
     isLoading,
     isRefetching,
+    error,
     refetch
   } = useQuery({
     queryKey: ["giftCards"],
@@ -74,6 +93,9 @@ const ActivityScreen: React.FC = () => {
   );
 
   const isBusy = isLoading || isRefetching || !isQueryEnabled;
+  // Only surface the error state when there is no cached data to show;
+  // with cached cards we keep rendering the feed (pull-to-refresh still works).
+  const hasLoadError = Boolean(error) && !giftCards;
 
   return (
     <Screen style={styles.screen} edges={["left", "right"]}>
@@ -84,9 +106,21 @@ const ActivityScreen: React.FC = () => {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           isBusy ? (
-            <Text style={styles.muted}>Cargando actividad...</Text>
+            <ActivitySkeleton />
+          ) : hasLoadError ? (
+            <EmptyStateCard
+              icon="wifi-off"
+              title="No pudimos cargar tu actividad"
+              message="Revisa tu conexión e inténtalo de nuevo."
+              actionLabel="Reintentar"
+              onAction={() => refetch()}
+            />
           ) : (
-            <Text style={styles.muted}>Aún no hay actividad.</Text>
+            <EmptyStateCard
+              icon="clock"
+              title="Aún no hay actividad"
+              message="Tus compras, regalos recibidos y canjes aparecerán aquí."
+            />
           )
         }
         refreshControl={
@@ -116,6 +150,12 @@ const styles = StyleSheet.create({
   activityCard: {
     width: "100%"
   },
+  skeletonList: {
+    gap: theme.spacing(1.5)
+  },
+  skeletonLine: {
+    marginTop: theme.spacing(0.6)
+  },
   activityRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -132,7 +172,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   activityTitle: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   activitySubtitle: {
@@ -140,7 +180,7 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   amount: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
   muted: {
@@ -149,4 +189,3 @@ const styles = StyleSheet.create({
 });
 
 export default ActivityScreen;
-

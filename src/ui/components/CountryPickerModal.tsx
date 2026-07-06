@@ -4,65 +4,72 @@ import { Feather } from "@expo/vector-icons";
 import { getCountryCallingCode, CountryCode } from "libphonenumber-js";
 import { theme } from "../theme";
 
-// Common countries list with their names and codes
+// Common countries list with their Spanish names and codes
 const COUNTRIES: Array<{ code: CountryCode; name: string; flag: string }> = [
   { code: "EC", name: "Ecuador", flag: "🇪🇨" },
-  { code: "US", name: "United States", flag: "🇺🇸" },
-  { code: "MX", name: "Mexico", flag: "🇲🇽" },
+  { code: "US", name: "Estados Unidos", flag: "🇺🇸" },
+  { code: "MX", name: "México", flag: "🇲🇽" },
   { code: "CO", name: "Colombia", flag: "🇨🇴" },
-  { code: "PE", name: "Peru", flag: "🇵🇪" },
+  { code: "PE", name: "Perú", flag: "🇵🇪" },
   { code: "CL", name: "Chile", flag: "🇨🇱" },
   { code: "AR", name: "Argentina", flag: "🇦🇷" },
-  { code: "BR", name: "Brazil", flag: "🇧🇷" },
-  { code: "ES", name: "Spain", flag: "🇪🇸" },
-  { code: "CA", name: "Canada", flag: "🇨🇦" },
-  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
-  { code: "FR", name: "France", flag: "🇫🇷" },
-  { code: "DE", name: "Germany", flag: "🇩🇪" },
-  { code: "IT", name: "Italy", flag: "🇮🇹" },
+  { code: "BR", name: "Brasil", flag: "🇧🇷" },
+  { code: "ES", name: "España", flag: "🇪🇸" },
+  { code: "CA", name: "Canadá", flag: "🇨🇦" },
+  { code: "GB", name: "Reino Unido", flag: "🇬🇧" },
+  { code: "FR", name: "Francia", flag: "🇫🇷" },
+  { code: "DE", name: "Alemania", flag: "🇩🇪" },
+  { code: "IT", name: "Italia", flag: "🇮🇹" },
   { code: "PT", name: "Portugal", flag: "🇵🇹" },
   { code: "VE", name: "Venezuela", flag: "🇻🇪" },
   { code: "BO", name: "Bolivia", flag: "🇧🇴" },
   { code: "PY", name: "Paraguay", flag: "🇵🇾" },
   { code: "UY", name: "Uruguay", flag: "🇺🇾" },
   { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
-  { code: "PA", name: "Panama", flag: "🇵🇦" },
+  { code: "PA", name: "Panamá", flag: "🇵🇦" },
   { code: "GT", name: "Guatemala", flag: "🇬🇹" },
   { code: "HN", name: "Honduras", flag: "🇭🇳" },
   { code: "NI", name: "Nicaragua", flag: "🇳🇮" },
   { code: "SV", name: "El Salvador", flag: "🇸🇻" },
-  { code: "DO", name: "Dominican Republic", flag: "🇩🇴" },
+  { code: "DO", name: "República Dominicana", flag: "🇩🇴" },
   { code: "CU", name: "Cuba", flag: "🇨🇺" },
   { code: "JM", name: "Jamaica", flag: "🇯🇲" },
-  { code: "HT", name: "Haiti", flag: "🇭🇹" },
+  { code: "HT", name: "Haití", flag: "🇭🇹" },
   { code: "AU", name: "Australia", flag: "🇦🇺" },
-  { code: "NZ", name: "New Zealand", flag: "🇳🇿" },
-  { code: "JP", name: "Japan", flag: "🇯🇵" },
+  { code: "NZ", name: "Nueva Zelanda", flag: "🇳🇿" },
+  { code: "JP", name: "Japón", flag: "🇯🇵" },
   { code: "CN", name: "China", flag: "🇨🇳" },
   { code: "IN", name: "India", flag: "🇮🇳" },
-  { code: "RU", name: "Russia", flag: "🇷🇺" },
-  { code: "KR", name: "South Korea", flag: "🇰🇷" },
-  { code: "SG", name: "Singapore", flag: "🇸🇬" },
-  { code: "AE", name: "United Arab Emirates", flag: "🇦🇪" },
-  { code: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
-  { code: "ZA", name: "South Africa", flag: "🇿🇦" },
-  { code: "EG", name: "Egypt", flag: "🇪🇬" },
+  { code: "RU", name: "Rusia", flag: "🇷🇺" },
+  { code: "KR", name: "Corea del Sur", flag: "🇰🇷" },
+  { code: "SG", name: "Singapur", flag: "🇸🇬" },
+  { code: "AE", name: "Emiratos Árabes Unidos", flag: "🇦🇪" },
+  { code: "SA", name: "Arabia Saudita", flag: "🇸🇦" },
+  { code: "ZA", name: "Sudáfrica", flag: "🇿🇦" },
+  { code: "EG", name: "Egipto", flag: "🇪🇬" },
   { code: "NG", name: "Nigeria", flag: "🇳🇬" },
-  { code: "KE", name: "Kenya", flag: "🇰🇪" },
+  { code: "KE", name: "Kenia", flag: "🇰🇪" },
   { code: "IL", name: "Israel", flag: "🇮🇱" },
-  { code: "TR", name: "Turkey", flag: "🇹🇷" },
-  { code: "PL", name: "Poland", flag: "🇵🇱" },
-  { code: "NL", name: "Netherlands", flag: "🇳🇱" },
-  { code: "BE", name: "Belgium", flag: "🇧🇪" },
-  { code: "CH", name: "Switzerland", flag: "🇨🇭" },
+  { code: "TR", name: "Turquía", flag: "🇹🇷" },
+  { code: "PL", name: "Polonia", flag: "🇵🇱" },
+  { code: "NL", name: "Países Bajos", flag: "🇳🇱" },
+  { code: "BE", name: "Bélgica", flag: "🇧🇪" },
+  { code: "CH", name: "Suiza", flag: "🇨🇭" },
   { code: "AT", name: "Austria", flag: "🇦🇹" },
-  { code: "SE", name: "Sweden", flag: "🇸🇪" },
-  { code: "NO", name: "Norway", flag: "🇳🇴" },
-  { code: "DK", name: "Denmark", flag: "🇩🇰" },
-  { code: "FI", name: "Finland", flag: "🇫🇮" },
-  { code: "IE", name: "Ireland", flag: "🇮🇪" },
-  { code: "GR", name: "Greece", flag: "🇬🇷" }
+  { code: "SE", name: "Suecia", flag: "🇸🇪" },
+  { code: "NO", name: "Noruega", flag: "🇳🇴" },
+  { code: "DK", name: "Dinamarca", flag: "🇩🇰" },
+  { code: "FI", name: "Finlandia", flag: "🇫🇮" },
+  { code: "IE", name: "Irlanda", flag: "🇮🇪" },
+  { code: "GR", name: "Grecia", flag: "🇬🇷" }
 ];
+
+// Accent-insensitive comparison so typing "peru" matches "Perú".
+const normalizeForSearch = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 type CountryPickerModalProps = {
   visible: boolean;
@@ -83,10 +90,10 @@ const CountryPickerModal: React.FC<CountryPickerModalProps> = ({
     if (!search.trim()) {
       return COUNTRIES;
     }
-    const query = search.toLowerCase();
+    const query = normalizeForSearch(search);
     return COUNTRIES.filter(
       (country) =>
-        country.name.toLowerCase().includes(query) ||
+        normalizeForSearch(country.name).includes(query) ||
         country.code.toLowerCase().includes(query) ||
         getCountryCallingCode(country.code).includes(query.replace(/\D/g, ""))
     );
@@ -179,9 +186,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
     color: theme.colors.text,
-    fontFamily: theme.fonts.regular
+    fontFamily: theme.fonts.bold
   },
   closeButton: {
     padding: theme.spacing(0.5)

@@ -21,6 +21,7 @@ import Button from "../ui/components/Button";
 import TextField from "../ui/components/TextField";
 import { theme } from "../ui/theme";
 import { AppTabsParamList, ProfileStackParamList } from "../navigation";
+import { openLegal } from "../utils/openExternal";
 import appConfig from "../../app.json";
 
 type BaseCategory = "Cuenta" | "Tarjeta" | "Pagos" | "Seguridad" | "Comercios";
@@ -48,7 +49,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Cómo recibo mi tarjeta digital o token de canje?",
     answer:
-      "Te llega por SMS o correo con un enlace seguro. Al abrirlo verás tu tarjeta digital y tu código visible. No compartas capturas del código."
+      "Cuando alguien te envía una tarjeta de regalo, te avisamos por correo y aparece en tu billetera dentro de Papayal. El QR y el código de canje solo se muestran en la app cuando estés listo para usarla."
   },
   {
     id: "donde-usar",
@@ -76,7 +77,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Cómo consulto mi saldo y movimientos?",
     answer:
-      "En tu token verás saldo disponible y últimos canjes. Si un comercio devuelve un monto, también aparecerá como reverso."
+      "En tu billetera verás el saldo disponible y los últimos canjes. Si un comercio devuelve un monto, también aparecerá como reverso."
   },
   {
     id: "parcial",
@@ -90,14 +91,14 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Mi tarjeta expira?",
     answer:
-      "La mayoría tiene vigencia de 12 meses desde la emisión. La fecha aparece en tu token. Antes de vencer te avisamos con recordatorios."
+      "No. Tus tarjetas de regalo no tienen fecha de vencimiento. El saldo queda disponible en tu billetera hasta que lo uses."
   },
   {
     id: "reembolso",
     category: "Pagos",
     question: "¿Hay reembolsos o reversos?",
     answer:
-      "Si el comercio anula la compra el mismo día, se reversa de inmediato. Reversos posteriores pueden tardar hasta 48 horas hábiles en reflejarse."
+      "Si necesitas un reembolso, escríbenos a soporte o acude al comercio donde hiciste la compra. Los reembolsos se devuelven al medio de pago original y el tiempo en reflejarse depende de tu banco."
   },
   {
     id: "pago-rechazado",
@@ -111,49 +112,35 @@ const FAQS: FaqItem[] = [
     category: "Seguridad",
     question: "Perdí mi teléfono, ¿pierdo mi saldo?",
     answer:
-      "No. Tu token sigue protegido. Escríbenos y bloqueamos el código anterior y te emitimos uno nuevo si es necesario."
+      "No. Tu saldo está asociado a tu cuenta, no al dispositivo. Inicia sesión con tu correo y contraseña desde otro teléfono. Si crees que alguien puede acceder a tu cuenta, escríbenos para revisar tu acceso."
   },
   {
     id: "codigo-expuesto",
     category: "Seguridad",
     question: "Alguien vio mi código, ¿está en riesgo?",
     answer:
-      "Si crees que alguien lo vio, contáctanos de inmediato para rotar el código. Evita compartir capturas y no publiques el QR."
-  },
-  {
-    id: "login",
-    category: "Cuenta",
-    question: "No recibo el código SMS para entrar",
-    answer:
-      "Revisa tu señal y que el número tenga formato internacional. Si no llega, prueba reenviar en 60 segundos o pide el código por email si está habilitado."
+      "Si crees que alguien vio tu código de canje, contáctanos de inmediato. Evita compartir capturas y no publiques el QR."
   },
   {
     id: "cambiar-numero",
     category: "Cuenta",
     question: "¿Puedo cambiar mi número de teléfono?",
     answer:
-      "Sí. Escríbenos desde el correo registrado o un canal verificado indicando el número anterior y el nuevo. Por seguridad pedimos una verificación rápida."
+      "Sí. Entra a tu perfil, elige Editar perfil y actualiza tu número de teléfono. Los cambios se guardan al instante."
   },
   {
     id: "costos",
     category: "Pagos",
     question: "¿Tiene comisiones o costos adicionales?",
     answer:
-      "Recibir tu tarjeta no tiene costo. En comercios no cobramos comisión. Algunas recargas internacionales pueden incluir pequeña tarifa de procesamiento que verás antes de pagar."
-  },
-  {
-    id: "tipo-cambio",
-    category: "Pagos",
-    question: "¿Qué tipo de cambio usan para mis recargas?",
-    answer:
-      "Usamos una tasa competitiva cercana al mercado del día y la mostramos antes de que aceptes. No hacemos ajustes posteriores al canje."
+      "No. Por ahora no cobramos comisiones al comprar ni al canjear tu tarjeta de regalo. Si esto cambia, verás cualquier costo claramente antes de pagar."
   },
   {
     id: "comprobante",
     category: "Comercios",
     question: "¿Recibo comprobante o factura?",
     answer:
-      "El comercio entrega su comprobante habitual. En tu token verás el registro del canje con fecha, comercio y monto."
+      "El comercio entrega su comprobante habitual. En tu actividad verás el registro del canje con fecha, comercio y monto."
   },
   {
     id: "tiendas-online",
@@ -174,7 +161,7 @@ const FAQS: FaqItem[] = [
     category: "Cuenta",
     question: "¿En cuánto tiempo responde soporte?",
     answer:
-      "Respondemos en menos de 24 horas hábiles. En horarios pico de comercios priorizamos casos de pago en curso."
+      "Normalmente respondemos dentro de un día hábil. Priorizamos los casos de pago o canje en curso."
   }
 ];
 
@@ -253,7 +240,8 @@ const HelpScreen: React.FC = () => {
   };
 
   const handleHome = () => {
-    navigation.popToTop();
+    // Navigate to Profile first to ensure we're in a valid state, then switch to HomeTab
+    navigation.navigate("Profile");
     tabNavigation?.navigate("HomeTab");
   };
 
@@ -318,7 +306,12 @@ const HelpScreen: React.FC = () => {
             })}
           </View>
 
-          <View style={styles.faqList}>
+          <ScrollView
+            style={styles.faqScrollContainer}
+            contentContainerStyle={styles.faqList}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+          >
             {filteredFaqs.length === 0 ? (
               <View style={styles.emptyState}>
                 <Feather name="search" size={22} color={theme.colors.muted} />
@@ -348,7 +341,7 @@ const HelpScreen: React.FC = () => {
                 );
               })
             )}
-          </View>
+          </ScrollView>
         </Card>
 
         <Card style={styles.card}>
@@ -358,27 +351,22 @@ const HelpScreen: React.FC = () => {
             <Button
               label="Enviar email"
               variant="secondary"
-              onPress={() => handleLinkPress("mailto:soporte@papayal.com")}
-              style={styles.supportButton}
-            />
-            <Button
-              label="WhatsApp"
-              onPress={() => handleLinkPress("https://wa.me/593999000111")}
+              onPress={() => handleLinkPress("mailto:hola@papayal.app")}
               style={styles.supportButton}
             />
           </View>
           <View style={styles.linksRow}>
-            <Pressable style={styles.linkPill} onPress={() => handleLinkPress("https://papayal.com/terminos")}>
+            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/terminos")}>
               <Text style={styles.linkText}>Ver términos</Text>
             </Pressable>
-            <Pressable style={styles.linkPill} onPress={() => handleLinkPress("https://papayal.com/privacidad")}>
+            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/privacidad")}>
               <Text style={styles.linkText}>Ver privacidad</Text>
             </Pressable>
           </View>
         </Card>
 
         <View style={styles.footer}>
-          <Text style={styles.footerTitle}>Papayal</Text>
+          <Text style={styles.footerWordmark}>Papayal</Text>
           <Text style={styles.footerSubtitle}>Versión {appVersion}</Text>
         </View>
       </ScrollView>
@@ -407,7 +395,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.secondary
   },
   subtitle: {
@@ -419,7 +407,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   sectionSubtitle: {
@@ -461,7 +449,7 @@ const styles = StyleSheet.create({
   },
   quickLabel: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     lineHeight: 22
   },
@@ -495,14 +483,19 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     color: theme.colors.text,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     fontSize: theme.typography.small
   },
   chipLabelActive: {
     color: "#fff"
   },
+  faqScrollContainer: {
+    maxHeight: 600,
+    borderRadius: theme.radius.md
+  },
   faqList: {
-    gap: theme.spacing(1)
+    gap: theme.spacing(1),
+    paddingBottom: theme.spacing(0.5)
   },
   faqItem: {
     borderWidth: 1,
@@ -537,11 +530,11 @@ const styles = StyleSheet.create({
   faqBadgeText: {
     fontSize: theme.typography.small,
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   faqQuestion: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     lineHeight: 22
   },
@@ -557,7 +550,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   emptySubtitle: {
@@ -589,7 +582,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     color: theme.colors.secondary,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.small
   },
   footer: {
@@ -598,9 +591,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing(0.5),
     paddingBottom: theme.spacing(1)
   },
-  footerTitle: {
+  footerWordmark: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
+    fontFamily: theme.fonts.brandBlack,
     color: theme.colors.text
   },
   footerSubtitle: {
@@ -609,5 +602,4 @@ const styles = StyleSheet.create({
 });
 
 export default HelpScreen;
-
 

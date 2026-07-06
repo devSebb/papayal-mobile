@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -12,13 +11,7 @@ import PhoneInput from "../../ui/components/PhoneInput";
 import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
-
-const SAMPLE_RECIPIENT = {
-  name: "Ana Ejemplo",
-  email: "ana.ejemplo@demo.com",
-  phone: "+593991112233",
-  note: ""
-};
+import CheckoutHeader from "./CheckoutHeader";
 
 const DeliveryProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -27,7 +20,7 @@ const DeliveryProfileScreen: React.FC = () => {
   const [email, setEmail] = useState(draft.recipient?.email ?? "");
   const [phoneE164, setPhoneE164] = useState<string | null>(draft.recipient?.phone ?? null);
   const [phoneValid, setPhoneValid] = useState(false);
-  const [note, setNote] = useState(draft.recipient?.note ?? SAMPLE_RECIPIENT.note);
+  const [note, setNote] = useState(draft.recipient?.note ?? "");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Check if phone is valid when E.164 changes
@@ -65,21 +58,12 @@ const DeliveryProfileScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-      <Text style={styles.header}>Destinatario</Text>
-      <Text style={styles.subheader}>
-        Ingresa los datos del destinatario. Validamos email y teléfono para evitar errores.
-      </Text>
+      <CheckoutHeader
+        step="recipient"
+        title="Destinatario"
+        subtitle="Ingresa los datos de entrega. Validamos email y teléfono para evitar errores."
+        onBack={() => navigation.goBack()}
+      />
 
       <Card style={styles.sectionCard}>
         <View style={styles.form}>
@@ -137,29 +121,6 @@ const DeliveryProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  header: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
   sectionCard: {
     gap: theme.spacing(2),
     marginBottom: theme.spacing(1.5)
@@ -178,4 +139,3 @@ const styles = StyleSheet.create({
 });
 
 export default DeliveryProfileScreen;
-

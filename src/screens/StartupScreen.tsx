@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, StyleSheet, useWindowDimensions, View } from 
 
 import { theme } from "../ui/theme";
 
-const logo = require("../../assets/Papayal-logoV2.png");
+const logo = require("../../assets/Papayal-logoTag.png");
 
 /**
  * Branded loading screen shown during app boot.
@@ -12,13 +12,13 @@ const logo = require("../../assets/Papayal-logoV2.png");
  */
 const StartupScreen: React.FC = () => {
   const { width } = useWindowDimensions();
-  const logoWidth = Math.min(220, width * 0.6);
+  const logoSize = Math.min(220, width * 0.65);
 
   return (
     <View style={styles.container}>
       <Image
         source={logo}
-        style={[styles.logo, { width: logoWidth }]}
+        style={[styles.logo, { width: logoSize }]}
         resizeMode="contain"
       />
       <ActivityIndicator
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   logo: {
-    height: 200
+    aspectRatio: 1
   },
   spinner: {
     marginTop: 24

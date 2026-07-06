@@ -22,6 +22,7 @@ const PurchaseSuccessScreen: React.FC = () => {
   const amountLabel = route.params?.amountLabel ?? "";
   const recipientEmail = route.params?.recipientEmail ?? "";
   const paymentIntentId = route.params?.paymentIntentId;
+  const cardReady = route.params?.cardReady ?? false;
 
   // Only reset draft when leaving the screen, not when mounting
   useFocusEffect(
@@ -83,15 +84,22 @@ const PurchaseSuccessScreen: React.FC = () => {
           ) : null}
         </View>
 
-        {/* Info notice about gift card generation - webhook delay messaging */}
         <View style={styles.infoBox}>
-          <Feather name="clock" size={16} color={theme.colors.secondary} />
+          <Feather
+            name={cardReady ? "check-circle" : "clock"}
+            size={16}
+            color={theme.colors.secondary}
+          />
           <View style={styles.infoContent}>
             <Text style={styles.infoText}>
-              La tarjeta puede tardar unos segundos en aparecer en tu billetera.
+              {cardReady
+                ? "Tu tarjeta ya fue creada y está lista para aparecer en tu billetera."
+                : "La tarjeta puede tardar unos segundos en aparecer en tu billetera."}
             </Text>
             <Text style={styles.infoHint}>
-              Si no la ves de inmediato, desliza para actualizar.
+              {cardReady
+                ? "Abre tu billetera para ver los detalles."
+                : "Si no la ves de inmediato, desliza para actualizar."}
             </Text>
           </View>
         </View>
@@ -146,7 +154,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   subtitle: {
@@ -176,13 +184,13 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing(0.5)
   },
   summaryText: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     fontSize: theme.typography.subheading
   },
   summaryAmount: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
   },
   summaryRecipient: {
@@ -212,12 +220,13 @@ const styles = StyleSheet.create({
   infoHint: {
     color: theme.colors.muted,
     fontSize: theme.typography.small - 1,
-    fontStyle: "italic"
+    fontFamily: theme.fonts.italic
   },
   debugText: {
     color: theme.colors.muted,
     fontSize: 10,
-    fontFamily: "monospace"
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.2
   },
   actions: {
     width: "100%",

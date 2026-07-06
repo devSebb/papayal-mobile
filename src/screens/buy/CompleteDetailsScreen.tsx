@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +14,9 @@ import { meApi, checkoutApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
 import { HttpError } from "../../api/http";
+import { formatValidationDetails } from "../../utils/formErrors";
 import { toDisplayDate, toIsoDate, formatDateInput } from "../../utils/date";
+import CheckoutHeader from "./CheckoutHeader";
 
 const CompleteDetailsScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -107,20 +108,11 @@ const CompleteDetailsScreen: React.FC = () => {
 
   const friendlyError = (err: HttpError) => {
     const details = err?.error?.details;
-    if (typeof details === "string") return details;
-    if (Array.isArray(details)) return details.filter(Boolean).join(", ");
-    if (typeof details === "object" && details) {
-      const parts = Object.entries(details as Record<string, unknown>)
-        .map(([key, value]) => {
-          if (!value) return null;
-          if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
-          return `${key}: ${String(value)}`;
-        })
-        .filter(Boolean)
-        .join(" ");
-      if (parts) return parts;
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+      const translated = formatValidationDetails(details as Record<string, string[] | string>);
+      if (translated) return translated;
     }
-    return err?.error?.message ?? "No pudimos guardar tus datos. Inténtalo de nuevo.";
+    return "No pudimos guardar tus datos. Inténtalo de nuevo.";
   };
 
   const handleSubmit = async () => {
@@ -185,21 +177,12 @@ const CompleteDetailsScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={handleGoBack}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-      <Text style={styles.header}>Completa tus datos</Text>
-      <Text style={styles.subheader}>
-        Necesitamos estos datos para procesar tu compra de forma segura.
-      </Text>
+      <CheckoutHeader
+        step="payment"
+        title="Completa tus datos"
+        subtitle="Necesitamos estos datos para procesar tu compra de forma segura."
+        onBack={handleGoBack}
+      />
 
       <Card style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Tu perfil</Text>
@@ -239,7 +222,6 @@ const CompleteDetailsScreen: React.FC = () => {
               setFieldErrors((prev) => ({ ...prev, country_of_residence: undefined }));
             }}
             placeholder="Ej: Ecuador"
-            autoComplete="country-name"
             onBlur={() => setTouched((prev) => ({ ...prev, country_of_residence: true }))}
             error={errorFor("country_of_residence")}
           />
@@ -293,36 +275,13 @@ const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) =
 );
 
 const styles = StyleSheet.create({
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
   sectionCard: {
     gap: theme.spacing(1),
     marginBottom: theme.spacing(1.25)
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   muted: {
@@ -338,11 +297,11 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   infoValue: {
     color: theme.colors.text,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     maxWidth: "65%"
   },
   form: {
@@ -356,5 +315,4 @@ const styles = StyleSheet.create({
 });
 
 export default CompleteDetailsScreen;
-
 

@@ -1,5 +1,4 @@
 import "react-native-gesture-handler";
-import "react-native-reanimated";
 import React from "react";
 import { StatusBar } from "expo-status-bar";
 import { Platform, StyleSheet, Text, View } from "react-native";
@@ -8,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StripeProvider } from "@stripe/stripe-react-native";
 import * as Device from "expo-device";
+import * as Sentry from "@sentry/react-native";
 
 import RootNavigator from "./src/navigation";
 import { queryClient } from "./src/query/queryClient";
@@ -15,9 +15,33 @@ import { AuthProvider } from "./src/auth/authStore";
 import { theme } from "./src/ui/theme";
 import { PurchaseDraftProvider } from "./src/domain/purchase/purchaseDraftStore";
 import BootGate from "./src/boot/BootGate";
+import { AppErrorBoundary } from "./src/boot/AppErrorBoundary";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
+
+/**
+ * Crash reporting. Fully dormant unless EXPO_PUBLIC_SENTRY_DSN is set at
+ * build time (EXPO_PUBLIC_* vars are inlined into the bundle): without it we
+ * never call Sentry.init, and every Sentry.* call elsewhere (captureException,
+ * wrap) is a no-op on the uninitialized SDK. Init runs synchronously at module
+ * top, before the component tree mounts, so early errors are captured too.
+ */
+const sentryEnabled = SENTRY_DSN.length > 0;
+if (sentryEnabled) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    tracesSampleRate: 0,
+    sendDefaultPii: false
+  });
+}
+
+/**
+ * StripeProvider with empty publishableKey can crash the native Stripe SDK
+ * on iOS production builds. Show a config screen instead of mounting it.
+ */
+const hasValidStripeKey = !!STRIPE_PUBLISHABLE_KEY && STRIPE_PUBLISHABLE_KEY.startsWith("pk_");
 
 /**
  * Shows a developer-facing error when Stripe key is missing.
@@ -59,36 +83,67 @@ const LocalhostWarningBanner: React.FC = () => {
   );
 };
 
+/**
+ * Shown when Stripe key is missing in production.
+ * Prevents passing "" to StripeProvider, which can crash the native SDK.
+ */
+const ConfigErrorScreen: React.FC = () => (
+  <View style={styles.configError}>
+    <Text style={styles.configErrorTitle}>Configuración incompleta</Text>
+    <Text style={styles.configErrorText}>
+      La app no está configurada correctamente para esta versión.{"\n\n"}
+      Si eres el desarrollador: configura EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY y
+      EXPO_PUBLIC_API_BASE_URL en EAS Secrets antes de ejecutar el build.
+    </Text>
+  </View>
+);
+
 const App = () => {
   // Log API config in dev for debugging
   if (__DEV__) {
     console.log("[App] Stripe publishable key:", STRIPE_PUBLISHABLE_KEY ? `${STRIPE_PUBLISHABLE_KEY.slice(0, 12)}...` : "NOT SET");
   }
 
+  // Avoid mounting StripeProvider with empty key — can crash native SDK in production
+  if (!hasValidStripeKey) {
+    return (
+      <AppErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+          <SafeAreaProvider>
+            <StatusBar style="dark" backgroundColor={theme.colors.background} />
+            <ConfigErrorScreen />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </AppErrorBoundary>
+    );
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaProvider>
-        {/*
-          TODO: Add merchantIdentifier="merchant.app.papayal" once Apple Pay is
-          fully enabled in the Stripe Dashboard. Do NOT add it prematurely as
-          it may cause warnings or unexpected behavior.
-        */}
-        <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <PurchaseDraftProvider>
-                <StatusBar style="dark" backgroundColor={theme.colors.background} />
-                <StripeMissingKeyBanner />
-                <LocalhostWarningBanner />
-                <BootGate>
-                  <RootNavigator />
-                </BootGate>
-              </PurchaseDraftProvider>
-            </AuthProvider>
-          </QueryClientProvider>
-        </StripeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <AppErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <SafeAreaProvider>
+          {/*
+            TODO: Add merchantIdentifier="merchant.app.papayal" once Apple Pay is
+            fully enabled in the Stripe Dashboard. Do NOT add it prematurely as
+            it may cause warnings or unexpected behavior.
+          */}
+          <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <PurchaseDraftProvider>
+                  <StatusBar style="dark" backgroundColor={theme.colors.background} />
+                  <StripeMissingKeyBanner />
+                  <LocalhostWarningBanner />
+                  <BootGate>
+                    <RootNavigator />
+                  </BootGate>
+                </PurchaseDraftProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </StripeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </AppErrorBoundary>
   );
 };
 
@@ -101,7 +156,7 @@ const styles = StyleSheet.create({
   },
   missingKeyTitle: {
     color: "#C62828",
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     marginBottom: 4
   },
   missingKeyText: {
@@ -118,9 +173,29 @@ const styles = StyleSheet.create({
   localhostText: {
     color: "#E65100",
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
+    textAlign: "center"
+  },
+  configError: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24
+  },
+  configErrorTitle: {
+    fontSize: 18,
+    fontFamily: theme.fonts.semiBold,
+    color: theme.colors.text,
+    marginBottom: 12
+  },
+  configErrorText: {
+    fontSize: 14,
+    color: theme.colors.muted,
     textAlign: "center"
   }
 });
 
-export default App;
+// Sentry.wrap adds native-touch breadcrumbs and the app-start profiler. Only
+// applied when Sentry was initialized above; without a DSN the tree is
+// byte-for-byte identical to the pre-Sentry app.
+export default sentryEnabled ? Sentry.wrap(App) : App;

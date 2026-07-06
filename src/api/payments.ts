@@ -1,3 +1,7 @@
+import {
+  GIFT_CARD_MAX_AMOUNT_USD,
+  GIFT_CARD_MIN_AMOUNT_USD
+} from "../domain/purchase/giftCardAmountLimits";
 import { PurchaseDraft } from "../domain/purchase/purchaseDraftStore";
 import { request, HttpError } from "./http";
 
@@ -25,6 +29,14 @@ export const createGiftCardPaymentIntent = async (
   }
   if (!draft.amount_cents || draft.amount_cents <= 0) {
     throw createPaymentError("validation", "El monto debe ser mayor a cero.");
+  }
+  const minCents = GIFT_CARD_MIN_AMOUNT_USD * 100;
+  const maxCents = GIFT_CARD_MAX_AMOUNT_USD * 100;
+  if (draft.amount_cents < minCents || draft.amount_cents > maxCents) {
+    throw createPaymentError(
+      "validation",
+      `El monto debe estar entre $${GIFT_CARD_MIN_AMOUNT_USD} y $${GIFT_CARD_MAX_AMOUNT_USD} USD.`
+    );
   }
   if (!draft.recipient?.email && !draft.recipient?.phone) {
     throw createPaymentError("validation", "El destinatario necesita email o teléfono.");

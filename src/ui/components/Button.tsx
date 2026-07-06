@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from "react-native";
 import { theme } from "../theme";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -10,7 +10,7 @@ type Props = {
   variant?: ButtonVariant;
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   labelColor?: string;
   accessibilityLabel?: string;
 };
@@ -105,8 +105,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: theme.typography.body,
-    fontWeight: "700",
-    fontFamily: theme.fonts.regular,
+    fontFamily: theme.fonts.bold,
     letterSpacing: 0.1,
     textAlign: "center",
     flexShrink: 1

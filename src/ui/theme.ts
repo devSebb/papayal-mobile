@@ -1,13 +1,22 @@
+/**
+ * Typography uses static Raleway files from @expo-google-fonts/raleway.
+ * Use explicit theme.fonts.* entries instead of fontWeight so weights render correctly on iOS/Android.
+ */
 export const theme = {
   colors: {
     primary: "#FCA50F",
     secondary: "#0D2F32",
-    background: "#EBEBEB",
+    background: "#FDF1E1",
     lightText: "#545353",
     card: "#FFFFFF",
+    cardBorder: "#F1E2CB",
     text: "#2C3A43",
     muted: "#6A7780",
+    captionMuted: "#5E7D80",
     border: "#D7DBD9",
+    subtleTealBorder: "rgba(13, 47, 50, 0.06)",
+    mutedTeal42: "rgba(13, 47, 50, 0.42)",
+    mutedTeal55: "rgba(13, 47, 50, 0.55)",
     navbar: "#0D2F32",
     navbarMuted: "#6A848A",
     success: "#39B66E",
@@ -17,18 +26,48 @@ export const theme = {
   radius: {
     sm: 8,
     md: 12,
-    lg: 16
+    lg: 16,
+    xl: 24
   },
   fonts: {
-    light: "SatoshiLightVariable",
-    regular: "SatoshiVariable",
-    italic: "SatoshiVariableItalic"
+    thin: "Raleway_100Thin",
+    extraLight: "Raleway_200ExtraLight",
+    light: "Raleway_300Light",
+    regular: "Raleway_400Regular",
+    medium: "Raleway_500Medium",
+    semiBold: "Raleway_600SemiBold",
+    bold: "Raleway_700Bold",
+    extraBold: "Raleway_800ExtraBold",
+    black: "Raleway_900Black",
+    italic: "Raleway_400Regular_Italic",
+    italicMedium: "Raleway_500Medium_Italic",
+    italicSemiBold: "Raleway_600SemiBold_Italic",
+    italicBold: "Raleway_700Bold_Italic",
+    /** UI emphasis — same as bold */
+    brand: "Raleway_700Bold",
+    /** Papayal wordmark — always Raleway Black */
+    brandBlack: "Raleway_900Black"
   },
   typography: {
     heading: 24,
     subheading: 20,
     body: 18,
     small: 14
+  },
+  shadow: {
+    sm: {
+      shadowColor: "#0D2F32",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 4
+    },
+    md: {
+      shadowColor: "#0D2F32",
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.1,
+      shadowRadius: 24,
+      elevation: 6
+    }
   }
 };
-

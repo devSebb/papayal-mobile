@@ -52,21 +52,29 @@ const ForgotPasswordScreen: React.FC = () => {
         <Text style={styles.title}>Recuperar contraseña</Text>
         <Text style={styles.subtitle}>
           {success
-            ? "Si existe una cuenta con ese correo, se han enviado las instrucciones para restablecer tu contraseña."
-            : "Ingresa tu correo electrónico y te enviaremos las instrucciones para restablecer tu contraseña."}
+            ? "Si existe una cuenta con ese correo, te enviamos un código para restablecer tu contraseña."
+            : "Ingresa tu correo electrónico y te enviaremos un código para restablecer tu contraseña."}
         </Text>
       </View>
       <Card>
         {success ? (
           <View style={styles.successContainer}>
             <Text style={styles.successText}>
-              Revisa tu correo electrónico para continuar con el proceso de recuperación de contraseña.
+              Revisa tu correo electrónico, copia el código que te enviamos y pégalo en la siguiente
+              pantalla para crear una nueva contraseña.
             </Text>
             <Button
-              label="Volver a iniciar sesión"
-              onPress={() => navigation.navigate("Login")}
+              label="Ya tengo mi código"
+              onPress={() => navigation.navigate("ResetPassword", {})}
               style={styles.backButton}
             />
+            <Pressable
+              onPress={() => navigation.navigate("Login")}
+              hitSlop={10}
+              style={styles.linkContainer}
+            >
+              <Text style={styles.linkText}>Volver a iniciar sesión</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.form}>
@@ -88,6 +96,13 @@ const ForgotPasswordScreen: React.FC = () => {
               style={styles.submit}
             />
             <Pressable
+              onPress={() => navigation.navigate("ResetPassword", {})}
+              hitSlop={10}
+              style={styles.linkContainer}
+            >
+              <Text style={styles.linkText}>¿Ya tienes un código? Ingrésalo aquí</Text>
+            </Pressable>
+            <Pressable
               onPress={() => navigation.navigate("Login")}
               hitSlop={10}
               style={styles.linkContainer}
@@ -107,7 +122,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   subtitle: {
@@ -143,7 +158,7 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   }
 });
 

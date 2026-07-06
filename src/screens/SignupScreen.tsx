@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, Pressable, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -11,8 +11,6 @@ import TextField from "../ui/components/TextField";
 import PhoneInput from "../ui/components/PhoneInput";
 import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
-import { useAuth } from "../auth/authStore";
-import { HttpError } from "../api/http";
 import type { AuthStackParamList } from "../navigation";
 import { openLegal } from "../utils/openExternal";
 
@@ -20,7 +18,6 @@ type AuthNav = NativeStackNavigationProp<AuthStackParamList>;
 
 const SignupScreen: React.FC = () => {
   const navigation = useNavigation<AuthNav>();
-  const { signup, authLoading } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -81,53 +78,15 @@ const SignupScreen: React.FC = () => {
       phone: phoneE164
     };
 
-    try {
-      await signup(payload);
-      // Store acceptance on successful signup
-      await AsyncStorage.setItem(
-        "legal_acceptance_v1",
-        JSON.stringify({
-          accepted: true,
-          accepted_at: new Date().toISOString()
-        })
-      );
-    } catch (err) {
-      const httpErr = err as HttpError;
-      const details = httpErr?.error?.details;
-      const nextFieldErrors: Record<string, string> = {};
-      let friendly =
-        (httpErr?.error?.message as string | undefined) ??
-        "No pudimos crear tu cuenta. Inténtalo de nuevo.";
-
-      if (httpErr?.status === 422 && details) {
-        if (typeof details === "string") {
-          friendly = details;
-        } else if (Array.isArray(details)) {
-          friendly = details.filter(Boolean).join(", ");
-        } else if (typeof details === "object") {
-          Object.entries(details as Record<string, unknown>).forEach(([key, value]) => {
-            if (!value) return;
-            const text = Array.isArray(value) ? value.join(", ") : String(value);
-            if (text) nextFieldErrors[key] = text;
-          });
-          const parts = Object.entries(nextFieldErrors)
-            .map(([key, value]) => {
-              if (!value) return null;
-              return `${key}: ${String(value)}`;
-            })
-            .filter(Boolean)
-            .join(" ");
-          if (parts) {
-            friendly = parts;
-          }
-        }
-      }
-
-      if (Object.keys(nextFieldErrors).length) {
-        setFieldErrors(nextFieldErrors);
-      }
-      setError(friendly);
-    }
+    // Store legal acceptance and navigate to interests step
+    await AsyncStorage.setItem(
+      "legal_acceptance_v1",
+      JSON.stringify({
+        accepted: true,
+        accepted_at: new Date().toISOString()
+      })
+    );
+    navigation.navigate("Interests", { formData: payload });
   };
 
   const canSubmit = Boolean(
@@ -144,19 +103,12 @@ const SignupScreen: React.FC = () => {
   return (
     <Screen scrollable>
       <View style={styles.header}>
+        <Text style={styles.step}>Paso 1 de 2</Text>
         <Text style={styles.title}>Crea tu cuenta</Text>
         <Text style={styles.subtitle}>Empieza a gestionar tu billetera Papayal.</Text>
       </View>
       <Card>
         <View style={styles.form}>
-          <TextField
-            label="Correo"
-            value={email}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            autoComplete="email"
-          />
           <TextField
             label="Nombre"
             value={firstName}
@@ -165,7 +117,6 @@ const SignupScreen: React.FC = () => {
               setFieldErrors((prev) => ({ ...prev, first_name: undefined }));
             }}
             autoComplete="name"
-            style={styles.inputSpacing}
             error={fieldErrors.first_name}
           />
           <TextField
@@ -210,6 +161,7 @@ const SignupScreen: React.FC = () => {
             label="Contraseña"
             value={password}
             secureTextEntry
+            secureToggle
             onChangeText={(text) => {
               setPassword(text);
               setFieldErrors((prev) => ({ ...prev, password: undefined }));
@@ -222,6 +174,7 @@ const SignupScreen: React.FC = () => {
             label="Confirmar contraseña"
             value={confirmPassword}
             secureTextEntry
+            secureToggle
             onChangeText={(text) => {
               setConfirmPassword(text);
               setFieldErrors((prev) => ({ ...prev, password_confirmation: undefined }));
@@ -275,10 +228,9 @@ const SignupScreen: React.FC = () => {
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
-            label="Crear cuenta"
+            label="Continuar"
             onPress={handleSignup}
-            loading={authLoading}
-            disabled={!canSubmit || authLoading}
+            disabled={!canSubmit}
             style={styles.submit}
           />
           <Button
@@ -296,10 +248,16 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: theme.spacing(2)
   },
+  step: {
+    fontSize: theme.typography.small,
+    color: theme.colors.primary,
+    fontFamily: theme.fonts.semiBold,
+    marginBottom: theme.spacing(0.5)
+  },
   title: {
     fontSize: 32,
-    fontWeight: "700",
-    color: theme.colors.text
+    fontFamily: theme.fonts.extraBold,
+    color: theme.colors.secondary
   },
   subtitle: {
     fontSize: theme.typography.body,
@@ -319,7 +277,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   submit: {
     marginTop: theme.spacing(1)
@@ -368,7 +326,7 @@ const styles = StyleSheet.create({
   },
   termsLink: {
     color: theme.colors.primary,
-    fontWeight: "600",
+    fontFamily: theme.fonts.semiBold,
     textDecorationLine: "underline"
   },
   termsError: {
@@ -380,5 +338,4 @@ const styles = StyleSheet.create({
 });
 
 export default SignupScreen;
-
 

@@ -1,7 +1,8 @@
-import React from "react";
-import { NavigationContainer, DefaultTheme, NavigatorScreenParams } from "@react-navigation/native";
+import React, { useEffect } from "react";
+import { NavigationContainer, DefaultTheme, NavigatorScreenParams, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { setupNotificationResponseListener, handleInitialNotification } from "../notifications/handler";
 
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -14,11 +15,14 @@ import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
 import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
-import TermsScreen from "../screens/TermsScreen";
 import LegalPrivacyScreen from "../screens/settings/LegalPrivacyScreen";
+import DeleteAccountScreen from "../screens/settings/DeleteAccountScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import ActivityScreen from "../screens/ActivityScreen";
 import HelpScreen from "../screens/HelpScreen";
+import GuestBrowseScreen from "../screens/guest/GuestBrowseScreen";
+import GuestMerchantProfileScreen from "../screens/guest/GuestMerchantProfileScreen";
+import AuthRequiredScreen from "../screens/guest/AuthRequiredScreen";
 import { useAuth } from "../auth/authStore";
 import { theme } from "../ui/theme";
 import BuyGiftCardStartScreen from "../screens/buy/BuyGiftCardStartScreen";
@@ -28,12 +32,40 @@ import CompleteDetailsScreen from "../screens/buy/CompleteDetailsScreen";
 import StripePaymentScreen from "../screens/buy/StripePaymentScreen";
 import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import MerchantProfileScreen from "../screens/MerchantProfileScreen";
+import InterestsScreen from "../screens/InterestsScreen";
+import ClaimVerificationScreen from "../screens/ClaimVerificationScreen";
+import type { ClaimVerificationDetails } from "../types/api";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
+import { consumePendingPostAuthIntent } from "./postAuthIntent";
 
 export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
+  Interests: {
+    formData: {
+      first_name: string;
+      last_name: string;
+      email: string;
+      password: string;
+      password_confirmation: string;
+      phone: string;
+    };
+  };
+  ClaimVerification: {
+    /** Full signup payload (including interests) to re-POST with the OTP. */
+    formData: {
+      first_name: string;
+      last_name: string;
+      email: string;
+      password: string;
+      password_confirmation: string;
+      phone: string;
+      interests: string[];
+    };
+    /** Masked channel info from the 409 auth.claim_verification_required. */
+    details: ClaimVerificationDetails;
+  };
   ForgotPassword: { email?: string };
   ResetPassword: { token?: string };
 };
@@ -56,6 +88,7 @@ export type HomeStackParamList = {
     amountLabel?: string;
     recipientEmail?: string;
     paymentIntentId?: string;
+    cardReady?: boolean;
   };
 };
 
@@ -69,8 +102,8 @@ export type WalletStackParamList = {
 export type ProfileStackParamList = {
   Profile: undefined;
   Settings: undefined;
-  Terms: undefined;
   LegalPrivacy: undefined;
+  DeleteAccount: undefined;
   EditProfile: undefined;
   Help: undefined;
 };
@@ -81,12 +114,31 @@ export type AppTabsParamList = {
   ProfileTab: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
-const RootStack = createNativeStackNavigator();
+export type GuestHomeStackParamList = {
+  GuestHome: undefined;
+  GuestMerchantProfile: { id: string };
+};
+
+export type GuestTabsParamList = {
+  HomeTab: NavigatorScreenParams<GuestHomeStackParamList> | undefined;
+  WalletTab: undefined;
+  ProfileTab: undefined;
+};
+
+export type RootStackParamList = {
+  Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
+  GuestApp: undefined;
+  App: NavigatorScreenParams<AppTabsParamList> | undefined;
+};
+
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const WalletStack = createNativeStackNavigator<WalletStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+const GuestHomeStack = createNativeStackNavigator<GuestHomeStackParamList>();
 const Tab = createBottomTabNavigator<AppTabsParamList>();
+const GuestTab = createBottomTabNavigator<GuestTabsParamList>();
 
 const HomeStackNavigator = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
@@ -113,8 +165,13 @@ const HomeStackNavigator = () => (
   </HomeStack.Navigator>
 );
 
+const walletHeaderFonts = {
+  headerTitleStyle: { fontFamily: theme.fonts.semiBold },
+  headerBackTitleStyle: { fontFamily: theme.fonts.regular }
+};
+
 const WalletStackNavigator = () => (
-  <WalletStack.Navigator>
+  <WalletStack.Navigator screenOptions={walletHeaderFonts}>
     <WalletStack.Screen
       name="WalletList"
       component={WalletListScreen}
@@ -142,11 +199,18 @@ const ProfileStackNavigator = () => (
   <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
     <ProfileStack.Screen name="Profile" component={ProfileScreen} />
     <ProfileStack.Screen name="Settings" component={SettingsScreen} />
-    <ProfileStack.Screen name="Terms" component={TermsScreen} />
     <ProfileStack.Screen name="LegalPrivacy" component={LegalPrivacyScreen} />
+    <ProfileStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
     <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
     <ProfileStack.Screen name="Help" component={HelpScreen} />
   </ProfileStack.Navigator>
+);
+
+const GuestHomeStackNavigator = () => (
+  <GuestHomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <GuestHomeStack.Screen name="GuestHome" component={GuestBrowseScreen} />
+    <GuestHomeStack.Screen name="GuestMerchantProfile" component={GuestMerchantProfileScreen} />
+  </GuestHomeStack.Navigator>
 );
 
 const AppTabs = () => (
@@ -173,6 +237,28 @@ const AppTabs = () => (
   </Tab.Navigator>
 );
 
+const GuestWalletGate = () => <AuthRequiredScreen kind="wallet" />;
+const GuestProfileGate = () => <AuthRequiredScreen kind="profile" />;
+
+const GuestAppTabs = () => (
+  <GuestTab.Navigator
+    tabBar={(props) => <AnimatedTabBar {...props} />}
+    screenOptions={{
+      headerShown: false,
+      tabBarShowLabel: false,
+      tabBarStyle: {
+        position: "absolute",
+        elevation: 0,
+        borderTopWidth: 0
+      }
+    }}
+  >
+    <GuestTab.Screen name="HomeTab" component={GuestHomeStackNavigator} options={{ title: "Explorar" }} />
+    <GuestTab.Screen name="WalletTab" component={GuestWalletGate} options={{ title: "Billetera" }} />
+    <GuestTab.Screen name="ProfileTab" component={GuestProfileGate} options={{ title: "Perfil" }} />
+  </GuestTab.Navigator>
+);
+
 const AuthNavigator = () => (
   <AuthStack.Navigator initialRouteName="Welcome">
     <AuthStack.Screen
@@ -191,6 +277,16 @@ const AuthNavigator = () => (
       options={{ headerShown: false }}
     />
     <AuthStack.Screen
+      name="Interests"
+      component={InterestsScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
+      name="ClaimVerification"
+      component={ClaimVerificationScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
       name="ForgotPassword"
       component={ForgotPasswordScreen}
       options={{ headerShown: false }}
@@ -202,6 +298,8 @@ const AuthNavigator = () => (
     />
   </AuthStack.Navigator>
 );
+
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const navTheme = {
   ...DefaultTheme,
@@ -218,15 +316,48 @@ const navTheme = {
 const RootNavigator = () => {
   const { accessToken } = useAuth();
 
+  // Handle notification taps (foreground + cold start)
+  useEffect(() => {
+    if (!accessToken) return;
+    const sub = setupNotificationResponseListener(navigationRef);
+    handleInitialNotification(navigationRef);
+    return () => sub.remove();
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const intent = consumePendingPostAuthIntent();
+    if (!intent) return;
+
+    const timer = setTimeout(() => {
+      if (!navigationRef.isReady()) return;
+      if (intent.type === "buy_gift_card") {
+        navigationRef.navigate("App", {
+          screen: "HomeTab",
+          params: {
+            screen: "BuyGiftCardStart",
+            params: { merchantId: intent.merchantId }
+          }
+        });
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [accessToken]);
+
   // BootGate ensures we only render after hydration is complete,
   // so we can directly switch based on accessToken without a loading state.
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {accessToken ? (
           <RootStack.Screen name="App" component={AppTabs} />
         ) : (
-          <RootStack.Screen name="Auth" component={AuthNavigator} />
+          <>
+            <RootStack.Screen name="Auth" component={AuthNavigator} />
+            <RootStack.Screen name="GuestApp" component={GuestAppTabs} />
+          </>
         )}
       </RootStack.Navigator>
     </NavigationContainer>
@@ -234,4 +365,3 @@ const RootNavigator = () => {
 };
 
 export default RootNavigator;
-

@@ -10,6 +10,7 @@ import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
 import { authApi } from "../api/endpoints";
 import { HttpError } from "../api/http";
+import { formatValidationDetails, translateValidationMessage } from "../utils/formErrors";
 import type { AuthStackParamList } from "../navigation";
 
 type ResetPasswordNav = NativeStackNavigationProp<AuthStackParamList, "ResetPassword">;
@@ -33,7 +34,7 @@ const ResetPasswordScreen: React.FC = () => {
     const trimmedToken = token.trim();
 
     const nextErrors: Record<string, string> = {};
-    if (!trimmedToken) nextErrors.reset_token = "El token es requerido";
+    if (!trimmedToken) nextErrors.reset_token = "El código es requerido";
     if (!password) nextErrors.password = "Requerido";
     if (!confirmPassword) nextErrors.password_confirmation = "Confirma tu contraseña";
     if (password && confirmPassword && password !== confirmPassword)
@@ -55,39 +56,49 @@ const ResetPasswordScreen: React.FC = () => {
       setSuccess(true);
     } catch (err) {
       const httpErr = err as HttpError;
+      const code = httpErr?.error?.code;
       const details = httpErr?.error?.details;
-      const nextFieldErrors: Record<string, string> = {};
-      let friendly =
-        (httpErr?.error?.message as string | undefined) ??
-        "No pudimos restablecer tu contraseña. Inténtalo de nuevo.";
+      const fallback = "No pudimos restablecer tu contraseña. Inténtalo de nuevo.";
 
-      if (httpErr?.status === 422 && details) {
-        if (typeof details === "string") {
-          friendly = details;
-        } else if (Array.isArray(details)) {
-          friendly = details.filter(Boolean).join(", ");
-        } else if (typeof details === "object") {
-          Object.entries(details as Record<string, unknown>).forEach(([key, value]) => {
-            if (!value) return;
-            const text = Array.isArray(value) ? value.join(", ") : String(value);
-            if (text) nextFieldErrors[key] = text;
-          });
-          const parts = Object.entries(nextFieldErrors)
-            .map(([key, value]) => {
-              if (!value) return null;
-              return `${key}: ${String(value)}`;
-            })
-            .filter(Boolean)
-            .join(" ");
-          if (parts) {
-            friendly = parts;
+      // Token problems come back without a field `details` object, so the
+      // generic 422 handler below can't translate them. Map the error code to
+      // actionable Spanish copy and steer the user toward requesting a new code.
+      const tokenErrors: Record<string, string> = {
+        "auth.token_expired": "El código expiró. Solicita uno nuevo para continuar.",
+        "auth.invalid_token":
+          "El código no es válido. Verifica que lo copiaste completo o solicita uno nuevo.",
+        "auth.missing_token": "Ingresa el código que recibiste por correo."
+      };
+      if (code && tokenErrors[code]) {
+        setFieldErrors({ reset_token: "Código inválido o expirado" });
+        setError(tokenErrors[code]);
+        return;
+      }
+
+      let friendly = fallback;
+
+      if (
+        httpErr?.status === 422 &&
+        details &&
+        typeof details === "object" &&
+        !Array.isArray(details)
+      ) {
+        const nextFieldErrors: Record<string, string> = {};
+        Object.entries(details as Record<string, unknown>).forEach(([key, value]) => {
+          const messages = (Array.isArray(value) ? value : [value]).filter(
+            (message): message is string => typeof message === "string" && message.trim().length > 0
+          );
+          if (messages.length > 0) {
+            nextFieldErrors[key] = messages.map(translateValidationMessage).join(", ");
           }
+        });
+        if (Object.keys(nextFieldErrors).length > 0) {
+          setFieldErrors(nextFieldErrors);
         }
+        friendly =
+          formatValidationDetails(details as Record<string, string[] | string>) ?? fallback;
       }
 
-      if (Object.keys(nextFieldErrors).length) {
-        setFieldErrors(nextFieldErrors);
-      }
       setError(friendly);
     } finally {
       setLoading(false);
@@ -103,7 +114,7 @@ const ResetPasswordScreen: React.FC = () => {
         <Text style={styles.subtitle}>
           {success
             ? "Tu contraseña ha sido restablecida exitosamente."
-            : "Ingresa el token que recibiste por correo y tu nueva contraseña."}
+            : "Ingresa el código que recibiste por correo y tu nueva contraseña."}
         </Text>
       </View>
       <Card>
@@ -121,14 +132,14 @@ const ResetPasswordScreen: React.FC = () => {
         ) : (
           <View style={styles.form}>
             <TextField
-              label="Token de restablecimiento"
+              label="Código de recuperación"
               value={token}
               autoCapitalize="none"
               onChangeText={(text) => {
                 setToken(text);
                 setFieldErrors((prev) => ({ ...prev, reset_token: undefined }));
               }}
-              placeholder="Pega el token aquí"
+              placeholder="Pega el código aquí"
               editable={!loading}
               error={fieldErrors.reset_token}
             />
@@ -136,6 +147,7 @@ const ResetPasswordScreen: React.FC = () => {
               label="Nueva contraseña"
               value={password}
               secureTextEntry
+              secureToggle
               onChangeText={(text) => {
                 setPassword(text);
                 setFieldErrors((prev) => ({ ...prev, password: undefined }));
@@ -149,6 +161,7 @@ const ResetPasswordScreen: React.FC = () => {
               label="Confirmar nueva contraseña"
               value={confirmPassword}
               secureTextEntry
+              secureToggle
               onChangeText={(text) => {
                 setConfirmPassword(text);
                 setFieldErrors((prev) => ({ ...prev, password_confirmation: undefined }));
@@ -166,6 +179,13 @@ const ResetPasswordScreen: React.FC = () => {
               disabled={!canSubmit || loading}
               style={styles.submit}
             />
+            <Pressable
+              onPress={() => navigation.navigate("ForgotPassword", {})}
+              hitSlop={10}
+              style={styles.linkContainer}
+            >
+              <Text style={styles.linkText}>¿Necesitas un nuevo código? Solicítalo aquí</Text>
+            </Pressable>
             <Pressable
               onPress={() => navigation.navigate("Login")}
               hitSlop={10}
@@ -186,7 +206,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   subtitle: {
@@ -225,9 +245,8 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: theme.typography.small,
     color: theme.colors.primary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   }
 });
 
 export default ResetPasswordScreen;
-

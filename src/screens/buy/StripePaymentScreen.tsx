@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
-  Pressable,
   StyleSheet,
   Text,
   View
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { CardField, useStripe } from "@stripe/stripe-react-native";
 
@@ -24,15 +24,27 @@ import {
   isPaymentError,
   PaymentError
 } from "../../api/payments";
+import { giftCardApi } from "../../api/endpoints";
+import { HttpError } from "../../api/http";
+import { GiftCard } from "../../types/api";
+import CheckoutHeader from "./CheckoutHeader";
 
 type PaymentPhase = "input" | "processing" | "confirming" | "generating";
 
 const StripePaymentScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const queryClient = useQueryClient();
   const { confirmPayment } = useStripe();
   const { draft } = usePurchaseDraft();
 
   const [cardComplete, setCardComplete] = useState(false);
+  const [cardDetails, setCardDetails] = useState<{
+    complete: boolean;
+    brand?: string;
+    last4?: string;
+    expiryMonth?: number;
+    expiryYear?: number;
+  } | null>(null);
   const [phase, setPhase] = useState<PaymentPhase>("input");
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
@@ -60,6 +72,15 @@ const StripePaymentScreen: React.FC = () => {
     return () => subscription.remove();
   }, [phase]);
 
+  // BackHandler only covers Android hardware back; iOS swipe-back must be
+  // blocked via the navigator gesture while a payment is in flight.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: phase === "input" });
+    return () => {
+      navigation.setOptions({ gestureEnabled: true });
+    };
+  }, [navigation, phase]);
+
   const amountLabel = formatMoney(
     draft.amount_cents ? draft.amount_cents / 100 : null,
     draft.currency
@@ -74,8 +95,15 @@ const StripePaymentScreen: React.FC = () => {
     phase === "input";
 
   const handleCardChange = useCallback(
-    (cardDetails: { complete: boolean }) => {
-      setCardComplete(cardDetails.complete);
+    (details: {
+      complete: boolean;
+      brand?: string;
+      last4?: string;
+      expiryMonth?: number;
+      expiryYear?: number;
+    }) => {
+      setCardComplete(details.complete);
+      setCardDetails(details);
       // Clear error when user modifies card
       if (errorBanner) {
         setErrorBanner(null);
@@ -86,6 +114,12 @@ const StripePaymentScreen: React.FC = () => {
 
   const handlePay = async () => {
     if (!canPay) return;
+
+    // Double-check that card is complete before proceeding
+    if (!cardComplete || !cardDetails?.complete) {
+      setErrorBanner("Por favor completa todos los datos de la tarjeta.");
+      return;
+    }
 
     setErrorBanner(null);
     setPhase("processing");
@@ -133,13 +167,27 @@ const StripePaymentScreen: React.FC = () => {
     }
 
     // Step 2: Confirm payment with Stripe SDK
-    setPhase("confirming");
-
+    // CRITICAL: Keep phase as "processing" (don't change to "confirming") to ensure CardField stays mounted
+    // The CardField must remain in the render tree for confirmPayment to access card details
+    let paymentConfirmedAt = Date.now();
+    
     try {
       if (__DEV__) {
         console.log("[StripePayment] Confirming payment with Stripe SDK");
+        console.log("[StripePayment] Card details:", {
+          complete: cardDetails?.complete,
+          brand: cardDetails?.brand,
+          last4: cardDetails?.last4,
+          expiryMonth: cardDetails?.expiryMonth,
+          expiryYear: cardDetails?.expiryYear
+        });
       }
 
+      // Small delay to ensure CardField has fully synchronized card details with Stripe SDK
+      // This helps prevent "Card details not complete" errors that can occur due to timing issues
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // DO NOT change phase here - CardField must stay mounted for confirmPayment to work
       const { error: confirmError, paymentIntent } = await confirmPayment(clientSecret, {
         paymentMethodType: "Card"
       });
@@ -159,6 +207,7 @@ const StripePaymentScreen: React.FC = () => {
       if (__DEV__) {
         console.log("[StripePayment] Payment confirmed:", paymentIntent?.id);
       }
+      paymentConfirmedAt = Date.now();
     } catch (err) {
       if (__DEV__) {
         console.error("[StripePayment] Unexpected confirm error:", err);
@@ -172,15 +221,22 @@ const StripePaymentScreen: React.FC = () => {
     // Step 3: Payment succeeded, show "generating" state
     setPhase("generating");
 
-    // Wait briefly for webhook to process (backend creates gift card asynchronously)
-    // Then navigate to success screen
-    await waitForGiftCardGeneration(piId);
+    const merchantId = draft.merchant?.id;
+    const amountCents = draft.amount_cents ?? undefined;
+    const cardReady = await waitForGiftCardGeneration({
+      paymentIntentId: piId,
+      merchantId,
+      amountCents,
+      confirmedAt: paymentConfirmedAt
+    });
+    await queryClient.invalidateQueries({ queryKey: ["giftCards"] });
 
     navigation.navigate("PurchaseSuccess", {
       merchantName: draft.merchant?.name,
       amountLabel,
       recipientEmail: draft.recipient?.email,
-      paymentIntentId: piId
+      paymentIntentId: piId,
+      cardReady
     });
   };
 
@@ -190,22 +246,8 @@ const StripePaymentScreen: React.FC = () => {
   };
 
   // Render loading states
-  if (phase === "processing" || phase === "confirming") {
-    return (
-      <Screen scrollable centerContent>
-        <Card style={styles.loadingCard}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingTitle}>
-            {phase === "processing" ? "Preparando pago..." : "Procesando pago..."}
-          </Text>
-          <Text style={styles.loadingSubtitle}>
-            No cierres la aplicación
-          </Text>
-        </Card>
-      </Screen>
-    );
-  }
-
+  // NOTE: We only show full-screen loading for "generating" phase
+  // During "processing", we keep the form visible (with CardField mounted) but show overlay
   if (phase === "generating") {
     return (
       <Screen scrollable centerContent>
@@ -214,7 +256,7 @@ const StripePaymentScreen: React.FC = () => {
             <Feather name="check" size={32} color="#fff" />
           </View>
           <Text style={styles.loadingTitle}>Pago confirmado</Text>
-          <Text style={styles.loadingSubtitle}>Generando tu tarjeta...</Text>
+          <Text style={styles.loadingSubtitle}>Confirmando la creación de tu tarjeta...</Text>
           <ActivityIndicator
             size="small"
             color={theme.colors.primary}
@@ -225,24 +267,28 @@ const StripePaymentScreen: React.FC = () => {
     );
   }
 
+  // Show loading overlay during processing, but keep CardField mounted
+  const isProcessing = phase === "processing";
+
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={handleGoBack}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-
-      <Text style={styles.header}>Pago</Text>
-      <Text style={styles.subheader}>
-        Completa tu compra de forma segura con Stripe.
-      </Text>
+      {isProcessing && (
+        <View style={styles.processingOverlay}>
+          <Card style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingTitle}>Procesando pago...</Text>
+            <Text style={styles.loadingSubtitle}>
+              No cierres la aplicación
+            </Text>
+          </Card>
+        </View>
+      )}
+      <CheckoutHeader
+        step="payment"
+        title="Pago"
+        subtitle="Completa tu compra de forma segura con Stripe."
+        onBack={handleGoBack}
+      />
 
       {errorBanner ? (
         <Card style={[styles.sectionCard, styles.errorBanner]}>
@@ -293,6 +339,8 @@ const StripePaymentScreen: React.FC = () => {
           }}
           style={styles.cardField}
           onCardChange={handleCardChange}
+          // Keep CardField enabled but visually indicate processing
+          // It must stay mounted for confirmPayment to access card details
         />
 
         <View style={styles.stripeFooter}>
@@ -306,8 +354,8 @@ const StripePaymentScreen: React.FC = () => {
       <Button
         label={`Pagar ${amountLabel}`}
         onPress={handlePay}
-        disabled={!canPay}
-        style={[styles.payButton, !canPay && styles.payButtonDisabled]}
+        disabled={!canPay || isProcessing}
+        style={[styles.payButton, (!canPay || isProcessing) && styles.payButtonDisabled]}
       />
     </Screen>
   );
@@ -317,7 +365,7 @@ const StripePaymentScreen: React.FC = () => {
  * Maps Stripe SDK errors to user-friendly Spanish messages.
  */
 function mapStripeError(error: { code?: string; message?: string; declineCode?: string }): string {
-  const { code, declineCode } = error;
+  const { code, declineCode, message } = error;
 
   // Card declined errors
   if (code === "card_declined" || declineCode) {
@@ -336,6 +384,11 @@ function mapStripeError(error: { code?: string; message?: string; declineCode?: 
       default:
         return "Tu tarjeta fue rechazada. Verifica los datos o usa otra tarjeta.";
     }
+  }
+
+  // Card details not complete - specific handling
+  if (code === "Failed" || message?.toLowerCase().includes("card details not complete")) {
+    return "Los datos de la tarjeta no están completos. Por favor verifica que todos los campos estén llenos correctamente.";
   }
 
   // Other common errors
@@ -362,56 +415,99 @@ function mapStripeError(error: { code?: string; message?: string; declineCode?: 
 }
 
 /**
- * Waits for the gift card to be generated by the webhook.
- * Uses a simple delay since the backend creates the card asynchronously.
- *
- * TODO: If a status endpoint exists (e.g., GET /api/v1/gift_cards/by_payment_intent/:id),
- * implement polling here instead of a fixed delay.
+ * Polls for the gift card generated by the payment webhook.
+ * Returns false after a bounded wait so the user can continue even if webhook
+ * processing is still catching up.
  */
-async function waitForGiftCardGeneration(_paymentIntentId: string): Promise<void> {
-  // For now, wait 3 seconds to give webhook time to process
-  // The success screen will inform user that the card may take a moment to appear
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+async function waitForGiftCardGeneration(params: {
+  paymentIntentId: string;
+  merchantId?: string;
+  amountCents?: number;
+  confirmedAt: number;
+}): Promise<boolean> {
+  const maxAttempts = 10;
+  const pollIntervalMs = 1500;
 
-  // TODO: Implement polling when endpoint is available:
-  // const MAX_ATTEMPTS = 8;
-  // const POLL_INTERVAL = 1500;
-  // for (let i = 0; i < MAX_ATTEMPTS; i++) {
-  //   try {
-  //     const result = await giftCardApi.getByPaymentIntent(paymentIntentId);
-  //     if (result) return;
-  //   } catch {}
-  //   await new Promise((r) => setTimeout(r, POLL_INTERVAL));
-  // }
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const byPaymentIntent = await lookupGiftCardByPaymentIntent(params.paymentIntentId);
+    if (byPaymentIntent) return true;
+
+    const matchingWalletCard = await lookupMatchingWalletCard(params);
+    if (matchingWalletCard) return true;
+
+    if (attempt < maxAttempts - 1) {
+      await delay(pollIntervalMs);
+    }
+  }
+
+  return false;
+}
+
+async function lookupGiftCardByPaymentIntent(paymentIntentId: string): Promise<GiftCard | null> {
+  try {
+    const result = await giftCardApi.byPaymentIntent(paymentIntentId);
+    return extractGiftCard(result);
+  } catch (err) {
+    const status = (err as HttpError)?.status;
+    if (__DEV__ && status && status !== 404) {
+      console.log("[StripePayment] PaymentIntent gift card lookup pending:", status);
+    }
+    return null;
+  }
+}
+
+async function lookupMatchingWalletCard(params: {
+  merchantId?: string;
+  amountCents?: number;
+  confirmedAt: number;
+}): Promise<GiftCard | null> {
+  try {
+    const cards = await giftCardApi.list();
+    return findMatchingGiftCard(cards, params);
+  } catch (err) {
+    if (__DEV__) {
+      console.log("[StripePayment] Wallet polling pending:", (err as HttpError)?.status ?? err);
+    }
+    return null;
+  }
+}
+
+function extractGiftCard(
+  result: GiftCard | { gift_card?: GiftCard | null; status?: string } | null | undefined
+): GiftCard | null {
+  if (!result) return null;
+  if ("amount_cents" in result && "remaining_balance_cents" in result) return result;
+  return result.gift_card ?? null;
+}
+
+function findMatchingGiftCard(
+  cards: GiftCard[],
+  params: { merchantId?: string; amountCents?: number; confirmedAt: number }
+): GiftCard | null {
+  const earliestLikelyCreatedAt = params.confirmedAt - 60_000;
+  const matches = cards.filter((card) => {
+    const merchantMatches = params.merchantId ? card.merchant_id === params.merchantId : true;
+    const amountMatches = params.amountCents ? card.amount_cents === params.amountCents : true;
+    const createdOrUpdated = Date.parse(card.created_at ?? card.updated_at ?? "");
+    const isRecent = !Number.isNaN(createdOrUpdated) && createdOrUpdated >= earliestLikelyCreatedAt;
+    return merchantMatches && amountMatches && isRecent;
+  });
+
+  return matches.sort((a, b) => {
+    const aTime = Date.parse(a.created_at ?? a.updated_at ?? "");
+    const bTime = Date.parse(b.created_at ?? b.updated_at ?? "");
+    return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+  })[0] ?? null;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const styles = StyleSheet.create({
-  header: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
   sectionCard: {
     marginBottom: theme.spacing(1.5),
     gap: theme.spacing(1)
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
   },
   sectionHeader: {
     flexDirection: "row",
@@ -420,7 +516,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   sectionHint: {
@@ -449,11 +545,11 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   summaryValue: {
     color: theme.colors.text,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   cardField: {
     width: "100%",
@@ -495,7 +591,7 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     marginTop: theme.spacing(1)
   },
@@ -510,6 +606,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.success,
     alignItems: "center",
     justifyContent: "center"
+  },
+  processingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    zIndex: 1000,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing(2)
   }
 });
 

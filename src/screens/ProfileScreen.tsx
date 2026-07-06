@@ -22,8 +22,7 @@ import TopNavBar from "../ui/components/TopNavBar";
 import { theme } from "../ui/theme";
 import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
-import { API_BASE_URL } from "../config/env";
-import { getLastRequestId, HttpError } from "../api/http";
+import { HttpError } from "../api/http";
 import { ProfileStackParamList } from "../navigation";
 
 const avatarPlaceholder = require("../../assets/avatar-default.png");
@@ -60,7 +59,6 @@ const ProfileScreen: React.FC = () => {
     setAvatarLoadError(false);
   }, [data?.avatar_thumb_url, data?.avatar_url]);
 
-  const requestId = useMemo(() => getLastRequestId(), [data]);
   const avatarSource = useMemo(() => {
     // If there was a load error, use placeholder
     if (avatarLoadError) {
@@ -309,13 +307,19 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.error}>No pudimos cargar el perfil.</Text>
             {__DEV__ && (() => {
               const httpError = error as unknown as HttpError;
-              const errorMessage = 
-                httpError?.error?.message || 
-                httpError?.error?.code || 
-                (typeof httpError?.raw === 'string' ? httpError.raw : 
-                 httpError?.raw?.message || 
-                 JSON.stringify(httpError?.raw)?.slice(0, 200) ||
-                 (error instanceof Error ? error.message : "Unknown error"));
+              const raw = httpError?.raw;
+              const rawObj =
+                raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+              const rawMessage =
+                rawObj && typeof rawObj.message === "string" ? rawObj.message : null;
+              const errorMessage =
+                httpError?.error?.message ||
+                httpError?.error?.code ||
+                (typeof raw === "string"
+                  ? raw
+                  : rawMessage ||
+                    (rawObj ? JSON.stringify(rawObj).slice(0, 200) : null) ||
+                    (error instanceof Error ? error.message : "Unknown error"));
               const status = httpError?.status;
               return (
                 <View style={styles.errorDetails}>
@@ -324,9 +328,9 @@ const ProfileScreen: React.FC = () => {
                   {httpError?.requestId && (
                     <Text style={styles.errorDetail}>Request ID: {httpError.requestId}</Text>
                   )}
-                  {httpError?.raw && typeof httpError.raw === 'object' && (
+                  {rawObj && (
                     <Text style={styles.errorDetail}>
-                      Raw: {JSON.stringify(httpError.raw).slice(0, 300)}
+                      Raw: {JSON.stringify(rawObj).slice(0, 300)}
                     </Text>
                   )}
                 </View>
@@ -356,11 +360,6 @@ const ProfileScreen: React.FC = () => {
         <Button label="Ir a Ayuda" onPress={() => navigation.navigate("Help")} />
       </Card>
 
-      <Card style={styles.meta}>
-        <Text style={styles.sectionTitle}>Información de la app</Text>
-        <Text style={styles.muted}>URL base de la API: {API_BASE_URL}</Text>
-        {requestId ? <Text style={styles.muted}>ID de la última solicitud: {requestId}</Text> : null}
-      </Card>
     </Screen>
   );
 };
@@ -368,7 +367,7 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     marginBottom: theme.spacing(1)
   },
   headerRow: {
@@ -418,7 +417,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   muted: {
@@ -426,7 +425,7 @@ const styles = StyleSheet.create({
   },
   tag: {
     color: theme.colors.secondary,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   changePhotoButton: {
     marginTop: theme.spacing(0.5),
@@ -460,10 +459,8 @@ const styles = StyleSheet.create({
   errorDetail: {
     color: theme.colors.danger,
     fontSize: theme.typography.small,
-    fontFamily: "monospace"
-  },
-  meta: {
-    marginTop: theme.spacing(1.5)
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.2
   },
   sectionTitleRow: {
     flexDirection: "row",
@@ -473,9 +470,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.body,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   }
 });
 
 export default ProfileScreen;
-

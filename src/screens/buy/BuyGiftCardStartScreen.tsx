@@ -1,13 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
@@ -16,60 +15,26 @@ import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
 import TextField from "../../ui/components/TextField";
+import { SkeletonBlock } from "../../ui/components/StateViews";
 import { theme } from "../../ui/theme";
-import { giftCardApi, merchantsApi } from "../../api/endpoints";
-import { GiftCard, Merchant } from "../../types/api";
+import { merchantsApi } from "../../api/endpoints";
+import { Merchant } from "../../types/api";
 import { formatMoney } from "../../utils/money";
+import {
+  GIFT_CARD_MAX_AMOUNT_USD as MAX_AMOUNT,
+  GIFT_CARD_MIN_AMOUNT_USD as MIN_AMOUNT
+} from "../../domain/purchase/giftCardAmountLimits";
 import { usePurchaseDraft, MerchantSelection } from "../../domain/purchase/purchaseDraftStore";
 import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
+import CheckoutHeader from "./CheckoutHeader";
 
-type MerchantOption = MerchantSelection & { id: string; isDemo?: boolean };
+type MerchantOption = MerchantSelection & { id: string };
+type BuyGiftCardStartRoute = RouteProp<HomeStackParamList, "BuyGiftCardStart">;
 
 const merchantPlaceholder = require("../../../assets/merchant-default.png");
 
 const presetAmounts = [30, 50, 60, 100, 150, 200];
-const MIN_AMOUNT = 5;
-const MAX_AMOUNT = 500;
-
-const deriveMerchantLabel = (card: GiftCard) => {
-  const candidates = [
-    (card as any)?.merchant_store_name,
-    (card as any)?.store_name,
-    (card as any)?.storeName,
-    (card as any)?.merchant_name,
-    (card as any)?.merchantName,
-    card.name,
-    (card as any)?.label,
-    card.store?.name,
-    card.merchant?.name
-  ];
-  const label = candidates.find((val) => typeof val === "string" && val.trim().length > 0);
-  if (label) return label.trim();
-  if (card.merchant_id) return `Comercio #${card.merchant_id}`;
-  return "Comercio";
-};
-
-const buildMerchantOptions = (giftCards?: GiftCard[]): MerchantOption[] => {
-  if (!giftCards || giftCards.length === 0) return [];
-  const map = new Map<string, MerchantOption>();
-  giftCards.forEach((card) => {
-    const key = card.merchant_id ? `merchant-${card.merchant_id}` : `name-${deriveMerchantLabel(card)}`;
-    if (map.has(key)) return;
-    map.set(key, {
-      id: key,
-      name: deriveMerchantLabel(card),
-      logoUrl: (card as any)?.merchant_logo_url ?? (card as any)?.merchantLogoUrl ?? null
-    });
-  });
-  return Array.from(map.values());
-};
-
-const fallbackMerchants: MerchantOption[] = [
-  { id: "demo-1", name: "Demo Mercado Central", isDemo: true },
-  { id: "demo-2", name: "Demo Café & Panadería", isDemo: true },
-  { id: "demo-3", name: "Demo Tienda de esenciales", isDemo: true }
-];
 
 const AmountChip: React.FC<{
   label: string;
@@ -106,51 +71,61 @@ const MerchantCard: React.FC<{
       accessibilityRole="button"
       accessibilityState={{ selected }}
     >
-      <View style={styles.merchantAvatar}>
+      <View style={styles.merchantLogoContainer}>
         <Image source={logoSource} style={styles.merchantImage} />
         {!hasLogo ? <Text style={styles.merchantInitial}>{initial}</Text> : null}
       </View>
       <View style={styles.merchantText}>
         <Text style={styles.merchantName}>{merchant.name}</Text>
-        {merchant.isDemo ? <Text style={styles.merchantDemo}>Demo merchant</Text> : null}
       </View>
       {selected ? <Feather name="check-circle" size={20} color={theme.colors.secondary} /> : null}
     </Pressable>
   );
 };
 
+const MerchantListSkeleton: React.FC = () => (
+  <View style={styles.merchantListWrap}>
+    {Array.from({ length: 4 }).map((_, index) => (
+      <View key={`merchant-skeleton-${index}`} style={styles.merchantRow}>
+        <SkeletonBlock width={64} height={42} radius={12} />
+        <View style={styles.merchantText}>
+          <SkeletonBlock width="68%" height={18} radius={9} />
+        </View>
+      </View>
+    ))}
+  </View>
+);
+
 const BuyGiftCardStartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const route = useRoute<BuyGiftCardStartRoute>();
   const { accessToken } = useAuth();
   const { draft, setMerchant, setAmount } = usePurchaseDraft();
   const isQueryEnabled = !!accessToken;
-  const { data: giftCards, isLoading } = useQuery({
-    queryKey: ["giftCards"],
-    queryFn: giftCardApi.list,
-    enabled: isQueryEnabled
-  });
-  const { data: merchants, isLoading: isLoadingMerchants } = useQuery<Merchant[]>({
+  const requestedMerchantId = route.params?.merchantId?.toString() ?? null;
+  const appliedMerchantParamRef = useRef<string | null>(null);
+  const {
+    data: merchants,
+    isLoading: isLoadingMerchants,
+    isRefetching: isRefetchingMerchants,
+    refetch: refetchMerchants
+  } = useQuery<Merchant[]>({
     queryKey: ["merchants"],
     queryFn: merchantsApi.list,
     enabled: isQueryEnabled
   });
 
   const merchantOptions = useMemo(() => {
-    // First, try to use merchants from API
-    if (merchants && merchants.length > 0) {
-      return merchants.map((merchant) => ({
-        id: merchant.id?.toString() ?? `merchant-${merchant.name}`,
-        name: merchant.store_name || merchant.name,
-        logoUrl: merchant.logo_url ?? null
-      }));
-    }
-    // Fallback to merchants derived from gift cards
-    const derived = buildMerchantOptions(giftCards);
-    return derived.length > 0 ? derived : fallbackMerchants;
-  }, [merchants, giftCards]);
+    if (!merchants?.length) return [];
+    return merchants.map((merchant) => ({
+      id: merchant.id?.toString() ?? `merchant-${merchant.name}`,
+      name: merchant.store_name || merchant.name,
+      logoUrl: merchant.logo_url ?? null
+    }));
+  }, [merchants]);
 
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(
-    draft.merchant?.id ?? null
+    requestedMerchantId ?? draft.merchant?.id ?? null
   );
   const [selectedAmount, setSelectedAmount] = useState<number | null>(
     draft.amount_cents ? draft.amount_cents / 100 : null
@@ -163,12 +138,37 @@ const BuyGiftCardStartScreen: React.FC = () => {
   );
 
   const selectedMerchant = merchantOptions.find((m) => m.id === selectedMerchantId) ?? null;
+  const requestedMerchantExists = requestedMerchantId
+    ? merchantOptions.some((merchant) => merchant.id === requestedMerchantId)
+    : false;
+  const requestedMerchantMissing = Boolean(
+    requestedMerchantId && merchantOptions.length > 0 && !requestedMerchantExists
+  );
 
   useEffect(() => {
-    if (!selectedMerchantId && merchantOptions.length > 0) {
+    if (merchantOptions.length === 0) {
+      if (selectedMerchantId) setSelectedMerchantId(null);
+      return;
+    }
+
+    if (requestedMerchantId && appliedMerchantParamRef.current !== requestedMerchantId) {
+      appliedMerchantParamRef.current = requestedMerchantId;
+      setSelectedMerchantId(requestedMerchantExists ? requestedMerchantId : null);
+      return;
+    }
+
+    const selectedStillExists = merchantOptions.some((merchant) => merchant.id === selectedMerchantId);
+    if (!selectedMerchantId || !selectedStillExists) {
+      if (requestedMerchantMissing) return;
       setSelectedMerchantId(merchantOptions[0]?.id ?? null);
     }
-  }, [merchantOptions, selectedMerchantId]);
+  }, [
+    merchantOptions,
+    requestedMerchantExists,
+    requestedMerchantId,
+    requestedMerchantMissing,
+    selectedMerchantId
+  ]);
 
   const parsedCustomAmount = Number.parseFloat(customAmount.replace(/,/g, "."));
   const amountValue = useCustomAmount ? parsedCustomAmount : selectedAmount ?? null;
@@ -182,8 +182,8 @@ const BuyGiftCardStartScreen: React.FC = () => {
   const amountLabel = formatMoney(amountCents ? amountCents / 100 : null, draft.currency);
 
   const canContinue = Boolean(selectedMerchant && amountValid);
-  const isDerivedMerchantsAvailable = Boolean(giftCards && giftCards.length > 0);
-  const isMerchantBusy = isLoadingMerchants || isLoading;
+  const isMerchantBusy = isLoadingMerchants || isRefetchingMerchants;
+  const hasMerchantOptions = merchantOptions.length > 0;
 
   const handleContinue = () => {
     if (!selectedMerchant || !amountCents || !canContinue) return;
@@ -198,47 +198,65 @@ const BuyGiftCardStartScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-      <Text style={styles.header}>Compra una tarjeta de regalo</Text>
-      <Text style={styles.subheader}>
-        Selecciona el comercio y el monto. Podrás añadir destinatario y pagar en el siguiente paso.
-      </Text>
+      <CheckoutHeader
+        step="merchant"
+        title="Compra una tarjeta de regalo"
+        subtitle="Selecciona el comercio y el monto para empezar tu compra."
+        onBack={() => navigation.goBack()}
+        showSummary={false}
+      />
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Comercio</Text>
           <Text style={styles.sectionHint}>
-            {merchants && merchants.length > 0
+            {isMerchantBusy
+              ? "Cargando..."
+              : hasMerchantOptions
               ? `${merchantOptions.length} comercios disponibles`
-              : isDerivedMerchantsAvailable
-              ? "Tomado de tus tarjetas de regalo"
-              : "Comercios demo (hasta que exista el endpoint)"}
+              : "Sin comercios disponibles"}
           </Text>
         </View>
         {isMerchantBusy ? (
-          <Text style={styles.muted}>Cargando comercios...</Text>
+          <MerchantListSkeleton />
+        ) : hasMerchantOptions ? (
+          <View style={styles.merchantListWrap}>
+            {requestedMerchantMissing ? (
+              <View style={styles.merchantWarning}>
+                <Feather name="alert-circle" size={18} color={theme.colors.secondary} />
+                <Text style={styles.merchantWarningText}>
+                  No encontramos el comercio seleccionado. Puedes elegir otro comercio disponible.
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.merchantList}>
+              {merchantOptions.map((item, index) => (
+                <React.Fragment key={item.id}>
+                  {index > 0 && <View style={{ height: theme.spacing(1) }} />}
+                  <MerchantCard
+                    merchant={item}
+                    selected={item.id === selectedMerchantId}
+                    onPress={() => setSelectedMerchantId(item.id)}
+                  />
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
         ) : (
-          <View style={styles.merchantList}>
-            {merchantOptions.map((item, index) => (
-              <React.Fragment key={item.id}>
-                {index > 0 && <View style={{ height: theme.spacing(1) }} />}
-                <MerchantCard
-                  merchant={item}
-                  selected={item.id === selectedMerchantId}
-                  onPress={() => setSelectedMerchantId(item.id)}
-                />
-              </React.Fragment>
-            ))}
+          <View style={styles.emptyMerchantState}>
+            <Feather name="shopping-bag" size={28} color={theme.colors.muted} />
+            <Text style={styles.emptyMerchantTitle}>No hay comercios disponibles</Text>
+            <Text style={styles.emptyMerchantText}>
+              Intenta de nuevo en unos minutos para continuar con tu compra.
+            </Text>
+            <Button
+              label="Reintentar"
+              variant="ghost"
+              onPress={() => {
+                void refetchMerchants();
+              }}
+              style={styles.retryButton}
+            />
           </View>
         )}
       </Card>
@@ -306,35 +324,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  header: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
   muted: {
     color: theme.colors.muted
   },
   sectionCard: {
     marginBottom: theme.spacing(1.5),
     gap: theme.spacing(1)
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
   },
   sectionHeader: {
     flexDirection: "row",
@@ -343,7 +338,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   sectionHint: {
@@ -364,41 +359,77 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: "#FFF7E6"
   },
-  merchantAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  merchantLogoContainer: {
+    width: 64,
+    height: 42,
+    borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#EEF2F3",
+    backgroundColor: "#F8FAFB",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing(0.9),
+    paddingVertical: theme.spacing(0.55)
   },
   merchantImage: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover"
+    resizeMode: "contain"
   },
   merchantInitial: {
     position: "absolute",
     color: theme.colors.secondary,
-    fontWeight: "800"
+    fontFamily: theme.fonts.extraBold
   },
   merchantText: {
     flex: 1
   },
   merchantName: {
     color: theme.colors.text,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.body
-  },
-  merchantDemo: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.small
   },
   merchantList: {
     gap: 0 // Spacing handled by separators in the map
+  },
+  merchantListWrap: {
+    gap: theme.spacing(1)
+  },
+  merchantWarning: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacing(0.75),
+    padding: theme.spacing(1.2),
+    borderRadius: theme.radius.md,
+    backgroundColor: "#FFF7E6",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(252, 165, 15, 0.55)"
+  },
+  merchantWarningText: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.typography.small,
+    lineHeight: 18
+  },
+  emptyMerchantState: {
+    alignItems: "center",
+    gap: theme.spacing(0.75),
+    paddingVertical: theme.spacing(2)
+  },
+  emptyMerchantTitle: {
+    color: theme.colors.text,
+    fontFamily: theme.fonts.bold,
+    fontSize: theme.typography.body,
+    textAlign: "center"
+  },
+  emptyMerchantText: {
+    color: theme.colors.muted,
+    textAlign: "center",
+    lineHeight: 20
+  },
+  retryButton: {
+    marginTop: theme.spacing(0.75)
   },
   amountGrid: {
     flexDirection: "row",
@@ -420,7 +451,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary
   },
   amountChipLabel: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
   amountChipLabelSelected: {
@@ -442,11 +473,11 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   summaryValue: {
     color: theme.colors.text,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     fontSize: theme.typography.subheading
   },
   continueButton: {
@@ -457,4 +488,3 @@ const styles = StyleSheet.create({
 });
 
 export default BuyGiftCardStartScreen;
-

@@ -22,6 +22,8 @@ export type User = {
   role?: string;
   avatar_url?: string | null;
   avatar_thumb_url?: string | null;
+  interests?: string[];
+  preferred_channel?: "whatsapp" | "sms";
 };
 
 export type GiftCardSender = {
@@ -56,6 +58,9 @@ export type GiftCard = {
   note?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  /** ISO timestamp. If present AND in the future, the card is on a
+   *  security hold and not yet redeemable. Cleared when the hold expires. */
+  held_until?: string | null;
 };
 
 export type RedemptionToken = {
@@ -72,8 +77,31 @@ export type Merchant = {
   contact_email?: string | null;
   address?: string | null;
   categories?: string[];
+  brandColor?: string | null;
+  brand_color?: string | null;
+  amountPresets?: number[] | null;
+  amount_presets?: number[] | null;
+  locationsCount?: number | null;
+  locations_count?: number | null;
+  isNational?: boolean | null;
+  is_national?: boolean | null;
+  coverageText?: string | null;
+  coverage_text?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+/**
+ * Details payload of the 409 `auth.claim_verification_required` error
+ * returned by POST /api/v1/auth/signup when the email/phone matches a
+ * pending recipient account (gift cards waiting to be claimed).
+ */
+export type ClaimVerificationDetails = {
+  channels?: string[];
+  masked_email?: string | null;
+  masked_phone?: string | null;
+  /** Present when a code was sent recently; seconds until a resend is allowed. */
+  retry_in_seconds?: number;
 };
 
 export type ApiError = {
@@ -86,4 +114,3 @@ export type ApiEnvelope<T> = {
   data: T;
   request_id: string;
 };
-

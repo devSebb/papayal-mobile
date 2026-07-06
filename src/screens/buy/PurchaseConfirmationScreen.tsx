@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -13,6 +12,8 @@ import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { formatMoney } from "../../utils/money";
 import { checkoutApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
+import { formatValidationDetails } from "../../utils/formErrors";
+import CheckoutHeader from "./CheckoutHeader";
 
 const PurchaseConfirmationScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -32,20 +33,11 @@ const PurchaseConfirmationScreen: React.FC = () => {
 
   const friendlyError = (err: HttpError) => {
     const details = err?.error?.details;
-    if (typeof details === "string") return details;
-    if (Array.isArray(details)) return details.filter(Boolean).join(", ");
-    if (typeof details === "object" && details) {
-      const parts = Object.entries(details as Record<string, unknown>)
-        .map(([key, value]) => {
-          if (!value) return null;
-          if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
-          return `${key}: ${String(value)}`;
-        })
-        .filter(Boolean)
-        .join(" ");
-      if (parts) return parts;
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+      const translated = formatValidationDetails(details as Record<string, string[] | string>);
+      if (translated) return translated;
     }
-    return err?.error?.message ?? "No pudimos validar tus datos. Inténtalo de nuevo.";
+    return "No pudimos validar tus datos. Inténtalo de nuevo.";
   };
 
   const handleContinue = async () => {
@@ -72,19 +64,12 @@ const PurchaseConfirmationScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
-      </View>
-      <Text style={styles.header}>Confirma tu compra</Text>
-      <Text style={styles.subheader}>Revisa los datos antes de ir al pago.</Text>
+      <CheckoutHeader
+        step="confirm"
+        title="Confirma tu compra"
+        subtitle="Revisa los datos antes de continuar al pago."
+        onBack={() => navigation.goBack()}
+      />
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
@@ -114,8 +99,8 @@ const PurchaseConfirmationScreen: React.FC = () => {
       <Card style={styles.hintCard}>
         <Text style={styles.hintTitle}>Tarifas y entrega</Text>
         <Text style={styles.hintBody}>
-          Aún no aplicamos comisiones. La entrega al destinatario se activará cuando completemos el
-          endpoint de pago del backend.
+          Aún no aplicamos comisiones. Después de confirmar el pago, enviaremos la tarjeta al
+          destinatario y también aparecerá en tu billetera.
         </Text>
       </Card>
 
@@ -137,29 +122,6 @@ const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
 );
 
 const styles = StyleSheet.create({
-  header: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: theme.colors.text
-  },
-  subheader: {
-    color: theme.colors.muted,
-    marginTop: theme.spacing(0.5),
-    marginBottom: theme.spacing(1.5)
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  },
   sectionCard: {
     gap: theme.spacing(1),
     marginBottom: theme.spacing(1.5)
@@ -171,12 +133,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   link: {
     color: theme.colors.secondary,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   row: {
     flexDirection: "row",
@@ -185,11 +147,11 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   rowValue: {
     color: theme.colors.text,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     maxWidth: "65%"
   },
   hintCard: {
@@ -199,7 +161,7 @@ const styles = StyleSheet.create({
   },
   hintTitle: {
     color: theme.colors.secondary,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   hintBody: {
     color: theme.colors.text,
@@ -212,4 +174,3 @@ const styles = StyleSheet.create({
 });
 
 export default PurchaseConfirmationScreen;
-

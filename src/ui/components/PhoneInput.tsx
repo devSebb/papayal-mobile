@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { parsePhoneNumber, getCountryCallingCode, CountryCode } from "libphonenumber-js";
@@ -32,6 +32,16 @@ const PhoneInput: React.FC<PhoneInputProps> = ({
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
+  // Store latest callback refs to avoid stale closures
+  const onChangeE164Ref = useRef(onChangeE164);
+  const onValidChangeRef = useRef(onValidChange);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onChangeE164Ref.current = onChangeE164;
+    onValidChangeRef.current = onValidChange;
+  }, [onChangeE164, onValidChange]);
+
   // Initialize from E.164 value
   useEffect(() => {
     if (valueE164) {
@@ -59,11 +69,11 @@ const PhoneInput: React.FC<PhoneInputProps> = ({
     return phoneE164 !== null;
   }, [nationalValue, phoneE164, required]);
 
-  // Notify parent of changes
+  // Notify parent of changes (callbacks removed from deps to prevent infinite loop)
   useEffect(() => {
-    onChangeE164?.(phoneE164 || null);
-    onValidChange?.(isValid);
-  }, [phoneE164, isValid, onChangeE164, onValidChange]);
+    onChangeE164Ref.current?.(phoneE164 || null);
+    onValidChangeRef.current?.(isValid);
+  }, [phoneE164, isValid]);
 
   const handleNationalChange = (text: string) => {
     // If pasted value starts with +, try to parse it
@@ -246,8 +256,7 @@ const styles = StyleSheet.create({
   callingCode: {
     fontSize: theme.typography.body,
     color: theme.colors.text,
-    fontFamily: theme.fonts.regular,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   divider: {
     width: 1,

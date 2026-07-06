@@ -1,17 +1,25 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
+import { AppState } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Device from "expo-device";
 
-import { authApi } from "../api/endpoints";
+import { authApi, meApi, pushTokenApi } from "../api/endpoints";
 import { configureHttpAuth, HttpError } from "../api/http";
 import { AuthTokens } from "../types/api";
 import { queryClient } from "../query/queryClient";
+import { unregisterPushToken } from "../notifications/register";
 
 type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
   hydrated: boolean;
   authLoading: boolean;
+  /**
+   * True when hydration found a stored refresh token but couldn't exchange it
+   * because the device was offline. While set, the app runs as guest and a
+   * background loop retries the refresh (on foreground + with backoff).
+   */
+  hydrationPendingOffline: boolean;
 };
 
 type AuthContextValue = AuthState & {
@@ -23,9 +31,12 @@ type AuthContextValue = AuthState & {
     password: string;
     password_confirmation: string;
     phone: string;
+    interests?: string[];
+    claim_otp?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
   refreshTokens: () => Promise<string | null>;
   hydrateFromStorage: () => Promise<void>;
 };
@@ -34,7 +45,8 @@ type Action =
   | { type: "SET_TOKENS"; payload: { accessToken: string; refreshToken: string } }
   | { type: "CLEAR" }
   | { type: "HYDRATED" }
-  | { type: "SET_LOADING"; payload: boolean };
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_OFFLINE_PENDING"; payload: boolean };
 
 const REFRESH_TOKEN_KEY = "papayal_refresh_token";
 
@@ -42,7 +54,8 @@ const initialState: AuthState = {
   accessToken: null,
   refreshToken: null,
   hydrated: false,
-  authLoading: false
+  authLoading: false,
+  hydrationPendingOffline: false
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -53,10 +66,13 @@ const reducer = (state: AuthState, action: Action): AuthState => {
       return {
         ...state,
         accessToken: action.payload.accessToken,
-        refreshToken: action.payload.refreshToken
+        refreshToken: action.payload.refreshToken,
+        hydrationPendingOffline: false
       };
     case "CLEAR":
       return { ...state, accessToken: null, refreshToken: null };
+    case "SET_OFFLINE_PENDING":
+      return { ...state, hydrationPendingOffline: action.payload };
     case "HYDRATED":
       return { ...state, hydrated: true };
     case "SET_LOADING":
@@ -170,6 +186,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshTokenRef.current = null;
     accessTokenRef.current = null;
     dispatch({ type: "CLEAR" });
+    // A real logout/auth failure also cancels any pending offline re-hydration.
+    dispatch({ type: "SET_OFFLINE_PENDING", payload: false });
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     clearUserQueryCache();
   }, []);
@@ -186,12 +204,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // - If network error, preserve the token (user might be offline but token is valid)
         // - If auth error (401/403, token invalid/expired), clear auth
         if (isNetworkError(err)) {
-          // Network error: keep token in storage, but clear memory state
-          // User will need to retry when online
-          // We don't call clearAuth() to preserve the stored refresh token
+          // Network error: keep token in storage, but clear memory state.
+          // We don't call clearAuth() to preserve the stored refresh token.
+          // Mark hydration as pending so the retry loop below upgrades the
+          // session silently once connectivity returns — no restart needed.
           refreshTokenRef.current = null;
           accessTokenRef.current = null;
           dispatch({ type: "CLEAR" });
+          dispatch({ type: "SET_OFFLINE_PENDING", payload: true });
         } else if (isAuthInvalidError(err)) {
           // Auth error: token is invalid/expired, clear everything
           await clearAuth();
@@ -236,6 +256,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password: string;
       password_confirmation: string;
       phone: string;
+      interests?: string[];
+      claim_otp?: string;
     }) => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
@@ -251,6 +273,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
+      await unregisterPushToken((t) => pushTokenApi.unregister(t));
+    } catch {
+      // best effort — don't block logout
+    }
+    try {
       const token = refreshTokenRef.current;
       if (token) {
         await authApi.logout(token);
@@ -264,6 +291,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logoutAll = useCallback(async () => {
     try {
+      await unregisterPushToken((t) => pushTokenApi.unregister(t));
+    } catch {
+      // best effort — don't block logout
+    }
+    try {
       await authApi.logoutAll();
     } catch {
       // ignore remote failure
@@ -271,6 +303,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await clearAuth();
     }
   }, [clearAuth]);
+
+  // Account deletion. Unlike logout, the API call must succeed before we
+  // wipe local state — if it fails (wrong password, merchant account,
+  // network), we re-throw so the calling screen can show an inline error
+  // and keep the user signed in. On success we run the same cleanup as
+  // logout: revoke push token, clear secure storage, dump query cache.
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      // Server-side deletion. Throws HttpError on failure; do NOT swallow.
+      await meApi.destroy(password);
+
+      // From here the account is gone. Best-effort cleanup of local state.
+      try {
+        await unregisterPushToken((t) => pushTokenApi.unregister(t));
+      } catch {
+        // push token row was already destroyed by the server; tolerate 4xx
+      }
+      await clearAuth();
+    },
+    [clearAuth]
+  );
+
+  // Offline cold-start recovery: while hydrationPendingOffline is set, retry
+  // the refresh when the app foregrounds and on a backoff interval. The effect
+  // tears itself down (listener + timer) when the flag flips off — which
+  // happens on success (SET_TOKENS), on login, and on clearAuth/logout.
+  useEffect(() => {
+    if (!state.hydrationPendingOffline) return;
+
+    let cancelled = false;
+    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const INITIAL_DELAY_MS = 5000;
+    const MAX_DELAY_MS = 60000;
+    let delayMs = INITIAL_DELAY_MS;
+
+    const schedule = () => {
+      if (cancelled) return;
+      timer = setTimeout(attempt, delayMs);
+      delayMs = Math.min(delayMs * 2, MAX_DELAY_MS);
+    };
+
+    const attempt = async () => {
+      if (cancelled || inFlight) return;
+      // Session already established by an explicit login — stop retrying.
+      if (accessTokenRef.current) {
+        dispatch({ type: "SET_OFFLINE_PENDING", payload: false });
+        return;
+      }
+      inFlight = true;
+      try {
+        const storedRefresh = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+        if (cancelled) return;
+        if (!storedRefresh) {
+          // Token gone (logged out elsewhere) — nothing to recover.
+          dispatch({ type: "SET_OFFLINE_PENDING", payload: false });
+          return;
+        }
+        const tokens = await authApi.refresh(storedRefresh);
+        if (cancelled) return;
+        await setTokens(tokens); // SET_TOKENS also clears the pending flag
+        if (__DEV__) console.log("[auth] offline hydration recovered");
+      } catch (err) {
+        if (cancelled) return;
+        if (isNetworkError(err)) {
+          schedule();
+        } else {
+          // Auth rejection (or unknown): the stored token is unusable.
+          await clearAuth();
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && !cancelled) {
+        // Foreground is the strongest connectivity signal: retry now and
+        // reset the backoff.
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        delayMs = INITIAL_DELAY_MS;
+        attempt();
+      }
+    });
+
+    schedule();
+
+    return () => {
+      cancelled = true;
+      subscription.remove();
+      if (timer) clearTimeout(timer);
+    };
+  }, [state.hydrationPendingOffline, clearAuth, setTokens]);
 
   useEffect(() => {
     configureHttpAuth({
@@ -291,10 +419,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signup,
       logout,
       logoutAll,
+      deleteAccount,
       refreshTokens,
       hydrateFromStorage
     }),
-    [hydrateFromStorage, login, logout, logoutAll, refreshTokens, signup, state]
+    [deleteAccount, hydrateFromStorage, login, logout, logoutAll, refreshTokens, signup, state]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

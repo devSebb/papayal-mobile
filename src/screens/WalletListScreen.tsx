@@ -1,17 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
+import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
-import Button from "../ui/components/Button";
 import TopNavBar from "../ui/components/TopNavBar";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi } from "../api/endpoints";
-import { WalletStackParamList } from "../navigation";
+import { AppTabsParamList, WalletStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import { centsToDollars, formatMoney } from "../utils/money";
 import { mapGiftCardVM } from "../domain/wallet/mapGiftCardVM";
@@ -20,7 +22,96 @@ import { buildActivityFeed } from "../domain/wallet/buildActivityFeed";
 import { ActivityItem, GiftCardVM, TabKey } from "../domain/wallet/types";
 import { GiftCard } from "../types/api";
 
-const merchantPlaceholder = require("../../assets/merchant-default.png");
+const walletDecorationImage = require("../../assets/wallet-decoration.png");
+
+const WALLET_CARD_BG = "#F5EEDC";
+const WALLET_HEADING = "#2D3E50";
+
+/** Same top/bottom inset so "Total Disponible" and "Tarjetas Activas" align across columns */
+const WALLET_SUMMARY_PAD_V = theme.spacing(1.5);
+const WALLET_SUMMARY_LABEL_VALUE_GAP = theme.spacing(0.75);
+
+const SUMMARY_L_STROKE = 2.5;
+const SUMMARY_L_RADIUS = 14;
+
+const SummaryLeftWithGradientBorder: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const idBase = useId().replace(/:/g, "");
+  const gradVertical = `${idBase}-sv`;
+  const gradHorizontal = `${idBase}-sh`;
+
+  const paths = useMemo(() => {
+    const { w, h } = box;
+    if (w <= 0 || h <= 0) return { vertical: "", bottom: "" };
+    const s = SUMMARY_L_STROKE / 2;
+    const r = SUMMARY_L_RADIUS;
+    const x = w - s;
+    const y = h - s;
+    const vertical = `M ${x} 0 L ${x} ${y - r}`;
+    const bottom = `M ${x} ${y - r} A ${r} ${r} 0 0 1 ${w - r - s} ${y} L 0 ${y}`;
+    return { vertical, bottom };
+  }, [box]);
+
+  return (
+    <View
+      style={styles.summaryLeftOuter}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox({ w: width, h: height });
+      }}
+    >
+      {box.w > 0 && box.h > 0 ? (
+        <Svg
+          width={box.w}
+          height={box.h}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
+          <Defs>
+            <LinearGradient
+              id={gradVertical}
+              x1="0%"
+              y1="0%"
+              x2="0%"
+              y2="100%"
+              gradientUnits="objectBoundingBox"
+            >
+              <Stop offset="0%" stopColor={theme.colors.background} />
+              <Stop offset="100%" stopColor={theme.colors.primary} />
+            </LinearGradient>
+            <LinearGradient
+              id={gradHorizontal}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="0%"
+              gradientUnits="objectBoundingBox"
+            >
+              <Stop offset="0%" stopColor={theme.colors.background} />
+              <Stop offset="100%" stopColor={theme.colors.primary} />
+            </LinearGradient>
+          </Defs>
+          <Path
+            d={paths.vertical}
+            stroke={`url(#${gradVertical})`}
+            strokeWidth={SUMMARY_L_STROKE}
+            fill="none"
+            strokeLinecap="round"
+          />
+          <Path
+            d={paths.bottom}
+            stroke={`url(#${gradHorizontal})`}
+            strokeWidth={SUMMARY_L_STROKE}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      ) : null}
+      <View style={styles.summaryLeftInner}>{children}</View>
+    </View>
+  );
+};
 
 const PAGE_SIZE = 6;
 const TAB_LABELS: Record<TabKey, string> = {
@@ -39,19 +130,19 @@ const statusStyles = {
   Redeemed: {
     backgroundColor: "#F3F4F6",
     borderColor: theme.colors.border,
-    color: theme.colors.secondary
+    color: theme.colors.muted
   },
   Expired: {
-    backgroundColor: "#FDECEF",
-    borderColor: "#F5B7C0",
-    color: theme.colors.danger
+    backgroundColor: "#F3F4F6",
+    borderColor: theme.colors.border,
+    color: theme.colors.muted
   }
 } as const;
 
 const statusLabels: Record<GiftCardVM["status"], string> = {
   Active: "Activa",
-  Redeemed: "Canjeada",
-  Expired: "Vencida"
+  Redeemed: "Inactiva",
+  Expired: "Inactiva"
 };
 
 const iconForActivity: Record<ActivityItem["kind"], { name: keyof typeof Feather.glyphMap; color: string }> = {
@@ -78,10 +169,31 @@ const formatTimestamp = (timestamp?: string) => {
   return date.toLocaleDateString("es", { month: "short", day: "numeric", year: "numeric" });
 };
 
-const SummaryChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={styles.chip}>
-    <Text style={styles.chipLabel}>{label}</Text>
-    <Text style={styles.chipValue}>{value}</Text>
+const shortName = (full: string) => {
+  const parts = full.trim().split(/\s+/);
+  return parts.length > 1
+    ? parts[0] + " " + parts[parts.length - 1][0] + "."
+    : parts[0];
+};
+
+const SummaryBanner: React.FC<{
+  balanceLabel: string | null;
+  activeCardsCount: number;
+}> = ({ balanceLabel, activeCardsCount }) => (
+  <View style={styles.walletStrip}>
+    <View style={styles.walletMainRow}>
+      <SummaryLeftWithGradientBorder>
+        <Text style={styles.summaryBalanceLabel}>Total Disponible</Text>
+        <Text style={styles.summaryBalanceValue}>{balanceLabel ?? "—"}</Text>
+      </SummaryLeftWithGradientBorder>
+      <View style={styles.activeCardsCard}>
+        <View style={styles.activeCardsTextBlock}>
+          <Text style={styles.activeCardsLabel}>Tarjetas Activas</Text>
+          <Text style={styles.activeCardsValue}>{activeCardsCount}</Text>
+        </View>
+        <Image source={walletDecorationImage} style={styles.walletDecoration} />
+      </View>
+    </View>
   </View>
 );
 
@@ -100,30 +212,45 @@ const TabButton: React.FC<{ tab: TabKey; active: boolean; onPress: () => void }>
   </TouchableOpacity>
 );
 
-const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item, onPress }) => {
+const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: () => void }> = ({
+  item,
+  senderName,
+  onPress
+}) => {
   const statusStyle = statusStyles[item.status];
   const merchantInitial = item.merchantLabel.charAt(0).toUpperCase();
   const hasLogo = Boolean(item.merchantLogoUrl);
-  const logoSource = hasLogo ? { uri: item.merchantLogoUrl as string } : merchantPlaceholder;
+  const logoSource = hasLogo ? { uri: item.merchantLogoUrl as string } : null;
   const statusLabel = statusLabels[item.status] ?? item.status;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.row}>
-      <Card>
+      <Card style={styles.cardWithAccent}>
         <View style={styles.rowTop}>
-          <View style={styles.badgeCircle}>
-            <Image source={logoSource} style={styles.badgeImage} />
-            {!hasLogo ? <Text style={styles.badgeInitial}>{merchantInitial}</Text> : null}
+          <View style={styles.merchantLogoContainer}>
+            {logoSource ? (
+              <Image source={logoSource} style={styles.merchantLogoImage} />
+            ) : (
+              <Text style={styles.badgeInitial}>{merchantInitial}</Text>
+            )}
           </View>
           <View style={styles.rowMiddle}>
-            <Text style={styles.merchant}>{item.merchantLabel}</Text>
-            <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
-              <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
+            <Text style={styles.merchantTitle} numberOfLines={1}>
+              {item.merchantLabel}
+            </Text>
+            <View style={styles.senderRow}>
+              <Text style={styles.senderLabel}>
+                {senderName ? `de: ${senderName}` : "Propia"}
+              </Text>
+              <View style={[styles.statusPill, { backgroundColor: statusStyle.backgroundColor, borderColor: statusStyle.borderColor }]}>
+                <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
+              </View>
             </View>
           </View>
+          <View style={styles.cardDivider} />
           <View style={styles.amountColumn}>
             <Text style={styles.amount}>{item.remainingFormatted}</Text>
-            <Text style={styles.amountSmall}>de {item.originalFormatted}</Text>
+            <Text style={styles.muted}>de {item.originalFormatted}</Text>
           </View>
         </View>
       </Card>
@@ -134,6 +261,8 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; onPress: () => void }> = ({ item
 type ListItem =
   | { type: "card"; key: string; card: GiftCardVM }
   | { type: "empty"; key: string }
+  | { type: "error"; key: string }
+  | { type: "skeleton"; key: string }
   | { type: "activity"; key: string }
   | { type: "pagination"; key: string };
 
@@ -219,22 +348,54 @@ const LatestActivitySection: React.FC<{
   </View>
 );
 
-const EmptyState: React.FC<{ message: string; actionLabel?: string; onAction?: () => void }> = ({
+const WalletSkeletonRows: React.FC = () => (
+  <View style={styles.skeletonRows}>
+    {Array.from({ length: 4 }).map((_, index) => (
+      <Card key={`wallet-skeleton-${index}`} style={styles.cardWithAccent}>
+        <View style={styles.rowTop}>
+          <SkeletonBlock width={64} height={42} radius={12} />
+          <View style={styles.rowMiddle}>
+            <SkeletonBlock width="76%" height={18} radius={9} />
+            <SkeletonBlock width="58%" height={28} radius={14} style={styles.skeletonLine} />
+          </View>
+          <View style={styles.cardDivider} />
+          <View style={styles.amountColumn}>
+            <SkeletonBlock width={72} height={22} radius={11} />
+            <SkeletonBlock width={48} height={16} radius={8} style={styles.skeletonLine} />
+          </View>
+        </View>
+      </Card>
+    ))}
+  </View>
+);
+
+const EmptyState: React.FC<{
+  icon?: keyof typeof Feather.glyphMap;
+  title: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}> = ({
+  icon = "credit-card",
+  title,
   message,
   actionLabel,
   onAction
 }) => (
-  <Card style={styles.emptyCard}>
-    <Text style={styles.muted}>{message}</Text>
-    {actionLabel && onAction ? (
-      <Button label={actionLabel} variant="ghost" onPress={onAction} style={styles.emptyAction} />
-    ) : null}
-  </Card>
+  <EmptyStateCard
+    icon={icon}
+    title={title}
+    message={message}
+    actionLabel={actionLabel}
+    onAction={onAction}
+  />
 );
 
 const WalletListScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<WalletStackParamList>>();
+  const tabNavigation = navigation.getParent<NavigationProp<AppTabsParamList>>();
   const { accessToken } = useAuth();
+  const tabBarHeight = useBottomTabBarHeight();
   const isQueryEnabled = !!accessToken;
 
   const { data: user } = useQuery({
@@ -247,6 +408,7 @@ const WalletListScreen: React.FC = () => {
     data: giftCards,
     isLoading,
     isRefetching,
+    error,
     refetch
   } = useQuery({
     queryKey: ["giftCards"],
@@ -285,16 +447,41 @@ const WalletListScreen: React.FC = () => {
     [giftCards, user?.id]
   );
 
+  const senderNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const card of giftCards ?? []) {
+      if (card.recipient_id === user?.id && card.sender) {
+        const fullName =
+          card.sender.full_name?.trim() ||
+          [card.sender.name, card.sender.last_name].filter(Boolean).join(" ").trim() ||
+          card.sender.name?.trim() ||
+          null;
+        if (fullName) {
+          map.set(card.id, shortName(fullName));
+        }
+      }
+    }
+    return map;
+  }, [giftCards, user?.id]);
+
   const summary = useMemo(() => {
-    const activeCards = mappedCards.filter((card) => card.status === "Active");
-    const activeWithAmounts = activeCards.filter(
+    const spendableCards = classification.canClassifyTransfers
+      ? classification.received.filter(
+          (card) =>
+            card.status === "Active" &&
+            !card.isHeld &&
+            (card.remainingBalanceCents ?? 0) > 0
+        )
+      : [];
+    const activeWithAmounts = spendableCards.filter(
       (card) => typeof card.remainingBalanceCents === "number" && !!card.currency
     );
     const currencies = new Set(
       activeWithAmounts.map((card) => card.currency).filter(Boolean) as string[]
     );
     const canShowActiveBalance =
-      activeWithAmounts.length === activeCards.length &&
+      classification.canClassifyTransfers &&
+      activeWithAmounts.length === spendableCards.length &&
       activeWithAmounts.length > 0 &&
       currencies.size === 1;
     const activeBalanceCents = canShowActiveBalance
@@ -305,14 +492,11 @@ const WalletListScreen: React.FC = () => {
         ? formatMoney(centsToDollars(activeBalanceCents), activeWithAmounts[0]?.currency)
         : null;
 
-    const redeemedCount = mappedCards.filter((card) => card.isRedeemed).length;
-
     return {
       activeBalanceLabel,
-      totalCards: mappedCards.length,
-      redeemedCount
+      activeCardsCount: spendableCards.length
     };
-  }, [mappedCards]);
+  }, [classification]);
 
   const tabCards = classification[activeTab] ?? [];
   const totalCards = tabCards.length;
@@ -324,6 +508,11 @@ const WalletListScreen: React.FC = () => {
   const rangeStart = totalCards === 0 ? 0 : startIndex + 1;
   const rangeEnd = totalCards === 0 ? 0 : endIndex;
   const pagedCards = tabCards.slice(startIndex, endIndex);
+  const isBusy = !isQueryEnabled || isLoading || isRefetching;
+  const isInitialLoading = !isQueryEnabled || (isLoading && !giftCards);
+  // Only surface the error state when there is no cached data to show;
+  // with cached cards we keep rendering them (pull-to-refresh still works).
+  const hasLoadError = Boolean(error) && !giftCards;
 
   useEffect(() => {
     setPageByTab((prev) => {
@@ -336,6 +525,14 @@ const WalletListScreen: React.FC = () => {
 
   const listData = useMemo(() => {
     const items: ListItem[] = [];
+    if (isInitialLoading) {
+      items.push({ type: "skeleton", key: "wallet-skeleton" });
+      return items;
+    }
+    if (hasLoadError) {
+      items.push({ type: "error", key: "wallet-error" });
+      return items;
+    }
     if (pagedCards.length === 0) {
       items.push({ type: "empty", key: `empty-${activeTab}` });
     } else {
@@ -346,7 +543,7 @@ const WalletListScreen: React.FC = () => {
     }
     items.push({ type: "activity", key: `activity-${activeTab}` });
     return items;
-  }, [activeTab, currentPage, pageCount, pagedCards]);
+  }, [activeTab, currentPage, hasLoadError, isInitialLoading, pageCount, pagedCards]);
 
   const changePage = useCallback(
     (delta: number) => {
@@ -361,18 +558,13 @@ const WalletListScreen: React.FC = () => {
     [activeTab, pageCount]
   );
 
-  const isBusy = !isQueryEnabled || isLoading || isRefetching;
-
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.title}>Billetera</Text>
-      <View style={styles.chipsRow}>
-        {summary.activeBalanceLabel ? (
-          <SummaryChip label="Saldo activo" value={summary.activeBalanceLabel} />
-        ) : null}
-        <SummaryChip label="Tarjetas" value={`${summary.totalCards}`} />
-        <SummaryChip label="Canjeadas" value={`${summary.redeemedCount}`} />
-      </View>
+      <SummaryBanner
+        balanceLabel={summary.activeBalanceLabel}
+        activeCardsCount={summary.activeCardsCount}
+      />
+      <Text style={styles.sectionTitle}>Mis Tarjetas</Text>
       <View style={styles.tabsRow}>
         {(Object.keys(TAB_LABELS) as TabKey[]).map((tab) => (
           <TabButton
@@ -409,10 +601,23 @@ const WalletListScreen: React.FC = () => {
         />
       );
     }
+    if (item.type === "error") {
+      return (
+        <EmptyState
+          icon="wifi-off"
+          title="No pudimos cargar tus tarjetas"
+          message="Revisa tu conexión e inténtalo de nuevo."
+          actionLabel="Reintentar"
+          onAction={() => refetch()}
+        />
+      );
+    }
     if (item.type === "empty") {
       if (!classification.hasSenderRecipientFields && (activeTab === "received" || activeTab === "sent")) {
         return (
           <EmptyState
+            icon="info"
+            title="No podemos separar estas tarjetas todavía"
             message="Clasificar recibidas/enviadas requiere campos de remitente y destinatario."
             actionLabel="Ver todas"
             onAction={() => setActiveTab("all")}
@@ -420,18 +625,32 @@ const WalletListScreen: React.FC = () => {
         );
       }
       if (!classification.canClassifyTransfers && (activeTab === "received" || activeTab === "sent")) {
-        return <EmptyState message="Obteniendo datos de la cuenta para clasificar transferencias..." />;
+        return (
+          <EmptyState
+            icon="user"
+            title="Preparando tu clasificación"
+            message="Estamos obteniendo los datos de tu cuenta para separar recibidas y enviadas."
+          />
+        );
       }
       return (
         <EmptyState
-          message={isBusy ? "Cargando tarjetas de regalo..." : "Aún no hay tarjetas en esta pestaña."}
+          icon="gift"
+          title="Aún no hay tarjetas"
+          message="Cuando compres o recibas una tarjeta, aparecerá en esta sección."
+          actionLabel="Comprar tarjeta"
+          onAction={() => tabNavigation?.navigate("HomeTab")}
         />
       );
+    }
+    if (item.type === "skeleton") {
+      return <WalletSkeletonRows />;
     }
     if (item.type === "card") {
       return (
         <GiftCardRow
           item={item.card}
+          senderName={senderNameMap.get(item.card.id)}
           onPress={() => navigation.navigate("GiftCardDetail", { id: item.card.id })}
         />
       );
@@ -451,7 +670,7 @@ const WalletListScreen: React.FC = () => {
         renderItem={renderItem}
         ListHeaderComponent={renderHeader}
         stickyHeaderIndices={[0]}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarHeight + theme.spacing(2) }]}
         refreshControl={
           <RefreshControl
             refreshing={isBusy}
@@ -473,50 +692,93 @@ const styles = StyleSheet.create({
   },
   navContainer: {
     paddingHorizontal: theme.spacing(2),
-    paddingTop: theme.spacing(1),
-    paddingBottom: theme.spacing(0.5)
+    paddingTop: theme.spacing(2)
   },
   list: {
     gap: theme.spacing(1.5),
-    paddingBottom: theme.spacing(2),
     paddingHorizontal: theme.spacing(2)
   },
   header: {
     backgroundColor: theme.colors.background,
-    paddingVertical: theme.spacing(1),
-    // paddingHorizontal: theme.spacing(2),
+    paddingTop: theme.spacing(0.5),
+    paddingBottom: theme.spacing(1),
     gap: theme.spacing(1)
   },
-  title: {
-    fontSize: theme.typography.heading,
-    fontWeight: "800",
-    color: theme.colors.text
+  walletStrip: {
+    paddingBottom: theme.spacing(2)
   },
-  chipsRow: {
+  walletMainRow: {
     flexDirection: "row",
-    gap: theme.spacing(1),
-    flexWrap: "wrap"
+    alignItems: "stretch",
+    gap: theme.spacing(1.5)
   },
-  chip: {
-    paddingHorizontal: theme.spacing(1.5),
-    paddingVertical: theme.spacing(1),
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.card,
-    borderColor: theme.colors.border,
-    borderWidth: StyleSheet.hairlineWidth
+  summaryLeftOuter: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: theme.spacing(0.5),
+    position: "relative"
   },
-  chipLabel: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.small
+  summaryLeftInner: {
+    paddingTop: WALLET_SUMMARY_PAD_V,
+    paddingBottom: WALLET_SUMMARY_PAD_V,
+    paddingRight: theme.spacing(1.75),
+    paddingLeft: theme.spacing(0.25),
+    gap: WALLET_SUMMARY_LABEL_VALUE_GAP
   },
-  chipValue: {
-    color: theme.colors.text,
-    fontWeight: "700",
-    marginTop: 2
+  summaryBalanceLabel: {
+    fontSize: 16,
+    fontFamily: theme.fonts.semiBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.2
+  },
+  summaryBalanceValue: {
+    fontSize: 30,
+    fontFamily: theme.fonts.extraBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.6
+  },
+  activeCardsCard: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: WALLET_CARD_BG,
+    borderRadius: 14,
+    paddingTop: WALLET_SUMMARY_PAD_V,
+    paddingLeft: theme.spacing(1.5),
+    paddingRight: theme.spacing(1.25),
+    paddingBottom: WALLET_SUMMARY_PAD_V,
+    overflow: "hidden",
+    justifyContent: "flex-start"
+  },
+  activeCardsTextBlock: {
+    gap: WALLET_SUMMARY_LABEL_VALUE_GAP
+  },
+  activeCardsLabel: {
+    fontSize: 16,
+    fontFamily: theme.fonts.semiBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.2,
+    zIndex: 1
+  },
+  activeCardsValue: {
+    fontSize: 28,
+    fontFamily: theme.fonts.extraBold,
+    color: WALLET_HEADING,
+    letterSpacing: -0.5,
+    zIndex: 1
+  },
+  walletDecoration: {
+    position: "absolute",
+    right: -2,
+    bottom: -8,
+    width: 88,
+    height: 88,
+    opacity: 0.38,
+    resizeMode: "contain"
   },
   tabsRow: {
     flexDirection: "row",
-    gap: theme.spacing(1)
+    gap: theme.spacing(1),
+    marginLeft: theme.spacing(0.5)
   },
   tab: {
     paddingVertical: theme.spacing(0.8),
@@ -527,55 +789,83 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border
   },
   tabActive: {
-    backgroundColor: "#FDF3DB",
-    borderColor: theme.colors.primary
+    backgroundColor: theme.colors.secondary,
+    borderColor: theme.colors.secondary
   },
   tabLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   tabLabelActive: {
-    color: theme.colors.secondary
+    color: theme.colors.card
   },
   row: {
     width: "100%"
+  },
+  skeletonRows: {
+    gap: theme.spacing(1.5)
+  },
+  skeletonLine: {
+    marginTop: theme.spacing(0.6)
   },
   rowTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing(1.2)
   },
-  badgeCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#EEF2F3",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+  cardWithAccent: {
     overflow: "hidden"
   },
-  badgeImage: {
+  merchantLogoContainer: {
+    width: 64,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    backgroundColor: "#F8FAFB",
+    paddingHorizontal: theme.spacing(0.9),
+    paddingVertical: theme.spacing(0.55)
+  },
+  merchantLogoImage: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover"
+    resizeMode: "contain"
   },
   badgeInitial: {
-    position: "absolute",
     textAlign: "center",
-    width: "100%",
-    fontWeight: "700",
+    fontFamily: theme.fonts.black,
+    fontSize: 20,
     color: theme.colors.secondary
   },
   rowMiddle: {
     flex: 1,
-    gap: theme.spacing(0.5)
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: theme.spacing(0.25),
+    minWidth: 0
   },
-  merchant: {
-    fontSize: theme.typography.subheading,
-    fontWeight: "700",
+  merchantTitle: {
+    fontSize: theme.typography.body,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
+  },
+  senderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(1)
+  },
+  cardDivider: {
+    width: 2,
+    alignSelf: "stretch",
+    backgroundColor: theme.colors.primary,
+    borderRadius: 1
+  },
+  senderLabel: {
+    flexShrink: 0,
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.muted
   },
   statusPill: {
     alignSelf: "flex-start",
@@ -585,7 +875,7 @@ const styles = StyleSheet.create({
     borderWidth: 1
   },
   statusText: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     fontSize: theme.typography.small
   },
   amountColumn: {
@@ -593,12 +883,8 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: theme.fonts.extraBold,
     color: theme.colors.text
-  },
-  amountSmall: {
-    color: theme.colors.muted,
-    marginTop: 2
   },
   muted: {
     color: theme.colors.muted
@@ -614,12 +900,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
-    fontWeight: "700",
-    color: theme.colors.text
+    fontFamily: theme.fonts.bold,
+    color: theme.colors.text,
+    marginLeft: theme.spacing(0.5)
   },
   link: {
     color: theme.colors.secondary,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   paginationContainer: {
     flexDirection: "row",
@@ -633,7 +920,7 @@ const styles = StyleSheet.create({
   },
   paginationLabel: {
     color: theme.colors.muted,
-    fontWeight: "600"
+    fontFamily: theme.fonts.semiBold
   },
   paginationButton: {
     flexDirection: "row",
@@ -651,7 +938,7 @@ const styles = StyleSheet.create({
   },
   paginationButtonLabel: {
     color: theme.colors.text,
-    fontWeight: "700"
+    fontFamily: theme.fonts.bold
   },
   activityRow: {
     flexDirection: "row",
@@ -674,7 +961,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   activityTitle: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.text
   },
   activitySubtitle: {
@@ -682,16 +969,9 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   activityAmount: {
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
-  emptyCard: {
-    width: "100%"
-  },
-  emptyAction: {
-    marginTop: theme.spacing(1)
-  }
 });
 
 export default WalletListScreen;
-

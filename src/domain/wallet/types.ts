@@ -16,6 +16,8 @@ export type GiftCardVM = {
   rawStatus?: string;
   isExpired: boolean;
   isRedeemed: boolean;
+  isHeld: boolean;
+  heldUntil?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   senderId?: string;
@@ -44,4 +46,3 @@ export type ClassifiedGiftCards = {
   hasSenderRecipientFields: boolean;
   canClassifyTransfers: boolean;
 };
-

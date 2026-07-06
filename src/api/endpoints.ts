@@ -17,6 +17,14 @@ export const authApi = {
     password_confirmation: string;
     phone: string;
     device_id?: string;
+    interests?: string[];
+    /**
+     * OTP proving control of a pending recipient account's contact channel.
+     * Omitted on the first attempt; the backend answers 409
+     * `auth.claim_verification_required` when the email/phone matches a
+     * pending account, and the signup is retried with the code.
+     */
+    claim_otp?: string;
   }) => {
     const { data } = await request<AuthTokens>("/api/v1/auth/signup", {
       method: "POST",
@@ -75,6 +83,7 @@ export const meApi = {
     address?: string;
     country_of_residence?: string;
     date_of_birth?: string;
+    preferred_channel?: "whatsapp" | "sms";
   }) => {
     const { data } = await request<User>("/api/v1/me", {
       method: "PATCH",
@@ -100,6 +109,21 @@ export const meApi = {
       body: formData
     });
     return data;
+  },
+  deletionPreview: async () => {
+    const { data } = await request<{
+      balance_cents: number;
+      active_card_count: number;
+      is_merchant: boolean;
+      currency: string;
+    }>("/api/v1/me/deletion_preview");
+    return data;
+  },
+  destroy: async (password: string) => {
+    await request<{ deleted: boolean }>("/api/v1/me", {
+      method: "DELETE",
+      body: { password }
+    });
   }
 };
 
@@ -121,6 +145,12 @@ export const giftCardApi = {
     const { data } = await request<GiftCard>(`/api/v1/me/gift_cards/${id}`);
     return data;
   },
+  byPaymentIntent: async (paymentIntentId: string) => {
+    const { data } = await request<GiftCard | { gift_card?: GiftCard | null; status?: string }>(
+      `/api/v1/gift_cards/by_payment_intent/${encodeURIComponent(paymentIntentId)}`
+    );
+    return data;
+  },
   redemptionToken: async (id: string) => {
     const { data } = await request<RedemptionToken>(`/api/v1/me/gift_cards/${id}/redemption_token`, {
       method: "POST"
@@ -140,3 +170,28 @@ export const merchantsApi = {
   }
 };
 
+export const publicMerchantsApi = {
+  list: async () => {
+    const { data } = await request<Merchant[]>("/api/v1/public/merchants");
+    return data;
+  },
+  detail: async (id: string) => {
+    const { data } = await request<Merchant>(`/api/v1/public/merchants/${id}`);
+    return data;
+  }
+};
+
+export const pushTokenApi = {
+  register: async (token: string, platform: string) => {
+    await request("/api/v1/me/push_tokens", {
+      method: "POST",
+      body: { token, platform }
+    });
+  },
+  unregister: async (token: string) => {
+    await request("/api/v1/me/push_tokens", {
+      method: "DELETE",
+      body: { token }
+    });
+  }
+};

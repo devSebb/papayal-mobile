@@ -9,11 +9,11 @@ import Animated, {
   Extrapolation,
   interpolate,
   interpolateColor,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring
 } from "react-native-reanimated";
+import { runOnJS } from "react-native-worklets";
 
 import { theme } from "../theme";
 
@@ -30,6 +30,13 @@ const tabRootScreens: Record<string, string> = {
   ProfileTab: "Profile"
 };
 
+const shouldHideTabBar = (options: BottomTabBarProps["descriptors"][string]["options"]) => {
+  const tabBarStyle = StyleSheet.flatten(options.tabBarStyle as any) as
+    | { display?: string }
+    | undefined;
+  return tabBarStyle?.display === "none";
+};
+
 const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -38,8 +45,9 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
   const panX = useSharedValue(0);
   
   const railPaddingX = theme.spacing(0.5);
+  const railWidth = Math.min(width, 620);
 
-  const railInnerWidth = width - railPaddingX * 2;
+  const railInnerWidth = railWidth - railPaddingX * 2;
 
   const tabWidth = useMemo(() => {
     return Math.max(railInnerWidth / state.routes.length, 96);
@@ -135,16 +143,22 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
     transform: [{ translateX: indicatorX.value + panX.value * 0.12 }]
   }));
 
+  const focusedRoute = state.routes[state.index];
+  const focusedOptions = focusedRoute ? descriptors[focusedRoute.key]?.options : undefined;
+  const isHidden = Boolean(focusedOptions && shouldHideTabBar(focusedOptions));
+
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View
         style={[
           styles.wrapper,
+          isHidden ? styles.hidden : null,
           // { paddingBottom: bottomPadding },
           railStyle
         ]}
+        pointerEvents={isHidden ? "none" : "auto"}
       >
-        <View style={styles.rail} pointerEvents="box-none">
+        <View style={[styles.rail, { width: railWidth, paddingBottom: bottomInset + theme.spacing(2) }]} pointerEvents="box-none">
           <Animated.View style={[styles.indicator, { width: indicatorWidth }, indicatorStyle]} />
           {state.routes.map((route, index) => {
             const options = descriptors[route.key]?.options || {};
@@ -222,8 +236,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    alignItems: "center",
     // paddingBottom: theme.spacing(3),
     backgroundColor: theme.colors.background
+  },
+  hidden: {
+    display: "none"
   },
   rail: {
     flexDirection: "row",
@@ -268,12 +286,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: theme.fonts.bold,
     letterSpacing: 0.15,
     color: theme.colors.navbarMuted
   }
 });
 
 export default AnimatedTabBar;
-
-

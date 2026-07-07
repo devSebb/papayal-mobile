@@ -10,6 +10,7 @@ import Button from "../../ui/components/Button";
 import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
+import { hapticSuccess } from "../../utils/haptics";
 
 type PurchaseSuccessRouteProp = RouteProp<HomeStackParamList, "PurchaseSuccess">;
 
@@ -23,6 +24,11 @@ const PurchaseSuccessScreen: React.FC = () => {
   const recipientEmail = route.params?.recipientEmail ?? "";
   const paymentIntentId = route.params?.paymentIntentId;
   const cardReady = route.params?.cardReady ?? false;
+
+  // Celebrate the confirmed payment once, when the screen first appears.
+  React.useEffect(() => {
+    hapticSuccess();
+  }, []);
 
   // Only reset draft when leaving the screen, not when mounting
   useFocusEffect(

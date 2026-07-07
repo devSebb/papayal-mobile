@@ -13,6 +13,7 @@ import { useAuth } from "../auth/authStore";
 import { ProfileStackParamList } from "../navigation";
 import { meApi } from "../api/endpoints";
 import { HttpError } from "../api/http";
+import { hapticWarning } from "../utils/haptics";
 
 type BusyAction = "logout" | "logoutAll" | null;
 type Channel = "whatsapp" | "sms";
@@ -147,13 +148,27 @@ const SettingsScreen: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
+  const executeLogout = async () => {
     setBusyAction("logout");
     try {
       await logout();
     } finally {
       setBusyAction(null);
     }
+  };
+
+  // OS-native confirmation before closing the session, same pattern as the
+  // destructive prompt in DeleteAccountScreen.
+  const handleLogout = () => {
+    hapticWarning();
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Quieres salir de tu cuenta en este dispositivo?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Cerrar sesión", style: "destructive", onPress: () => void executeLogout() }
+      ]
+    );
   };
 
   const handleLogoutAll = async () => {

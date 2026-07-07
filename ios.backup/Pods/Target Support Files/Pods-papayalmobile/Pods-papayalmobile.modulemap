@@ -1,0 +1,6 @@
+module Pods_papayalmobile {
+  umbrella header "Pods-papayalmobile-umbrella.h"
+
+  export *
+  module * { export * }
+}

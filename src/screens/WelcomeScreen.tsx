@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import React, { useEffect, useMemo, useRef, type ComponentProps } from "react";
 import { Animated, Easing, Image, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -15,16 +15,9 @@ type FeatherIconName = ComponentProps<typeof Feather>["name"];
 const logoTagImage = require("../../assets/Papayal-logoTag.png");
 
 const trustBadges: { icon: FeatherIconName; label: string }[] = [
-  { icon: "star", label: "4.8 App Store" },
-  { icon: "lock", label: "Cifrado bancario" },
+  { icon: "lock", label: "Conexión cifrada" },
   { icon: "zap", label: "Entrega inmediata" },
-  { icon: "heart", label: "10,000+ familias" }
-];
-
-const socialProofMessages = [
-  "Maria en New Jersey envio una tarjeta hace 3 min",
-  "Carlos en Madrid envio una tarjeta de SuperMaxi",
-  "Ana en Barcelona eligio una tarjeta de Fybeca"
+  { icon: "shopping-bag", label: "Canje en comercios aliados" }
 ];
 
 const WelcomeScreen: React.FC = () => {
@@ -34,13 +27,9 @@ const WelcomeScreen: React.FC = () => {
   const headlineIn = useRef(new Animated.Value(0)).current;
   const subheadIn = useRef(new Animated.Value(0)).current;
   const ctaIn = useRef(new Animated.Value(0)).current;
-  const tickerIn = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
   const ctaPulse = useRef(new Animated.Value(0)).current;
-  const liveDotPulse = useRef(new Animated.Value(0.8)).current;
-  const tickerOpacity = useRef(new Animated.Value(1)).current;
   const trustIn = useRef(trustBadges.map(() => new Animated.Value(0))).current;
-  const [socialIndex, setSocialIndex] = useState(0);
 
   useEffect(() => {
     Animated.timing(heroIn, {
@@ -88,13 +77,6 @@ const WelcomeScreen: React.FC = () => {
         duration: 420,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
-      }),
-      Animated.delay(220),
-      Animated.timing(tickerIn, {
-        toValue: 1,
-        duration: 450,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true
       })
     ]).start();
 
@@ -132,54 +114,10 @@ const WelcomeScreen: React.FC = () => {
       ).start();
     }, 2800);
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(liveDotPulse, {
-          toValue: 1.05,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        }),
-        Animated.timing(liveDotPulse, {
-          toValue: 0.8,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        })
-      ])
-    ).start();
-
-    const tickerTimer = setInterval(() => {
-      Animated.timing(tickerOpacity, {
-        toValue: 0,
-        duration: 210,
-        useNativeDriver: true
-      }).start(() => {
-        setSocialIndex((prev) => (prev + 1) % socialProofMessages.length);
-        Animated.timing(tickerOpacity, {
-          toValue: 1,
-          duration: 230,
-          useNativeDriver: true
-        }).start();
-      });
-    }, 4000);
-
     return () => {
       clearTimeout(pulseDelay);
-      clearInterval(tickerTimer);
     };
-  }, [
-    ctaIn,
-    ctaPulse,
-    floatAnim,
-    headlineIn,
-    heroIn,
-    liveDotPulse,
-    subheadIn,
-    tickerIn,
-    tickerOpacity,
-    trustIn
-  ]);
+  }, [ctaIn, ctaPulse, floatAnim, headlineIn, heroIn, subheadIn, trustIn]);
 
   const grainDots = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
 
@@ -274,14 +212,14 @@ const WelcomeScreen: React.FC = () => {
             onPress={() => navigation.navigate("Login")}
             variant="ghost"
             style={styles.secondaryButton}
-            accessibilityLabel="Ya tengo cuenta, ir a iniciar sesion"
+            accessibilityLabel="Ya tengo cuenta, ir a iniciar sesión"
           />
           <Button
             label="Explorar comercios"
             onPress={() => rootNavigation?.navigate("GuestApp" as never)}
             variant="ghost"
             style={styles.secondaryButton}
-            accessibilityLabel="Explorar comercios sin iniciar sesion"
+            accessibilityLabel="Explorar comercios sin iniciar sesión"
           />
         </Animated.View>
 
@@ -309,13 +247,6 @@ const WelcomeScreen: React.FC = () => {
             );
           })}
         </View>
-
-        <Animated.View style={[styles.tickerWrap, { opacity: tickerIn }]}>
-          <Animated.View style={[styles.liveDot, { transform: [{ scale: liveDotPulse }] }]} />
-          <Animated.Text style={[styles.tickerText, { opacity: tickerOpacity }]}>
-            {socialProofMessages[socialIndex]}
-          </Animated.Text>
-        </Animated.View>
       </View>
     </Screen>
   );
@@ -479,26 +410,6 @@ const styles = StyleSheet.create({
     color: "rgba(13,47,50,0.58)",
     fontSize: 11,
     fontFamily: theme.fonts.bold
-  },
-  tickerWrap: {
-    minHeight: 26,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: theme.spacing(0.55),
-    marginBottom: 2
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: theme.colors.success
-  },
-  tickerText: {
-    color: "rgba(13,47,50,0.52)",
-    fontFamily: theme.fonts.regular,
-    fontSize: 12,
-    lineHeight: 16
   }
 });
 

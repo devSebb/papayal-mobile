@@ -1,8 +1,14 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const PROJECT_ID = "089f71cd-3c34-4cdd-ae21-fae443cec5e0";
+// EAS project ID, read from app config (app.json → extra.eas.projectId) so
+// there is a single source of truth. The literal fallback only exists for
+// the edge case where the embedded config is unavailable at runtime — it
+// must match app.json.
+const PROJECT_ID: string =
+  Constants.expoConfig?.extra?.eas?.projectId ?? "089f71cd-3c34-4cdd-ae21-fae443cec5e0";
 
 /**
  * Requests notification permissions and registers the Expo push token

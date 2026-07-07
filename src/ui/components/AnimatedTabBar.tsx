@@ -16,6 +16,7 @@ import Animated, {
 import { runOnJS } from "react-native-worklets";
 
 import { theme } from "../theme";
+import { hapticSelection } from "../../utils/haptics";
 
 const AnimatedIcon = Animated.createAnimatedComponent(Feather);
 
@@ -91,6 +92,7 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
     if (event.defaultPrevented) return;
 
     if (!isFocused) {
+      hapticSelection();
       navigation.navigate({ name: route.name, merge: true, params: undefined });
       return;
     }

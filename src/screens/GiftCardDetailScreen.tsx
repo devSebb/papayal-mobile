@@ -20,7 +20,7 @@ const avatarPlaceholder = require("../../assets/avatar-default.png");
 
 // Spanish-formatted unlock time for the hold banner. Keeps the format
 // consistent across the app (e.g. "25 de mayo a las 14:30").
-const HOLD_UNLOCK_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+const HOLD_UNLOCK_FORMATTER = new Intl.DateTimeFormat("es-EC", {
   day: "numeric",
   month: "long",
   hour: "2-digit",
@@ -92,13 +92,16 @@ const GiftCardDetailScreen: React.FC = () => {
   };
   // Never surface the raw English status enum or a merchant UUID to the user.
   const statusLabel = data?.status ? statusLabelMap[data.status] ?? "—" : "—";
-  const merchantLabel =
+  const merchantName =
     data?.merchant_store_name?.trim() ||
     data?.store_name?.trim() ||
     data?.merchant_name?.trim() ||
     data?.store?.name?.trim() ||
     data?.merchant?.name?.trim() ||
-    "Comercio";
+    null;
+  const merchantLabel = merchantName ?? "Comercio";
+  // Title shows the merchant name when we have one; never the card UUID.
+  const titleLabel = merchantName ?? "Tarjeta de regalo";
   const hasLogo = Boolean(data?.merchant_logo_url);
   const merchantInitial = merchantLabel.charAt(0).toUpperCase();
   const logoSource = hasLogo ? { uri: data?.merchant_logo_url as string } : merchantPlaceholder;
@@ -149,7 +152,7 @@ const GiftCardDetailScreen: React.FC = () => {
               {!hasLogo ? <Text style={styles.logoInitial}>{merchantInitial}</Text> : null}
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.title}>Tarjeta de regalo #{data.id}</Text>
+              <Text style={styles.title}>{titleLabel}</Text>
               <Text style={styles.muted}>Comercio: {merchantLabel}</Text>
             </View>
           </View>

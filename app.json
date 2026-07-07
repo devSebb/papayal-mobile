@@ -16,6 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.papayal.app",
       "buildNumber": "1",
       "infoPlist": {

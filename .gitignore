@@ -46,4 +46,7 @@ LAUNCH_PLAN.md
 GIFT_CARD_TRANSFER_PLAN.md
 .design-sync/
 .design-sync/
-google-services.json
+# google-services.json is a client config, not a secret (client key restricted
+# by package name) — committed so EAS Android cloud builds pick it up. The real
+# secret is the FCM service-account key, which lives only in EAS credentials.
+# google-services.json

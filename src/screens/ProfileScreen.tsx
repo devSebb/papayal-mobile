@@ -85,7 +85,6 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleChangePhoto = async () => {
-    console.log("[ProfileScreen] handleChangePhoto called");
     // Show action sheet to choose camera or library
     Alert.alert(
       "Cambiar foto de perfil",
@@ -94,14 +93,12 @@ const ProfileScreen: React.FC = () => {
         {
           text: "Cámara",
           onPress: () => {
-            console.log("[ProfileScreen] Camera option selected");
             handleImagePicker("camera");
           }
         },
         {
           text: "Galería",
           onPress: () => {
-            console.log("[ProfileScreen] Library option selected");
             handleImagePicker("library");
           }
         },
@@ -116,13 +113,9 @@ const ProfileScreen: React.FC = () => {
 
   const handleImagePicker = async (source: "camera" | "library") => {
     try {
-      console.log(`[ProfileScreen] handleImagePicker called with source: ${source}`);
-      
       // Request appropriate permissions
       if (source === "camera") {
-        console.log("[ProfileScreen] Requesting camera permissions...");
         const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-        console.log("[ProfileScreen] Camera permission:", cameraPermission);
         if (!cameraPermission.granted) {
           Alert.alert(
             "Permiso requerido",
@@ -131,9 +124,7 @@ const ProfileScreen: React.FC = () => {
           return;
         }
       } else {
-        console.log("[ProfileScreen] Requesting media library permissions...");
         const libraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        console.log("[ProfileScreen] Library permission:", libraryPermission);
         if (!libraryPermission.granted) {
           Alert.alert(
             "Permiso requerido",
@@ -151,31 +142,19 @@ const ProfileScreen: React.FC = () => {
         quality: 1.0 // Use full quality before manipulation
       };
 
-      console.log(`[ProfileScreen] Launching ${source} picker...`);
       const result =
         source === "camera"
           ? await ImagePicker.launchCameraAsync(pickerOptions)
           : await ImagePicker.launchImageLibraryAsync(pickerOptions);
 
-      console.log("[ProfileScreen] Picker result:", { 
-        canceled: result.canceled, 
-        assetsCount: result.assets?.length 
-      });
-
       if (result.canceled || !result.assets?.length) {
-        console.log("[ProfileScreen] Picker was canceled or no assets");
         return;
       }
 
       const asset = result.assets[0];
-      console.log("[ProfileScreen] Asset selected:", { 
-        uri: asset.uri?.substring(0, 50), 
-        width: asset.width, 
-        height: asset.height 
-      });
       await processAndUploadImage(asset);
     } catch (error) {
-      console.error("[ProfileScreen] Error in image picker:", error);
+      if (__DEV__) console.error("[ProfileScreen] Error in image picker:", error);
       Alert.alert(
         "Error", 
         `No pudimos abrir la ${source === "camera" ? "cámara" : "galería"}. ${error instanceof Error ? error.message : "Inténtalo de nuevo."}`
@@ -225,17 +204,11 @@ const ProfileScreen: React.FC = () => {
         name: "avatar.jpg",
         type: "image/jpeg"
       } as any);
-      
-      console.log("[ProfileScreen] FormData prepared for upload:", {
-        uri: fileUri.substring(0, 80),
-        hasFormData: formData instanceof FormData,
-        formDataType: typeof formData
-      });
 
       await uploadAvatar(formData);
       Alert.alert("Perfil actualizado", "Tu foto ha sido actualizada.");
     } catch (error) {
-      console.error("Error uploading avatar:", error);
+      if (__DEV__) console.error("[ProfileScreen] Error uploading avatar:", error);
       const errorMessage =
         error instanceof Error
           ? error.message

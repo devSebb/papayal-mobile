@@ -16,11 +16,10 @@ import { useAuth } from "../../auth/authStore";
 import { meApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
 import { openLegal } from "../../utils/openExternal";
+import { centsToDollars, formatMoney } from "../../utils/money";
 
-const formatBalance = (cents: number, currency: string) => {
-  const dollars = (cents / 100).toFixed(2);
-  return `$${dollars} ${currency}`;
-};
+const formatBalance = (cents: number, currency: string) =>
+  formatMoney(centsToDollars(cents), currency);
 
 const DeleteAccountScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();

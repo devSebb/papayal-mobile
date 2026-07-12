@@ -1,13 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { AppState } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import * as Device from "expo-device";
 
 import { authApi, meApi, pushTokenApi } from "../api/endpoints";
 import { configureHttpAuth, HttpError } from "../api/http";
 import { AuthTokens } from "../types/api";
 import { queryClient } from "../query/queryClient";
 import { unregisterPushToken } from "../notifications/register";
+import { generateUUID } from "../utils/uuid";
 
 type AuthState = {
   accessToken: string | null;
@@ -49,6 +49,7 @@ type Action =
   | { type: "SET_OFFLINE_PENDING"; payload: boolean };
 
 const REFRESH_TOKEN_KEY = "papayal_refresh_token";
+const DEVICE_ID_KEY = "papayal.device_id";
 
 const initialState: AuthState = {
   accessToken: null,
@@ -82,8 +83,38 @@ const reducer = (state: AuthState, action: Action): AuthState => {
   }
 };
 
-const resolveDeviceId = () => {
-  return Device.osInternalBuildId ?? Device.osBuildId ?? Device.modelName ?? undefined;
+// In-memory cache so we only hit SecureStore once per app session.
+let cachedDeviceId: string | null = null;
+
+/**
+ * Stable per-install device identifier, used by the backend to bind refresh
+ * tokens to a device. Generated once (UUID v4), persisted in SecureStore and
+ * reused forever after.
+ *
+ * Note: earlier builds sent OS build identifiers (Device.osInternalBuildId,
+ * etc.), which are shared by every device on the same OS version and thus
+ * useless for per-device binding. Old installs simply get a new stable ID on
+ * their next login/signup — acceptable, the backend just sees a new device.
+ */
+const resolveDeviceId = async (): Promise<string> => {
+  if (cachedDeviceId) return cachedDeviceId;
+  try {
+    const stored = await SecureStore.getItemAsync(DEVICE_ID_KEY);
+    if (stored) {
+      cachedDeviceId = stored;
+      return stored;
+    }
+    const fresh = generateUUID();
+    await SecureStore.setItemAsync(DEVICE_ID_KEY, fresh);
+    cachedDeviceId = fresh;
+    return fresh;
+  } catch {
+    // SecureStore unavailable — fall back to a session-scoped ID so
+    // login/signup still work; it will be regenerated next launch.
+    const fallback = generateUUID();
+    cachedDeviceId = fallback;
+    return fallback;
+  }
 };
 
 /**
@@ -238,7 +269,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async (email: string, password: string) => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
-        const device_id = resolveDeviceId();
+        const device_id = await resolveDeviceId();
         const tokens = await authApi.login({ email, password, device_id });
         await setTokens(tokens);
       } finally {
@@ -261,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }) => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
-        const device_id = resolveDeviceId();
+        const device_id = await resolveDeviceId();
         const tokens = await authApi.signup({ ...params, device_id });
         await setTokens(tokens);
       } finally {

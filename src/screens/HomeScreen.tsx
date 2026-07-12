@@ -23,7 +23,7 @@ import MerchantGridCard, {
 } from "../ui/components/MerchantGridCard";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
-import { giftCardApi, merchantsApi, meApi } from "../api/endpoints";
+import { merchantsApi, meApi } from "../api/endpoints";
 import { AppTabsParamList, HomeStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import TopNavBar from "../ui/components/TopNavBar";
@@ -84,14 +84,6 @@ const HomeScreen: React.FC = () => {
     enabled: isQueryEnabled
   });
   const {
-    isRefetching: isRefetchingGiftCards,
-    refetch: refetchGiftCards
-  } = useQuery({
-    queryKey: ["giftCards"],
-    queryFn: giftCardApi.list,
-    enabled: isQueryEnabled
-  });
-  const {
     data: merchants,
     isLoading: isLoadingMerchants,
     isRefetching: isRefetchingMerchants,
@@ -119,11 +111,13 @@ const HomeScreen: React.FC = () => {
         : shelves.map((shelf) => ({ type: "shelf" as const, key: shelf.key, shelf })),
     [isMerchantBusy, shelves]
   );
-  const refreshing = isRefetchingMe || isRefetchingGiftCards || isRefetchingMerchants;
+  const refreshing = isRefetchingMe || isRefetchingMerchants;
 
+  // Home only renders profile + merchant data, so pull-to-refresh refetches
+  // exactly those; gift cards are fetched by the wallet screens that show them.
   const handleRefresh = useCallback(() => {
-    void Promise.all([refetchMe(), refetchGiftCards(), refetchMerchants()]);
-  }, [refetchGiftCards, refetchMe, refetchMerchants]);
+    void Promise.all([refetchMe(), refetchMerchants()]);
+  }, [refetchMe, refetchMerchants]);
 
   const handlePressMerchant = useCallback(
     (merchant: Merchant) => {

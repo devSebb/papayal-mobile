@@ -18,11 +18,17 @@
         "image": "sdk-54"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.papayal.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.papayal.app",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "production",
+        "releaseStatus": "draft"
+      }
+    }
   }
 }

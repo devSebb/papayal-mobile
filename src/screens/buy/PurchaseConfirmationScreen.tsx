@@ -80,7 +80,7 @@ const PurchaseConfirmationScreen: React.FC = () => {
         </View>
         <Row label="Comercio" value={draft.merchant?.name ?? "—"} />
         <Row label="Monto" value={amountLabel} />
-        <Row label="Tarifa (estimado)" value="$0.00" />
+        <Row label="Tarifa (estimada)" value={formatMoney(0, draft.currency)} />
       </Card>
 
       <Card style={styles.sectionCard}>

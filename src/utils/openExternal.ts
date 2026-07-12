@@ -37,7 +37,7 @@ export async function openLegal(path: string): Promise<void> {
       }
     }
   } catch (error) {
-    console.error("[Legal] Failed to open browser:", error);
+    if (__DEV__) console.error("[Legal] Failed to open browser:", error);
     Alert.alert(
       "No se pudo abrir el enlace",
       "Verifica tu conexión e inténtalo de nuevo."

@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+import React, { useEffect } from "react";
+import { Animated, Easing, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import Button from "./Button";
@@ -13,12 +13,65 @@ type SkeletonBlockProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+// Single Animated.Value shared by every SkeletonBlock so all placeholders
+// pulse in sync and the app runs at most one animation loop (native driver).
+// Refcounted: the loop starts with the first mounted block and stops with
+// the last, so nothing animates while no skeletons are on screen.
+const skeletonPulse = new Animated.Value(1);
+let skeletonPulseLoop: Animated.CompositeAnimation | null = null;
+let skeletonPulseConsumers = 0;
+
+const retainSkeletonPulse = () => {
+  skeletonPulseConsumers += 1;
+  if (skeletonPulseConsumers > 1) return;
+  skeletonPulseLoop = Animated.loop(
+    Animated.sequence([
+      Animated.timing(skeletonPulse, {
+        toValue: 0.5,
+        duration: 500,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true
+      }),
+      Animated.timing(skeletonPulse, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true
+      })
+    ])
+  );
+  skeletonPulseLoop.start();
+};
+
+const releaseSkeletonPulse = () => {
+  skeletonPulseConsumers = Math.max(0, skeletonPulseConsumers - 1);
+  if (skeletonPulseConsumers > 0) return;
+  skeletonPulseLoop?.stop();
+  skeletonPulseLoop = null;
+  skeletonPulse.setValue(1);
+};
+
 export const SkeletonBlock: React.FC<SkeletonBlockProps> = ({
   width = "100%",
   height,
   radius = theme.radius.md,
   style
-}) => <View style={[styles.skeleton, { width, height, borderRadius: radius }, style]} />;
+}) => {
+  useEffect(() => {
+    retainSkeletonPulse();
+    return releaseSkeletonPulse;
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.skeleton,
+        { width, height, borderRadius: radius, opacity: skeletonPulse },
+        style
+      ]}
+    />
+  );
+};
 
 type EmptyStateCardProps = {
   icon: keyof typeof Feather.glyphMap;

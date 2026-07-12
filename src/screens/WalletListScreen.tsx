@@ -27,7 +27,7 @@ const walletDecorationImage = require("../../assets/wallet-decoration.png");
 const WALLET_CARD_BG = "#F5EEDC";
 const WALLET_HEADING = "#2D3E50";
 
-/** Same top/bottom inset so "Total Disponible" and "Tarjetas Activas" align across columns */
+/** Same top/bottom inset so "Total disponible" and "Tarjetas activas" align across columns */
 const WALLET_SUMMARY_PAD_V = theme.spacing(1.5);
 const WALLET_SUMMARY_LABEL_VALUE_GAP = theme.spacing(0.75);
 
@@ -139,10 +139,11 @@ const statusStyles = {
   }
 } as const;
 
+// Mirrors GiftCardDetailScreen's statusLabelMap so list and detail agree.
 const statusLabels: Record<GiftCardVM["status"], string> = {
   Active: "Activa",
-  Redeemed: "Inactiva",
-  Expired: "Inactiva"
+  Redeemed: "Canjeada",
+  Expired: "Vencida"
 };
 
 const iconForActivity: Record<ActivityItem["kind"], { name: keyof typeof Feather.glyphMap; color: string }> = {
@@ -166,7 +167,7 @@ const formatTimestamp = (timestamp?: string) => {
   const parsed = Date.parse(timestamp);
   if (Number.isNaN(parsed)) return "Reciente";
   const date = new Date(parsed);
-  return date.toLocaleDateString("es", { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("es-EC", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const shortName = (full: string) => {
@@ -183,12 +184,12 @@ const SummaryBanner: React.FC<{
   <View style={styles.walletStrip}>
     <View style={styles.walletMainRow}>
       <SummaryLeftWithGradientBorder>
-        <Text style={styles.summaryBalanceLabel}>Total Disponible</Text>
+        <Text style={styles.summaryBalanceLabel}>Total disponible</Text>
         <Text style={styles.summaryBalanceValue}>{balanceLabel ?? "—"}</Text>
       </SummaryLeftWithGradientBorder>
       <View style={styles.activeCardsCard}>
         <View style={styles.activeCardsTextBlock}>
-          <Text style={styles.activeCardsLabel}>Tarjetas Activas</Text>
+          <Text style={styles.activeCardsLabel}>Tarjetas activas</Text>
           <Text style={styles.activeCardsValue}>{activeCardsCount}</Text>
         </View>
         <Image source={walletDecorationImage} style={styles.walletDecoration} />
@@ -564,7 +565,7 @@ const WalletListScreen: React.FC = () => {
         balanceLabel={summary.activeBalanceLabel}
         activeCardsCount={summary.activeCardsCount}
       />
-      <Text style={styles.sectionTitle}>Mis Tarjetas</Text>
+      <Text style={styles.sectionTitle}>Mis tarjetas</Text>
       <View style={styles.tabsRow}>
         {(Object.keys(TAB_LABELS) as TabKey[]).map((tab) => (
           <TabButton

@@ -25,7 +25,7 @@ const formatTimestamp = (timestamp?: string) => {
   const parsed = Date.parse(timestamp);
   if (Number.isNaN(parsed)) return "Reciente";
   const date = new Date(parsed);
-  return date.toLocaleDateString("es", { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("es-EC", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const ActivityRow: React.FC<{ item: ActivityItem }> = ({ item }) => {

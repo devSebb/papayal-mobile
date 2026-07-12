@@ -5,7 +5,12 @@ export const formatMoney = (amount: number | null | undefined, currency?: string
   if (!currency) return "—";
   const safeAmount = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
   try {
-    return new Intl.NumberFormat(undefined, {
+    // Deliberately pinned to "en-US" (NOT the device locale, NOT "es-EC"):
+    // the app's established money convention everywhere is "$1,250.00" —
+    // period decimals with comma thousands. es-EC would render "$1.250,50"
+    // and the device locale varies per user ("US$ 10,00", "$10.00", ...).
+    // Pinning keeps every screen consistent with what users already see.
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency,
       minimumFractionDigits: 2,

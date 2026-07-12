@@ -1,9 +1,9 @@
 {
   "expo": {
     "scheme": "papayal",
-    "name": "papayal-mobile",
+    "name": "Papayal",
     "slug": "papayal-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/Papayal-icon.png",
     "splash": {
@@ -15,11 +15,16 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.papayal.app",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Papayal no usa el micrófono. Este permiso lo requiere una librería del sistema."
+      },
+      "entitlements": {
+        "aps-environment": "production"
       },
       "appleTeamId": "DLFL9SP5JG",
       "privacyManifests": {
@@ -54,6 +59,7 @@
     "android": {
       "package": "com.papayal.app",
       "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
       "permissions": [],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"

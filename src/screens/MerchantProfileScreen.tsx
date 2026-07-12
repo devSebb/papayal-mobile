@@ -34,6 +34,7 @@ import {
   GIFT_CARD_MIN_AMOUNT_USD as MIN_AMOUNT
 } from "../domain/purchase/giftCardAmountLimits";
 import { usePurchaseDraft } from "../domain/purchase/purchaseDraftStore";
+import { centsToDollars, formatMoney } from "../utils/money";
 
 type RouteProps = RouteProp<HomeStackParamList, "MerchantProfile">;
 type NavProps = NativeStackNavigationProp<HomeStackParamList, "MerchantProfile">;
@@ -391,10 +392,8 @@ const coverageInfo = (merchant: Merchant | undefined | null, merchantName: strin
   return { icon: "map-pin", text: "Canjeable en comercios afiliados en Ecuador." };
 };
 
-const amountLabel = (amountCents: number | null) => {
-  if (!amountCents) return "$0";
-  return amountCents % 100 === 0 ? `$${amountCents / 100}` : `$${(amountCents / 100).toFixed(2)}`;
-};
+const amountLabel = (amountCents: number | null) =>
+  formatMoney(centsToDollars(amountCents) ?? 0, "USD");
 
 const styles = StyleSheet.create({
   screen: {

@@ -1,0 +1,108 @@
+{
+  "name": "stripe-react-native",
+  "version": "0.50.3",
+  "summary": "Stripe SDK for React Native",
+  "homepage": "https://github.com/stripe/stripe-react-native/#readme",
+  "license": "MIT",
+  "authors": "Stripe",
+  "platforms": {
+    "ios": "13.0"
+  },
+  "source": {
+    "git": "https://github.com/stripe/stripe-react-native.git",
+    "tag": "0.50.3"
+  },
+  "source_files": "ios/**/*.{h,m,mm,swift}",
+  "exclude_files": [
+    "ios/Tests/",
+    "ios/NewArch/"
+  ],
+  "private_header_files": [
+    "ios/StripeSdk.h",
+    "ios/StripeSwiftInterop.h"
+  ],
+  "header_dir": "stripe_react_native",
+  "pod_target_xcconfig": {
+    "USE_HEADERMAP": "YES",
+    "DEFINES_MODULE": "YES",
+    "CLANG_CXX_LANGUAGE_STANDARD": "c++20",
+    "SWIFT_COMPILATION_MODE": "wholemodule",
+    "HEADER_SEARCH_PATHS": [
+      "\"$(PODS_ROOT)/Headers/Private/Yoga\"",
+      "$(PODS_ROOT)/glog",
+      "$(PODS_ROOT)/boost",
+      "$(PODS_ROOT)/DoubleConversion",
+      "$(PODS_ROOT)/fast_float/include",
+      "$(PODS_ROOT)/fmt/include",
+      "$(PODS_ROOT)/SocketRocket",
+      "$(PODS_ROOT)/RCT-Folly"
+    ],
+    "OTHER_CPLUSPLUSFLAGS": "$(inherited) -DRCT_NEW_ARCH_ENABLED=1 ",
+    "OTHER_SWIFT_FLAGS": "$(inherited) -DRCT_NEW_ARCH_ENABLED"
+  },
+  "dependencies": {
+    "React-Core": [],
+    "Stripe": [
+      "~> 24.19.0"
+    ],
+    "StripePaymentSheet": [
+      "~> 24.19.0"
+    ],
+    "StripePayments": [
+      "~> 24.19.0"
+    ],
+    "StripePaymentsUI": [
+      "~> 24.19.0"
+    ],
+    "StripeApplePay": [
+      "~> 24.19.0"
+    ],
+    "StripeFinancialConnections": [
+      "~> 24.19.0"
+    ],
+    "React-RCTFabric": [],
+    "ReactCodegen": [],
+    "RCTRequired": [],
+    "RCTTypeSafety": [],
+    "ReactCommon/turbomodule/bridging": [],
+    "ReactCommon/turbomodule/core": [],
+    "React-NativeModulesApple": [],
+    "Yoga": [],
+    "React-Fabric": [],
+    "React-graphics": [],
+    "React-utils": [],
+    "React-featureflags": [],
+    "React-debug": [],
+    "React-ImageManager": [],
+    "React-rendererdebug": [],
+    "React-jsi": [],
+    "React-renderercss": [],
+    "hermes-engine": [],
+    "glog": [],
+    "boost": [],
+    "DoubleConversion": [],
+    "fast_float": [],
+    "fmt": [],
+    "RCT-Folly": [],
+    "SocketRocket": [],
+    "RCT-Folly/Fabric": []
+  },
+  "compiler_flags": "-DRCT_NEW_ARCH_ENABLED=1",
+  "testspecs": [
+    {
+      "name": "Tests",
+      "test_type": "unit",
+      "platforms": {
+        "ios": "15.1"
+      },
+      "source_files": "ios/Tests/**/*.{m,swift}"
+    }
+  ],
+  "subspecs": [
+    {
+      "name": "NewArch",
+      "source_files": "ios/NewArch/**/*.{h,m,mm}",
+      "private_header_files": "**/*.h"
+    }
+  ]
+}

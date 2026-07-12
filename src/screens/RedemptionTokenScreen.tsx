@@ -17,6 +17,7 @@ import { WalletStackParamList } from "../navigation";
 import { HttpError } from "../api/http";
 import { useAuth } from "../auth/authStore";
 import { toDisplayTime } from "../utils/date";
+import { hapticImpactLight, hapticSuccess } from "../utils/haptics";
 
 const formatCountdown = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -119,9 +120,18 @@ const RedemptionTokenScreen: React.FC = () => {
   }, [error]);
 
   const handleRegenerate = () => {
+    hapticImpactLight();
     setCooldown(4);
     setVersion((v) => v + 1);
   };
+
+  // Confirm with a success haptic when a regenerated token actually arrives
+  // (version > 0 means the user explicitly requested a new code).
+  useEffect(() => {
+    if (version > 0 && data?.token) {
+      hapticSuccess();
+    }
+  }, [version, data?.token]);
 
   return (
     <Screen scrollable edges={["left", "right"]}>

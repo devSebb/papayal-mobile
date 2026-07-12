@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "382109368401",
+    "project_id": "papayal-fc768",
+    "storage_bucket": "papayal-fc768.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:382109368401:android:c6bc0662636fd13804f870",
+        "android_client_info": {
+          "package_name": "com.papayal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeC_XPd2ZL1dH9Dyr9fqJBMFWwhj-Uk_I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,10 +11,12 @@ import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
+import Constants from "expo-constants";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
+import Banner from "../../ui/components/Banner";
 import TextField from "../../ui/components/TextField";
 import { SkeletonBlock } from "../../ui/components/StateViews";
 import { theme } from "../../ui/theme";
@@ -21,10 +24,12 @@ import { merchantsApi } from "../../api/endpoints";
 import { Merchant } from "../../types/api";
 import { formatMoney } from "../../utils/money";
 import {
-  GIFT_CARD_MAX_AMOUNT_USD as MAX_AMOUNT,
-  GIFT_CARD_MIN_AMOUNT_USD as MIN_AMOUNT
+  GIFT_CARD_MAX_AMOUNT_USD,
+  GIFT_CARD_MIN_AMOUNT_USD
 } from "../../domain/purchase/giftCardAmountLimits";
 import { usePurchaseDraft, MerchantSelection } from "../../domain/purchase/purchaseDraftStore";
+import { useAppConfig } from "../../hooks/useAppConfig";
+import { isVersionBelow } from "../../utils/version";
 import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
 import CheckoutHeader from "./CheckoutHeader";
@@ -102,6 +107,22 @@ const BuyGiftCardStartScreen: React.FC = () => {
   const { accessToken } = useAuth();
   const { draft, setMerchant, setAmount } = usePurchaseDraft();
   const isQueryEnabled = !!accessToken;
+
+  // Remote config: limits, kill switch, min supported version. All treated
+  // as "use local defaults" when unavailable — a config outage never blocks.
+  const { data: appConfig } = useAppConfig();
+  const minAmount = appConfig?.gift_card_limits?.min_cents
+    ? appConfig.gift_card_limits.min_cents / 100
+    : GIFT_CARD_MIN_AMOUNT_USD;
+  const maxAmount = appConfig?.gift_card_limits?.max_cents
+    ? appConfig.gift_card_limits.max_cents / 100
+    : GIFT_CARD_MAX_AMOUNT_USD;
+  const purchasesEnabled = appConfig?.purchases_enabled !== false;
+  const minSupported =
+    Platform.OS === "ios"
+      ? appConfig?.min_supported_version?.ios
+      : appConfig?.min_supported_version?.android;
+  const updateRequired = isVersionBelow(Constants.expoConfig?.version, minSupported);
   const requestedMerchantId = route.params?.merchantId?.toString() ?? null;
   const appliedMerchantParamRef = useRef<string | null>(null);
   const {
@@ -176,12 +197,14 @@ const BuyGiftCardStartScreen: React.FC = () => {
     amountValue && Number.isFinite(amountValue) ? Math.round(amountValue * 100) : null;
   const amountValid =
     amountCents !== null &&
-    amountCents >= MIN_AMOUNT * 100 &&
-    amountCents <= MAX_AMOUNT * 100 &&
+    amountCents >= minAmount * 100 &&
+    amountCents <= maxAmount * 100 &&
     !Number.isNaN(amountCents);
   const amountLabel = formatMoney(amountCents ? amountCents / 100 : null, draft.currency);
 
-  const canContinue = Boolean(selectedMerchant && amountValid);
+  const canContinue = Boolean(
+    selectedMerchant && amountValid && purchasesEnabled && !updateRequired
+  );
   const isMerchantBusy = isLoadingMerchants || isRefetchingMerchants;
   const hasMerchantOptions = merchantOptions.length > 0;
 
@@ -205,6 +228,24 @@ const BuyGiftCardStartScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
         showSummary={false}
       />
+
+      {!purchasesEnabled ? (
+        <Banner
+          icon="pause-circle"
+          tone="warning"
+          title="Compras en pausa"
+          message="Las compras están temporalmente deshabilitadas. Intenta de nuevo más tarde — tus tarjetas y canjes siguen funcionando."
+          style={styles.configBanner}
+        />
+      ) : updateRequired ? (
+        <Banner
+          icon="download"
+          tone="warning"
+          title="Actualización necesaria"
+          message="Hay una nueva versión de Papayal. Actualiza la app desde la tienda para continuar con tu compra."
+          style={styles.configBanner}
+        />
+      ) : null}
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
@@ -264,7 +305,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Monto</Text>
-          <Text style={styles.sectionHint}>USD • mínimo ${MIN_AMOUNT} • máximo ${MAX_AMOUNT}</Text>
+          <Text style={styles.sectionHint}>USD • mínimo ${minAmount} • máximo ${maxAmount}</Text>
         </View>
         <View style={styles.amountGrid}>
           {presetAmounts.map((amt) => (
@@ -298,8 +339,8 @@ const BuyGiftCardStartScreen: React.FC = () => {
               accessibilityLabel="Monto personalizado en dólares"
               error={
                 amountCents !== null && !amountValid
-                  ? `Ingresa entre ${formatMoney(MIN_AMOUNT, "USD")} y ${formatMoney(
-                      MAX_AMOUNT,
+                  ? `Ingresa entre ${formatMoney(minAmount, "USD")} y ${formatMoney(
+                      maxAmount,
                       "USD"
                     )}`
                   : undefined
@@ -330,6 +371,9 @@ const styles = StyleSheet.create({
   sectionCard: {
     marginBottom: theme.spacing(1.5),
     gap: theme.spacing(1)
+  },
+  configBanner: {
+    marginBottom: theme.spacing(1.5)
   },
   sectionHeader: {
     flexDirection: "row",

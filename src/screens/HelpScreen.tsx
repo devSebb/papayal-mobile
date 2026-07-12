@@ -56,7 +56,7 @@ const FAQS: FaqItem[] = [
     category: "Comercios",
     question: "¿Dónde puedo usar Papayal?",
     answer:
-      "Solo en comercios aprobados por Papayal (supermercados, farmacias, retail, comida). Verifica la lista dentro del token o pregunta en caja si aceptan Papayal."
+      "Solo en comercios aprobados por Papayal. Importante: por ahora, la mayoría de tarjetas se pagan en los locales de Medicity o Farmacias Económicas, nuestros socios de canje. Cada tarjeta te indica exactamente dónde pagar antes de canjearla."
   },
   {
     id: "canjear-qr",
@@ -133,7 +133,7 @@ const FAQS: FaqItem[] = [
     category: "Pagos",
     question: "¿Tiene comisiones o costos adicionales?",
     answer:
-      "No. Por ahora no cobramos comisiones al comprar ni al canjear tu tarjeta de regalo. Si esto cambia, verás cualquier costo claramente antes de pagar."
+      "Por ahora no cobramos comisiones al comprar ni al canjear tu tarjeta de regalo. Cualquier tarifa aplicable se muestra siempre en el resumen de compra, con el total exacto, antes de que pagues."
   },
   {
     id: "comprobante",

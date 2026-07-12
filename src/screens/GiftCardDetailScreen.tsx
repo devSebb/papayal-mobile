@@ -7,9 +7,11 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import Banner from "../ui/components/Banner";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
-import { giftCardApi, meApi } from "../api/endpoints";
+import { giftCardApi, meApi, merchantsApi } from "../api/endpoints";
+import { partnerRedemption } from "../domain/merchants/partnerRedemption";
 import { WalletStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import { centsToDollars, formatMoney } from "../utils/money";
@@ -49,6 +51,16 @@ const GiftCardDetailScreen: React.FC = () => {
     queryFn: () => giftCardApi.detail(id),
     enabled: isSignedIn
   });
+
+  // Merchant detail for the redemption disclaimer (partner-routed merchants
+  // are paid at Medicity / Farmacias Económicas). Shares the ["merchant", id]
+  // cache with the browse screens; non-blocking — the card renders without it.
+  const { data: merchantDetail } = useQuery({
+    queryKey: ["merchant", data?.merchant_id],
+    queryFn: () => merchantsApi.detail(data?.merchant_id as string),
+    enabled: isSignedIn && !!data?.merchant_id
+  });
+  const partner = partnerRedemption(merchantDetail);
 
   const isBusy = !isSignedIn || isLoading;
 
@@ -218,6 +230,15 @@ const GiftCardDetailScreen: React.FC = () => {
             </View>
           ) : null}
 
+          {partner && data.status === "active" ? (
+            <Banner
+              icon="map-pin"
+              title="Dónde canjear"
+              message={`Para canjear esta tarjeta, paga en ${partner.label}.`}
+              style={styles.partnerBanner}
+            />
+          ) : null}
+
           {canRedeem ? (
             <Button
               label="Generar token de canje"
@@ -282,6 +303,9 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.semiBold
   },
   button: {
+    marginTop: theme.spacing(2)
+  },
+  partnerBanner: {
     marginTop: theme.spacing(2)
   },
   holdBanner: {

@@ -54,9 +54,22 @@ const GuestBrowseScreen: React.FC = () => {
     <Screen scrollable edges={["top", "left", "right"]}>
       <View style={styles.container}>
         <View style={styles.topRow}>
-          <View>
-            <Text style={styles.brand}>Papayal</Text>
-            <Text style={styles.kicker}>Explora comercios antes de crear una cuenta.</Text>
+          <View style={styles.topLeft}>
+            {rootNavigation?.canGoBack?.() ? (
+              <Pressable
+                onPress={() => rootNavigation.goBack()}
+                style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Volver a la pantalla de inicio"
+              >
+                <Feather name="arrow-left" size={18} color={theme.colors.secondary} />
+              </Pressable>
+            ) : null}
+            <View style={styles.brandBlock}>
+              <Text style={styles.brand}>Papayal</Text>
+              <Text style={styles.kicker}>Explora comercios antes de crear una cuenta.</Text>
+            </View>
           </View>
           <Pressable
             onPress={() => rootNavigation?.navigate("Auth", { screen: "Login" })}
@@ -204,6 +217,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: theme.spacing(1.5),
     marginBottom: theme.spacing(2)
+  },
+  topLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(1)
+  },
+  brandBlock: {
+    flex: 1
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(13, 47, 50, 0.18)",
+    backgroundColor: "transparent"
+  },
+  backButtonPressed: {
+    backgroundColor: "rgba(13, 47, 50, 0.06)"
   },
   brand: {
     fontSize: 30,

@@ -11,8 +11,10 @@ import { usePreventScreenCapture } from "expo-screen-capture";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import Banner from "../ui/components/Banner";
 import { theme } from "../ui/theme";
-import { giftCardApi } from "../api/endpoints";
+import { giftCardApi, merchantsApi } from "../api/endpoints";
+import { partnerRedemption } from "../domain/merchants/partnerRedemption";
 import { WalletStackParamList } from "../navigation";
 import { HttpError } from "../api/http";
 import { useAuth } from "../auth/authStore";
@@ -55,6 +57,28 @@ const RedemptionTokenScreen: React.FC = () => {
     }
   });
   const isBusy = !isQueryEnabled || isLoading || isFetching;
+
+  // Card + merchant context for the cashier: which merchant this card is for
+  // and, for partner-routed merchants, where it's actually paid. Both come
+  // from caches warmed by the detail screen; failures never block the token.
+  const { data: giftCard } = useQuery({
+    queryKey: ["giftCard", id],
+    queryFn: () => giftCardApi.detail(id),
+    enabled: isQueryEnabled
+  });
+  const { data: merchantDetail } = useQuery({
+    queryKey: ["merchant", giftCard?.merchant_id],
+    queryFn: () => merchantsApi.detail(giftCard?.merchant_id as string),
+    enabled: isQueryEnabled && !!giftCard?.merchant_id
+  });
+  const partner = partnerRedemption(merchantDetail);
+  const merchantName =
+    giftCard?.merchant_store_name?.trim() ||
+    giftCard?.store_name?.trim() ||
+    giftCard?.merchant_name?.trim() ||
+    giftCard?.store?.name?.trim() ||
+    giftCard?.merchant?.name?.trim() ||
+    null;
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -136,7 +160,18 @@ const RedemptionTokenScreen: React.FC = () => {
   return (
     <Screen scrollable edges={["left", "right"]}>
       <Card>
-        <Text style={styles.title}>Token de canje</Text>
+        <Text style={[styles.title, !merchantName && styles.titleSpaced]}>Token de canje</Text>
+        {merchantName ? (
+          <Text style={styles.merchantSubtitle}>Tarjeta de {merchantName}</Text>
+        ) : null}
+        {partner ? (
+          <Banner
+            icon="map-pin"
+            compact
+            message={`Presenta este código y paga en ${partner.label}.`}
+            style={styles.partnerBanner}
+          />
+        ) : null}
         {isBusy ? <Text style={styles.muted}>Generando...</Text> : null}
         {friendlyError ? <Text style={styles.error}>{friendlyError}</Text> : null}
         {data ? (
@@ -204,7 +239,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subheading,
     fontFamily: theme.fonts.bold,
+    marginBottom: theme.spacing(0.25)
+  },
+  titleSpaced: {
     marginBottom: theme.spacing(1)
+  },
+  merchantSubtitle: {
+    color: theme.colors.muted,
+    fontFamily: theme.fonts.semiBold,
+    marginBottom: theme.spacing(1)
+  },
+  partnerBanner: {
+    marginBottom: theme.spacing(1.25)
   },
   tokenContainer: {
     alignItems: "center",

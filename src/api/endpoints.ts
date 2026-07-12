@@ -1,5 +1,13 @@
 import { request } from "./http";
-import { AuthTokens, GiftCard, Merchant, RedemptionToken, User } from "../types/api";
+import {
+  AppConfig,
+  AuthTokens,
+  CheckoutQuote,
+  GiftCard,
+  Merchant,
+  RedemptionToken,
+  User
+} from "../types/api";
 
 export const authApi = {
   login: async (params: { email: string; password: string; device_id?: string }) => {
@@ -132,6 +140,22 @@ export const checkoutApi = {
     const { data } = await request<{ ok: boolean; missing?: string[] }>("/api/v1/checkout/validate_kyc", {
       method: "POST"
     });
+    return data;
+  },
+  /** Server-authoritative subtotal/fee/total for a purchase amount. */
+  quote: async (amountCents: number, currency = "USD") => {
+    const { data } = await request<CheckoutQuote>("/api/v1/checkout/quote", {
+      method: "POST",
+      body: { amount_cents: amountCents, currency: currency.toLowerCase() }
+    });
+    return data;
+  }
+};
+
+export const configApi = {
+  /** Public remote config: limits, fees, kill switches, min app versions. */
+  get: async () => {
+    const { data } = await request<AppConfig>("/api/v1/config");
     return data;
   }
 };

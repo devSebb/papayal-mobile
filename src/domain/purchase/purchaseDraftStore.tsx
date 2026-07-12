@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { generateUUID } from "../../utils/uuid";
+import { CheckoutQuote } from "../../types/api";
 
 export type MerchantSelection = {
   id?: string;
@@ -21,6 +22,9 @@ export type PurchaseDraft = {
   amount_cents: number | null;
   currency: string;
   recipient: RecipientInfo | null;
+  /** Server price breakdown (subtotal/fee/total). Cleared whenever the
+   *  amount changes so a stale fee is never shown. */
+  quote: CheckoutQuote | null;
 };
 
 type PurchaseDraftContextValue = {
@@ -28,6 +32,7 @@ type PurchaseDraftContextValue = {
   setMerchant: (merchant: MerchantSelection | null) => void;
   setAmount: (amountCents: number | null, currency?: string) => void;
   setRecipient: (recipient: RecipientInfo | null) => void;
+  setQuote: (quote: CheckoutQuote | null) => void;
   resetDraft: () => void;
 };
 
@@ -36,7 +41,8 @@ const createInitialDraft = (): PurchaseDraft => ({
   merchant: null,
   amount_cents: null,
   currency: "USD",
-  recipient: null
+  recipient: null,
+  quote: null
 });
 
 const PurchaseDraftContext = createContext<PurchaseDraftContextValue | undefined>(undefined);
@@ -51,17 +57,22 @@ export const PurchaseDraftProvider: React.FC<{ children: React.ReactNode }> = ({
     setDraft((prev) => ({
       ...prev,
       amount_cents: amountCents,
-      currency: currency ?? prev.currency
+      currency: currency ?? prev.currency,
+      // A different amount invalidates any previously fetched quote.
+      quote: prev.amount_cents === amountCents ? prev.quote : null
     }));
 
   const setRecipient = (recipient: RecipientInfo | null) =>
     setDraft((prev) => ({ ...prev, recipient }));
 
+  const setQuote = (quote: CheckoutQuote | null) =>
+    setDraft((prev) => ({ ...prev, quote }));
+
   /** Resets draft completely and generates a new draft_id for the next purchase */
   const resetDraft = () => setDraft(createInitialDraft());
 
   const value = useMemo<PurchaseDraftContextValue>(
-    () => ({ draft, setMerchant, setAmount, setRecipient, resetDraft }),
+    () => ({ draft, setMerchant, setAmount, setRecipient, setQuote, resetDraft }),
     [draft]
   );
 

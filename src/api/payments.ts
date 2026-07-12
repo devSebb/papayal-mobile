@@ -3,11 +3,14 @@ import {
   GIFT_CARD_MIN_AMOUNT_USD
 } from "../domain/purchase/giftCardAmountLimits";
 import { PurchaseDraft } from "../domain/purchase/purchaseDraftStore";
+import { CheckoutQuote } from "../types/api";
 import { request, HttpError } from "./http";
 
 export type PaymentIntentResponse = {
   clientSecret: string;
   paymentIntentId: string;
+  /** Server price breakdown actually charged (subtotal + fee = total). */
+  quote?: CheckoutQuote | null;
   requestId?: string;
 };
 
@@ -46,6 +49,7 @@ export const createGiftCardPaymentIntent = async (
     const { data, requestId } = await request<{
       client_secret: string;
       payment_intent_id: string;
+      quote?: CheckoutQuote | null;
     }>("/api/v1/checkout/payment_intent", {
       method: "POST",
       body: {
@@ -65,6 +69,7 @@ export const createGiftCardPaymentIntent = async (
     return {
       clientSecret: data.client_secret,
       paymentIntentId: data.payment_intent_id,
+      quote: data.quote ?? null,
       requestId
     };
   } catch (err) {

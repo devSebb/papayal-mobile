@@ -87,8 +87,30 @@ export type Merchant = {
   is_national?: boolean | null;
   coverageText?: string | null;
   coverage_text?: string | null;
+  /** True when cards for this merchant are paid at a partner network
+   *  (Farmaenlace deal: Medicity / Farmacias Económicas) instead of the
+   *  merchant's own stores. Drives redemption disclaimers in the UI. */
+  partner_redemption?: boolean | null;
+  redemption_partner_label?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+/** Server-authoritative price breakdown from POST /api/v1/checkout/quote.
+ *  The app must never compute fees locally. */
+export type CheckoutQuote = {
+  subtotal_cents: number;
+  fee_cents: number;
+  total_cents: number;
+  currency: string;
+};
+
+/** Remote config from GET /api/v1/config (public). */
+export type AppConfig = {
+  purchases_enabled: boolean;
+  min_supported_version: { ios?: string | null; android?: string | null };
+  fees: { buyer_fee_bps: number; buyer_fee_fixed_cents: number };
+  gift_card_limits: { min_cents: number; max_cents: number };
 };
 
 /**

@@ -35,7 +35,7 @@ const StripePaymentScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const queryClient = useQueryClient();
   const { confirmPayment } = useStripe();
-  const { draft } = usePurchaseDraft();
+  const { draft, setQuote } = usePurchaseDraft();
 
   const [cardComplete, setCardComplete] = useState(false);
   const [cardDetails, setCardDetails] = useState<{
@@ -85,6 +85,14 @@ const StripePaymentScreen: React.FC = () => {
     draft.amount_cents ? draft.amount_cents / 100 : null,
     draft.currency
   );
+  // Server quote (fetched on the confirmation screen; refreshed from the
+  // payment_intent response). Total falls back to the card amount when no
+  // quote is available — identical while fees are 0.
+  const feeCents = draft.quote?.fee_cents ?? 0;
+  const feeLabel = formatMoney(feeCents / 100, draft.quote?.currency ?? draft.currency);
+  const totalLabel = draft.quote
+    ? formatMoney(draft.quote.total_cents / 100, draft.quote.currency)
+    : amountLabel;
 
   const canPay =
     cardComplete &&
@@ -137,6 +145,10 @@ const StripePaymentScreen: React.FC = () => {
       clientSecret = result.clientSecret;
       piId = result.paymentIntentId;
       setPaymentIntentId(piId);
+      // The PI response carries the authoritative breakdown actually charged.
+      if (result.quote) {
+        setQuote(result.quote);
+      }
 
       if (__DEV__) {
         console.log("[StripePayment] PaymentIntent created:", piId);
@@ -305,8 +317,16 @@ const StripePaymentScreen: React.FC = () => {
           <Text style={styles.sectionHint}>{draft.merchant?.name ?? ""}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Monto a pagar</Text>
+          <Text style={styles.summaryLabel}>Monto</Text>
           <Text style={styles.summaryValue}>{amountLabel}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Tarifa</Text>
+          <Text style={styles.summaryValue}>{feeLabel}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Total a pagar</Text>
+          <Text style={[styles.summaryValue, styles.summaryTotal]}>{totalLabel}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Destinatario</Text>
@@ -352,7 +372,7 @@ const StripePaymentScreen: React.FC = () => {
       </Card>
 
       <Button
-        label={`Pagar ${amountLabel}`}
+        label={`Pagar ${totalLabel}`}
         onPress={handlePay}
         disabled={!canPay || isProcessing}
         style={[styles.payButton, (!canPay || isProcessing) && styles.payButtonDisabled]}
@@ -550,6 +570,10 @@ const styles = StyleSheet.create({
   summaryValue: {
     color: theme.colors.text,
     fontFamily: theme.fonts.bold
+  },
+  summaryTotal: {
+    fontFamily: theme.fonts.extraBold,
+    fontSize: theme.typography.body
   },
   cardField: {
     width: "100%",

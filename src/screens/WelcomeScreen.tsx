@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, type ComponentProps } from "react";
-import { Animated, Easing, Image, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
@@ -214,13 +214,16 @@ const WelcomeScreen: React.FC = () => {
             style={styles.secondaryButton}
             accessibilityLabel="Ya tengo cuenta, ir a iniciar sesión"
           />
-          <Button
-            label="Explorar comercios"
+          <Pressable
             onPress={() => rootNavigation?.navigate("GuestApp" as never)}
-            variant="ghost"
-            style={styles.secondaryButton}
+            style={({ pressed }) => [styles.explorePill, pressed && styles.explorePillPressed]}
+            hitSlop={8}
+            accessibilityRole="button"
             accessibilityLabel="Explorar comercios sin iniciar sesión"
-          />
+          >
+            <Feather name="shopping-bag" size={14} color={theme.colors.secondary} />
+            <Text style={styles.explorePillLabel}>Explorar comercios</Text>
+          </Pressable>
         </Animated.View>
 
         <View style={styles.trustRow}>
@@ -387,6 +390,28 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderColor: "transparent",
     borderWidth: 0
+  },
+  explorePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing(0.75),
+    alignSelf: "center",
+    paddingVertical: theme.spacing(0.9),
+    paddingHorizontal: theme.spacing(2.25),
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(13, 47, 50, 0.22)",
+    backgroundColor: "transparent",
+    marginTop: theme.spacing(0.25)
+  },
+  explorePillPressed: {
+    backgroundColor: "rgba(13, 47, 50, 0.06)"
+  },
+  explorePillLabel: {
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small
   },
   trustRow: {
     flexDirection: "row",

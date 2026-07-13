@@ -90,6 +90,25 @@ export type RedemptionToken = {
   expires_at: string;
 };
 
+/**
+ * Public teaser behind a papayal.app/claim/<token> link. Deliberately
+ * minimal — enough to personalize the claim flow, never enough to redeem.
+ */
+export type ClaimLinkTeaser = {
+  gift_card_id: string | number;
+  status: "active" | "redeemed" | "expired" | "canceled";
+  amount_cents: number;
+  currency: string;
+  merchant_name?: string | null;
+  merchant_logo_url?: string | null;
+  sender_first_name?: string | null;
+  note?: string | null;
+  /** e.g. "+593•••3456" — the channel that must pass the claim OTP. */
+  recipient_masked_phone?: string | null;
+  /** True when the recipient already has a claimed (registered) account. */
+  recipient_registered?: boolean;
+};
+
 export type Merchant = {
   id: string;
   store_name: string;
@@ -146,6 +165,12 @@ export type ClaimVerificationDetails = {
   masked_phone?: string | null;
   /** Present when a code was sent recently; seconds until a resend is allowed. */
   retry_in_seconds?: number;
+};
+
+/** Sender-side share payload: claim URL + server-owned prewritten message. */
+export type GiftCardShareLink = {
+  claim_url: string;
+  message: string;
 };
 
 export type ApiError = {

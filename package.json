@@ -23,6 +23,7 @@
     "expo": "~54.0.35",
     "expo-barcode-generator": "^3.0.2",
     "expo-brightness": "~14.0.8",
+    "expo-contacts": "~15.0.11",
     "expo-device": "~8.0.10",
     "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",

@@ -26,6 +26,9 @@
       "entitlements": {
         "aps-environment": "production"
       },
+      "associatedDomains": [
+        "applinks:papayal.app"
+      ],
       "appleTeamId": "DLFL9SP5JG",
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
@@ -60,7 +63,31 @@
       "package": "com.papayal.app",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
-      "permissions": [],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "papayal.app",
+              "pathPrefix": "/claim"
+            },
+            {
+              "scheme": "https",
+              "host": "papayal.app",
+              "pathPrefix": "/reset"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.READ_CONTACTS"
+      ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
@@ -81,6 +108,12 @@
         {
           "photosPermission": "La app necesita acceso a tus fotos para cambiar tu foto de perfil.",
           "cameraPermission": "La app necesita acceso a la cámara para tomar una foto de perfil."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Papayal usa tus contactos solo para elegir a quién enviarle una tarjeta de regalo. No los almacenamos ni compartimos."
         }
       ],
       [

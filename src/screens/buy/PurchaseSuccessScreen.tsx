@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation, useRoute, useFocusEffect, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
@@ -11,8 +12,20 @@ import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { hapticSuccess } from "../../utils/haptics";
+import { giftCardApi } from "../../api/endpoints";
+import { shareGiftCard } from "../../sharing/shareGiftCard";
+import type { GiftCard } from "../../types/api";
 
 type PurchaseSuccessRouteProp = RouteProp<HomeStackParamList, "PurchaseSuccess">;
+
+// byPaymentIntent responds either with the card itself or a wrapper while
+// the webhook is still creating it.
+const extractGiftCard = (data: unknown): GiftCard | null => {
+  if (!data || typeof data !== "object") return null;
+  if ("id" in data) return data as GiftCard;
+  if ("gift_card" in data) return (data as { gift_card?: GiftCard | null }).gift_card ?? null;
+  return null;
+};
 
 const PurchaseSuccessScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -29,6 +42,29 @@ const PurchaseSuccessScreen: React.FC = () => {
   React.useEffect(() => {
     hapticSuccess();
   }, []);
+
+  // Resolve the created card so the buyer can share it right away. The
+  // webhook usually finished before this screen (cardReady), but poll a few
+  // times if not; the share button simply appears when the card exists.
+  const { data: giftCardData } = useQuery({
+    queryKey: ["giftCardByIntent", paymentIntentId],
+    queryFn: () => giftCardApi.byPaymentIntent(paymentIntentId as string),
+    enabled: !!paymentIntentId,
+    retry: 3,
+    retryDelay: 2000
+  });
+  const giftCard = extractGiftCard(giftCardData);
+  const [sharing, setSharing] = React.useState(false);
+
+  const shareGift = async () => {
+    if (!giftCard) return;
+    setSharing(true);
+    try {
+      await shareGiftCard(String(giftCard.id));
+    } finally {
+      setSharing(false);
+    }
+  };
 
   // Only reset draft when leaving the screen, not when mounting
   useFocusEffect(
@@ -115,6 +151,16 @@ const PurchaseSuccessScreen: React.FC = () => {
         ) : null}
 
         <View style={styles.actions}>
+          {giftCard ? (
+            <Button
+              label="Compartir por WhatsApp"
+              onPress={shareGift}
+              loading={sharing}
+              variant="secondary"
+              style={styles.shareBtn}
+              accessibilityLabel="Compartir la tarjeta de regalo por WhatsApp"
+            />
+          ) : null}
           <Button
             label="Ver mis tarjetas de regalo"
             onPress={goToWallet}
@@ -240,6 +286,11 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing(1)
   },
   primaryBtn: {
+    width: "100%",
+    paddingVertical: theme.spacing(1.4),
+    borderRadius: 18
+  },
+  shareBtn: {
     width: "100%",
     paddingVertical: theme.spacing(1.4),
     borderRadius: 18

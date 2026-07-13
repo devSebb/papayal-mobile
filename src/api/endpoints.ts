@@ -3,8 +3,10 @@ import {
   AppConfig,
   AuthTokens,
   CheckoutQuote,
+  ClaimLinkTeaser,
   EmailVerificationDetails,
   GiftCard,
+  GiftCardShareLink,
   Merchant,
   RedemptionToken,
   SignupResponse,
@@ -200,6 +202,28 @@ export const giftCardApi = {
     const { data } = await request<RedemptionToken>(`/api/v1/me/gift_cards/${id}/redemption_token`, {
       method: "POST"
     });
+    return data;
+  },
+  /** Sender-only: claim URL + prewritten message for the native share sheet. */
+  shareLink: async (id: string) => {
+    const { data } = await request<GiftCardShareLink>(`/api/v1/me/gift_cards/${id}/share_link`, {
+      method: "POST"
+    });
+    return data;
+  },
+  /** Sender-only: re-deliver the original notification. 429 when throttled. */
+  resend: async (id: string) => {
+    const { data } = await request<{ resent: boolean }>(`/api/v1/me/gift_cards/${id}/resend`, {
+      method: "POST"
+    });
+    return data;
+  }
+};
+
+export const claimApi = {
+  /** Public teaser for a papayal.app/claim/<token> link. No auth required. */
+  teaser: async (token: string) => {
+    const { data } = await request<ClaimLinkTeaser>(`/api/v1/claim/${encodeURIComponent(token)}`);
     return data;
   }
 };

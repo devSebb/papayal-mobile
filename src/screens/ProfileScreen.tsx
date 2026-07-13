@@ -24,6 +24,7 @@ import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
 import { HttpError } from "../api/http";
 import { ProfileStackParamList } from "../navigation";
+import { shareApp } from "../sharing/shareApp";
 
 const avatarPlaceholder = require("../../assets/avatar-default.png");
 
@@ -331,6 +332,21 @@ const ProfileScreen: React.FC = () => {
         </View>
         <Text style={styles.helpText}>Encuentra respuestas rápidas o contacta a soporte.</Text>
         <Button label="Ir a Ayuda" onPress={() => navigation.navigate("Help")} />
+      </Card>
+
+      <Card style={styles.helpCard}>
+        <View style={styles.sectionTitleRow}>
+          <Feather name="share-2" size={18} color={theme.colors.text} />
+          <Text style={styles.sectionTitle}>Comparte Papayal</Text>
+        </View>
+        <Text style={styles.helpText}>
+          Invita a tu familia y amigos a enviar y recibir tarjetas de regalo.
+        </Text>
+        <Button
+          label="Compartir la app"
+          onPress={shareApp}
+          accessibilityLabel="Compartir Papayal con tus contactos"
+        />
       </Card>
 
     </Screen>

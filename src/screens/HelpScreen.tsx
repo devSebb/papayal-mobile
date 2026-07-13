@@ -22,6 +22,7 @@ import TextField from "../ui/components/TextField";
 import { theme } from "../ui/theme";
 import { AppTabsParamList, ProfileStackParamList } from "../navigation";
 import { openLegal } from "../utils/openExternal";
+import { shareApp } from "../sharing/shareApp";
 import appConfig from "../../app.json";
 
 type BaseCategory = "Cuenta" | "Tarjeta" | "Pagos" | "Seguridad" | "Comercios";
@@ -353,6 +354,13 @@ const HelpScreen: React.FC = () => {
               variant="secondary"
               onPress={() => handleLinkPress("mailto:hola@papayal.app")}
               style={styles.supportButton}
+            />
+            <Button
+              label="Compartir Papayal"
+              variant="ghost"
+              onPress={shareApp}
+              style={styles.supportButton}
+              accessibilityLabel="Compartir Papayal con tus contactos"
             />
           </View>
           <View style={styles.linksRow}>

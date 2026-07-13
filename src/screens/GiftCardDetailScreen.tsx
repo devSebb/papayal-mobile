@@ -1,7 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import Screen from "../ui/components/Screen";
@@ -11,11 +11,13 @@ import Banner from "../ui/components/Banner";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi, merchantsApi } from "../api/endpoints";
+import type { HttpError } from "../api/http";
 import { partnerRedemption } from "../domain/merchants/partnerRedemption";
 import { WalletStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import { centsToDollars, formatMoney } from "../utils/money";
 import { getInitials } from "../utils/initials";
+import { shareGiftCard } from "../sharing/shareGiftCard";
 
 const merchantPlaceholder = require("../../assets/merchant-default.png");
 const avatarPlaceholder = require("../../assets/avatar-default.png");
@@ -72,6 +74,56 @@ const GiftCardDetailScreen: React.FC = () => {
     // Only show if the current user is the recipient (received card)
     return data.recipient_id === currentUser.id;
   }, [isSignedIn, currentUser?.id, data?.recipient_id]);
+
+  // Sender-side actions (share/resend) — the backend enforces this too.
+  const isSender = useMemo(() => {
+    if (!isSignedIn || !currentUser?.id || !data?.sender_id) return false;
+    return data.sender_id === currentUser.id;
+  }, [isSignedIn, currentUser?.id, data?.sender_id]);
+
+  const [sharing, setSharing] = useState(false);
+  const [resendNotice, setResendNotice] = useState<{
+    tone: "info" | "warning";
+    message: string;
+  } | null>(null);
+
+  const shareGift = async () => {
+    setSharing(true);
+    try {
+      await shareGiftCard(id);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const resendMutation = useMutation({
+    mutationFn: () => giftCardApi.resend(id),
+    onSuccess: () =>
+      setResendNotice({
+        tone: "info",
+        message: "Notificación reenviada. Le llegará por WhatsApp, SMS o correo en unos momentos."
+      }),
+    onError: (err) => {
+      const httpErr = err as unknown as HttpError;
+      if (httpErr?.status === 429) {
+        const retryIn = Number(
+          (httpErr.error?.details as { retry_in_seconds?: number } | undefined)?.retry_in_seconds ?? 0
+        );
+        setResendNotice({
+          tone: "warning",
+          message:
+            retryIn > 3600
+              ? "Alcanzaste el límite de reenvíos por hoy. Inténtalo mañana."
+              : `Ya la reenviamos hace poco. Intenta de nuevo en ${Math.max(1, Math.ceil(retryIn / 60))} min.`
+        });
+      } else {
+        setResendNotice({
+          tone: "warning",
+          message: "No pudimos reenviar la notificación. Revisa tu conexión e inténtalo de nuevo."
+        });
+      }
+    }
+  });
 
   // Derive sender display name
   const senderDisplayName = useMemo(() => {
@@ -248,6 +300,36 @@ const GiftCardDetailScreen: React.FC = () => {
           ) : isHeld ? null : (
             <Text style={styles.muted}>Esta tarjeta no es elegible para canje.</Text>
           )}
+
+          {/* Sender actions: share the claim link / re-deliver the notification */}
+          {isSender && data.status === "active" ? (
+            <View style={styles.shareSection}>
+              <Text style={styles.sectionLabel}>Compartir</Text>
+              <Text style={styles.shareHint}>
+                ¿No le llegó el mensaje? Compártelo tú mismo o reenvía la notificación.
+              </Text>
+              <Button
+                label="Compartir por WhatsApp"
+                onPress={shareGift}
+                loading={sharing}
+                variant="secondary"
+                accessibilityLabel="Compartir la tarjeta de regalo por WhatsApp"
+              />
+              <Button
+                label="Reenviar notificación"
+                onPress={() => resendMutation.mutate()}
+                loading={resendMutation.isPending}
+                variant="ghost"
+              />
+              {resendNotice ? (
+                <Banner
+                  icon={resendNotice.tone === "info" ? "check-circle" : "clock"}
+                  tone={resendNotice.tone}
+                  message={resendNotice.message}
+                />
+              ) : null}
+            </View>
+          ) : null}
       </Card>
     </Screen>
   );
@@ -396,6 +478,20 @@ const styles = StyleSheet.create({
   senderEmail: {
     fontSize: theme.typography.small,
     color: theme.colors.muted
+  },
+  // Sender share/resend section
+  shareSection: {
+    marginTop: theme.spacing(2),
+    paddingTop: theme.spacing(2),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border,
+    gap: theme.spacing(1)
+  },
+  shareHint: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.small,
+    lineHeight: 19,
+    marginTop: -theme.spacing(0.5)
   },
   // Note section styles
   noteSection: {

@@ -3,6 +3,7 @@ import { NavigationContainer, DefaultTheme, NavigatorScreenParams, createNavigat
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { setupNotificationResponseListener, handleInitialNotification } from "../notifications/handler";
+import { setupAppLinkListener, handleInitialAppLink } from "../linking/handler";
 
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -34,6 +35,7 @@ import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import MerchantProfileScreen from "../screens/MerchantProfileScreen";
 import InterestsScreen from "../screens/InterestsScreen";
 import ClaimVerificationScreen from "../screens/ClaimVerificationScreen";
+import ClaimLandingScreen from "../screens/ClaimLandingScreen";
 import EmailVerificationScreen from "../screens/EmailVerificationScreen";
 import type { ClaimVerificationDetails } from "../types/api";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
@@ -77,6 +79,8 @@ export type AuthStackParamList = {
   };
   ForgotPassword: { email?: string };
   ResetPassword: { token?: string };
+  /** Gift teaser behind a papayal.app/claim/<token> deep link (signed out). */
+  ClaimLanding: { token: string };
 };
 
 export type HomeStackParamList = {
@@ -106,6 +110,8 @@ export type WalletStackParamList = {
   GiftCardDetail: { id: string };
   RedemptionToken: { id: string };
   Activity: undefined;
+  /** Gift teaser behind a papayal.app/claim/<token> deep link (signed in). */
+  ClaimLanding: { token: string };
 };
 
 export type ProfileStackParamList = {
@@ -200,6 +206,11 @@ const WalletStackNavigator = () => (
       name="Activity"
       component={ActivityScreen}
       options={{ title: "Actividad" }}
+    />
+    <WalletStack.Screen
+      name="ClaimLanding"
+      component={ClaimLandingScreen}
+      options={{ title: "Tu regalo" }}
     />
   </WalletStack.Navigator>
 );
@@ -310,6 +321,11 @@ const AuthNavigator = () => (
       component={ResetPasswordScreen}
       options={{ headerShown: false }}
     />
+    <AuthStack.Screen
+      name="ClaimLanding"
+      component={ClaimLandingScreen}
+      options={{ headerShown: false }}
+    />
   </AuthStack.Navigator>
 );
 
@@ -338,6 +354,14 @@ const RootNavigator = () => {
     return () => sub.remove();
   }, [accessToken]);
 
+  // Handle universal/deep links (papayal.app/claim, /reset) in both session
+  // states — unlike notifications, links matter while signed out too.
+  useEffect(() => {
+    const sub = setupAppLinkListener(navigationRef, !!accessToken);
+    handleInitialAppLink(navigationRef, !!accessToken);
+    return () => sub.remove();
+  }, [accessToken]);
+
   useEffect(() => {
     if (!accessToken) return;
 
@@ -352,6 +376,16 @@ const RootNavigator = () => {
           params: {
             screen: "BuyGiftCardStart",
             params: { merchantId: intent.merchantId }
+          }
+        });
+      } else if (intent.type === "open_gift_card") {
+        // Set by the claim deep-link flow: land on the card right after
+        // signup/login (the claim itself already happened, OTP-verified).
+        navigationRef.navigate("App", {
+          screen: "WalletTab",
+          params: {
+            screen: "GiftCardDetail",
+            params: { id: intent.giftCardId }
           }
         });
       }

@@ -2,44 +2,50 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
-  Platform,
+  Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
+import * as Application from "expo-application";
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 
 import Screen from "../ui/components/Screen";
-import Card from "../ui/components/Card";
-import Button from "../ui/components/Button";
+import Avatar from "../ui/components/Avatar";
 import TopNavBar from "../ui/components/TopNavBar";
+import { ListDivider, ListGroup, ListRow } from "../ui/components/ListRow";
+import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { meApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
 import { HttpError } from "../api/http";
 import { ProfileStackParamList } from "../navigation";
 import { shareApp } from "../sharing/shareApp";
+import { hapticWarning } from "../utils/haptics";
 
-const avatarPlaceholder = require("../../assets/avatar-default.png");
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Administrador",
+  merchant: "Comercio"
+};
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
-  const { accessToken } = useAuth();
+  const { accessToken, logout } = useAuth();
   const isQueryEnabled = !!accessToken;
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, isRefetching, refetch } = useQuery({
     queryKey: ["me"],
     queryFn: meApi.me,
     enabled: isQueryEnabled
   });
   const [avatarCacheBuster, setAvatarCacheBuster] = useState<number>(Date.now());
   const [avatarLoadError, setAvatarLoadError] = useState<boolean>(false);
+  const [loggingOut, setLoggingOut] = useState<boolean>(false);
   const { mutateAsync: uploadAvatar, isPending: uploading } = useMutation({
     mutationFn: meApi.uploadAvatar,
     onSuccess: async (updatedUser) => {
@@ -60,10 +66,10 @@ const ProfileScreen: React.FC = () => {
     setAvatarLoadError(false);
   }, [data?.avatar_thumb_url, data?.avatar_url]);
 
-  const avatarSource = useMemo(() => {
-    // If there was a load error, use placeholder
+  const avatarUri = useMemo(() => {
+    // If there was a load error, fall back to initials
     if (avatarLoadError) {
-      return avatarPlaceholder;
+      return null;
     }
     const thumbUrl = data?.avatar_thumb_url;
     const fullUrl = data?.avatar_url;
@@ -71,15 +77,21 @@ const ProfileScreen: React.FC = () => {
       const url = (thumbUrl ?? fullUrl) as string;
       // Add cache buster query param to force refresh after upload
       const separator = url.includes("?") ? "&" : "?";
-      return { uri: `${url}${separator}v=${avatarCacheBuster}` };
+      return `${url}${separator}v=${avatarCacheBuster}`;
     }
-    return avatarPlaceholder;
+    return null;
   }, [data?.avatar_thumb_url, data?.avatar_url, avatarCacheBuster, avatarLoadError]);
   const displayName = useMemo(() => {
     const combined = [data?.first_name, data?.last_name].filter(Boolean).join(" ").trim();
     if (combined) return combined;
     return data?.name || "Usuario";
   }, [data]);
+  const contactLine = useMemo(
+    () => [data?.email, data?.phone].filter(Boolean).join("  ·  "),
+    [data?.email, data?.phone]
+  );
+  // Internal role never shown to consumers; staff get a readable chip
+  const roleLabel = data?.role && data.role !== "consumer" ? ROLE_LABELS[data.role] ?? data.role : null;
 
   const handleEditProfile = () => {
     navigation.navigate("EditProfile");
@@ -157,7 +169,7 @@ const ProfileScreen: React.FC = () => {
     } catch (error) {
       if (__DEV__) console.error("[ProfileScreen] Error in image picker:", error);
       Alert.alert(
-        "Error", 
+        "Error",
         `No pudimos abrir la ${source === "camera" ? "cámara" : "galería"}. ${error instanceof Error ? error.message : "Inténtalo de nuevo."}`
       );
     }
@@ -197,7 +209,7 @@ const ProfileScreen: React.FC = () => {
       // Create FormData with proper React Native format
       const formData = new FormData();
       const fileUri = manipulated.uri;
-      
+
       // React Native FormData requires this exact structure
       // The file object must have uri, name, and type
       formData.append("avatar", {
@@ -223,162 +235,219 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const executeLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  // Same OS-native confirmation as SettingsScreen so both entry points behave alike
+  const handleLogout = () => {
+    hapticWarning();
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Quieres salir de tu cuenta en este dispositivo?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Cerrar sesión", style: "destructive", onPress: () => void executeLogout() }
+      ]
+    );
+  };
+
+  const appVersion = Application.nativeApplicationVersion;
+  const buildNumber = Application.nativeBuildVersion;
+
   return (
-    <Screen scrollable edges={["left", "right"]}>
-      <TopNavBar />
-      <Card>
-        <Text style={styles.title}>Perfil</Text>
-        {isBusy ? (
-          <Text style={styles.muted}>Cargando...</Text>
-        ) : data ? (
-          <>
-            <View style={styles.headerRow}>
-              <View style={styles.avatarWrapper}>
-                <Image 
-                  source={avatarSource} 
-                  style={styles.avatar}
-                  onError={() => {
-                    // Fall back to placeholder if image fails to load
-                    setAvatarLoadError(true);
-                  }}
-                />
-                {uploading ? (
-                  <View style={styles.avatarOverlay}>
-                    <ActivityIndicator color="#fff" />
-                  </View>
-                ) : null}
-              </View>
-              <View style={styles.infoContainer}>
-                <View style={styles.infoRow}>
-                  <View style={styles.info}>
-                    <Text style={styles.name}>{displayName}</Text>
-                    <Text style={styles.muted}>{data.email}</Text>
-                    {data.phone ? <Text style={styles.muted}>{data.phone}</Text> : null}
-                    {data.role ? <Text style={styles.tag}>Rol: {data.role}</Text> : null}
-                  </View>
-                  <TouchableOpacity
-                    onPress={handleEditProfile}
-                    style={styles.settingsButton}
-                    accessibilityRole="button"
-                    accessibilityLabel="Editar perfil"
-                  >
-                    <Feather name="edit" size={20} color={theme.colors.text} />
-                  </TouchableOpacity>
-                </View>
-                <Button
-                  label="Cambiar foto"
-                  onPress={handleChangePhoto}
-                  style={styles.changePhotoButton}
-                  variant="secondary"
-                  loading={uploading}
-                  disabled={uploading}
-                />
-              </View>
-            </View>
-          </>
-        ) : error ? (
-          <View>
-            <Text style={styles.error}>No pudimos cargar el perfil.</Text>
-            {__DEV__ && (() => {
-              const httpError = error as unknown as HttpError;
-              const raw = httpError?.raw;
-              const rawObj =
-                raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
-              const rawMessage =
-                rawObj && typeof rawObj.message === "string" ? rawObj.message : null;
-              const errorMessage =
-                httpError?.error?.message ||
-                httpError?.error?.code ||
-                (typeof raw === "string"
-                  ? raw
-                  : rawMessage ||
-                    (rawObj ? JSON.stringify(rawObj).slice(0, 200) : null) ||
-                    (error instanceof Error ? error.message : "Unknown error"));
-              const status = httpError?.status;
-              return (
-                <View style={styles.errorDetails}>
-                  {status && <Text style={styles.errorDetail}>Status: {status}</Text>}
-                  <Text style={styles.errorDetail}>Error: {errorMessage}</Text>
-                  {httpError?.requestId && (
-                    <Text style={styles.errorDetail}>Request ID: {httpError.requestId}</Text>
-                  )}
-                  {rawObj && (
-                    <Text style={styles.errorDetail}>
-                      Raw: {JSON.stringify(rawObj).slice(0, 300)}
-                    </Text>
-                  )}
-                </View>
-              );
-            })()}
-          </View>
-        ) : (
-          <Text style={styles.error}>No pudimos cargar el perfil.</Text>
-        )}
-      </Card>
-
-      <Card style={styles.helpCard}>
-        <View style={styles.sectionTitleRow}>
-          <Feather name="settings" size={18} color={theme.colors.text} />
-          <Text style={styles.sectionTitle}>Ajustes</Text>
-        </View>
-        <Text style={styles.helpText}>Gestiona tu perfil y sesiones activas.</Text>
-        <Button label="Ir a Ajustes" onPress={() => navigation.navigate("Settings")} />
-      </Card>
-
-      <Card style={styles.helpCard}>
-        <View style={styles.sectionTitleRow}>
-          <Feather name="help-circle" size={18} color={theme.colors.text} />
-          <Text style={styles.sectionTitle}>Ayuda</Text>
-        </View>
-        <Text style={styles.helpText}>Encuentra respuestas rápidas o contacta a soporte.</Text>
-        <Button label="Ir a Ayuda" onPress={() => navigation.navigate("Help")} />
-      </Card>
-
-      <Card style={styles.helpCard}>
-        <View style={styles.sectionTitleRow}>
-          <Feather name="share-2" size={18} color={theme.colors.text} />
-          <Text style={styles.sectionTitle}>Comparte Papayal</Text>
-        </View>
-        <Text style={styles.helpText}>
-          Invita a tu familia y amigos a enviar y recibir tarjetas de regalo.
-        </Text>
-        <Button
-          label="Compartir la app"
-          onPress={shareApp}
-          accessibilityLabel="Compartir Papayal con tus contactos"
+    <Screen
+      scrollable
+      edges={["left", "right"]}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefetching}
+          onRefresh={() => {
+            void refetch();
+          }}
+          tintColor={theme.colors.primary}
         />
-      </Card>
+      }
+    >
+      <TopNavBar />
 
+      {isBusy ? (
+        <View style={styles.hero}>
+          <SkeletonBlock width={96} height={96} radius={48} />
+          <SkeletonBlock width={170} height={26} radius={13} style={styles.skeletonName} />
+          <SkeletonBlock width={230} height={16} radius={8} style={styles.skeletonContact} />
+          <SkeletonBlock width={150} height={44} radius={22} style={styles.skeletonPill} />
+        </View>
+      ) : data ? (
+        <View style={styles.hero}>
+          <Pressable
+            onPress={handleChangePhoto}
+            disabled={uploading}
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar foto de perfil"
+            style={({ pressed }) => [
+              styles.avatarPressable,
+              pressed && !uploading ? styles.avatarPressed : null
+            ]}
+          >
+            <Avatar
+              uri={avatarUri}
+              name={displayName}
+              size={96}
+              onError={() => {
+                // Fall back to initials if the image fails to load
+                setAvatarLoadError(true);
+              }}
+            />
+            {uploading ? (
+              <View style={styles.avatarOverlay}>
+                <ActivityIndicator color="#fff" />
+              </View>
+            ) : null}
+            <View style={styles.cameraBadge} accessible={false} importantForAccessibility="no">
+              <Feather name="camera" size={14} color={theme.colors.secondary} />
+            </View>
+          </Pressable>
+
+          <Text style={styles.name}>{displayName}</Text>
+          {contactLine ? <Text style={styles.contact}>{contactLine}</Text> : null}
+          {roleLabel ? (
+            <View style={styles.roleChip}>
+              <Feather name="shield" size={12} color={theme.colors.secondary} />
+              <Text style={styles.roleChipText}>{roleLabel}</Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            onPress={handleEditProfile}
+            accessibilityRole="button"
+            accessibilityLabel="Editar perfil"
+            style={({ pressed }) => [styles.editPill, pressed ? styles.editPillPressed : null]}
+          >
+            <Feather name="edit-3" size={15} color={theme.colors.secondary} />
+            <Text style={styles.editPillLabel}>Editar perfil</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.heroError}>
+          <EmptyStateCard
+            icon="user"
+            title="No pudimos cargar tu perfil"
+            message="Revisa tu conexión e inténtalo de nuevo."
+            actionLabel="Reintentar"
+            onAction={() => {
+              void refetch();
+            }}
+          />
+          {__DEV__ && error ? (() => {
+            const httpError = error as unknown as HttpError;
+            const raw = httpError?.raw;
+            const rawObj =
+              raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+            const rawMessage =
+              rawObj && typeof rawObj.message === "string" ? rawObj.message : null;
+            const errorMessage =
+              httpError?.error?.message ||
+              httpError?.error?.code ||
+              (typeof raw === "string"
+                ? raw
+                : rawMessage ||
+                  (rawObj ? JSON.stringify(rawObj).slice(0, 200) : null) ||
+                  (error instanceof Error ? error.message : "Unknown error"));
+            const status = httpError?.status;
+            return (
+              <View style={styles.errorDetails}>
+                {status && <Text style={styles.errorDetail}>Status: {status}</Text>}
+                <Text style={styles.errorDetail}>Error: {errorMessage}</Text>
+                {httpError?.requestId && (
+                  <Text style={styles.errorDetail}>Request ID: {httpError.requestId}</Text>
+                )}
+                {rawObj && (
+                  <Text style={styles.errorDetail}>
+                    Raw: {JSON.stringify(rawObj).slice(0, 300)}
+                  </Text>
+                )}
+              </View>
+            );
+          })() : null}
+        </View>
+      )}
+
+      <Text style={styles.sectionLabel}>Cuenta</Text>
+      <ListGroup>
+        <ListRow
+          icon="settings"
+          title="Ajustes"
+          subtitle="Sesiones, seguridad y cuenta"
+          onPress={() => navigation.navigate("Settings")}
+        />
+      </ListGroup>
+
+      <Text style={styles.sectionLabel}>Papayal</Text>
+      <ListGroup>
+        <ListRow
+          icon="share-2"
+          variant="accent"
+          title="Compartir Papayal"
+          subtitle="Invita a tu familia y amigos"
+          onPress={shareApp}
+        />
+        <ListDivider />
+        <ListRow
+          icon="help-circle"
+          title="Ayuda"
+          subtitle="Preguntas frecuentes y soporte"
+          onPress={() => navigation.navigate("Help")}
+        />
+        <ListDivider />
+        <ListRow
+          icon="file-text"
+          title="Legal y privacidad"
+          subtitle="Términos y políticas de datos"
+          onPress={() => navigation.navigate("LegalPrivacy")}
+        />
+      </ListGroup>
+
+      <ListGroup style={styles.logoutGroup}>
+        <ListRow
+          icon="log-out"
+          variant="danger"
+          chevron={false}
+          title="Cerrar sesión"
+          onPress={handleLogout}
+          loading={loggingOut}
+          disabled={loggingOut}
+        />
+      </ListGroup>
+
+      <Text style={styles.version}>
+        Papayal · Versión {appVersion ?? "—"}
+        {buildNumber ? ` (${buildNumber})` : ""}
+      </Text>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  title: {
-    fontSize: theme.typography.subheading,
-    fontFamily: theme.fonts.bold,
-    marginBottom: theme.spacing(1)
-  },
-  headerRow: {
-    flexDirection: "row",
+  hero: {
     alignItems: "center",
-    gap: theme.spacing(1.5)
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1)
   },
-  avatarWrapper: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    overflow: "hidden",
-    backgroundColor: theme.colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center"
+  heroError: {
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1)
   },
-  avatar: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover"
+  avatarPressable: {
+    marginBottom: theme.spacing(1.5)
+  },
+  avatarPressed: {
+    opacity: 0.85
   },
   avatarOverlay: {
     position: "absolute",
@@ -386,60 +455,106 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+    borderRadius: 48,
     backgroundColor: "#00000055",
     alignItems: "center",
     justifyContent: "center"
   },
-  infoContainer: {
-    flex: 1
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: theme.spacing(1)
-  },
-  info: {
-    gap: theme.spacing(0.5),
-    flex: 1,
-    marginBottom: theme.spacing(1)
+  cameraBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.primary,
+    borderWidth: 2,
+    borderColor: theme.colors.background
   },
   name: {
-    fontSize: theme.typography.subheading,
+    fontSize: 24,
     fontFamily: theme.fonts.bold,
-    color: theme.colors.text
+    color: theme.colors.text,
+    textAlign: "center"
   },
-  muted: {
-    color: theme.colors.muted
-  },
-  tag: {
-    color: theme.colors.secondary,
-    fontFamily: theme.fonts.semiBold
-  },
-  changePhotoButton: {
+  contact: {
     marginTop: theme.spacing(0.5),
-    alignSelf: "flex-start",
-    paddingVertical: theme.spacing(0.6),
-    paddingHorizontal: theme.spacing(1.2),
-    borderRadius: 10
+    color: theme.colors.muted,
+    fontSize: 15,
+    textAlign: "center"
   },
-  settingsButton: {
-    padding: theme.spacing(1),
-    borderRadius: theme.radius.md,
+  roleChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    marginTop: theme.spacing(1),
+    paddingVertical: theme.spacing(0.4),
+    paddingHorizontal: theme.spacing(1),
+    borderRadius: 999,
+    backgroundColor: theme.colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border
+  },
+  roleChipText: {
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small
+  },
+  editPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.75),
+    marginTop: theme.spacing(1.75),
+    minHeight: 44,
+    paddingVertical: theme.spacing(1),
+    paddingHorizontal: theme.spacing(2.25),
+    borderRadius: 999,
     backgroundColor: theme.colors.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
-    alignSelf: "flex-start"
+    shadowColor: theme.colors.secondary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2
   },
-  helpCard: {
+  editPillPressed: {
+    backgroundColor: "#F8F2E6"
+  },
+  editPillLabel: {
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: 15
+  },
+  skeletonName: {
     marginTop: theme.spacing(1.5)
   },
-  helpText: {
-    color: theme.colors.muted,
-    marginBottom: theme.spacing(1)
+  skeletonContact: {
+    marginTop: theme.spacing(0.75)
   },
-  error: {
-    color: theme.colors.danger
+  skeletonPill: {
+    marginTop: theme.spacing(1.75)
+  },
+  sectionLabel: {
+    marginTop: theme.spacing(2.5),
+    marginBottom: theme.spacing(1),
+    paddingLeft: theme.spacing(0.5),
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.extraBold,
+    fontSize: 16
+  },
+  logoutGroup: {
+    marginTop: theme.spacing(2.5)
+  },
+  version: {
+    marginTop: theme.spacing(2.5),
+    textAlign: "center",
+    color: theme.colors.captionMuted,
+    fontSize: 12,
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.3
   },
   errorDetails: {
     marginTop: theme.spacing(1),
@@ -450,16 +565,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small,
     fontFamily: theme.fonts.medium,
     letterSpacing: 0.2
-  },
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(0.75),
-    marginBottom: theme.spacing(0.5)
-  },
-  sectionTitle: {
-    fontSize: theme.typography.body,
-    fontFamily: theme.fonts.semiBold
   }
 });
 

@@ -8,6 +8,7 @@ import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import AppHeader from "../ui/components/AppHeader";
 import TopNavBar from "../ui/components/TopNavBar";
+import { ListDivider, ListRow } from "../ui/components/ListRow";
 import { theme } from "../ui/theme";
 import { useAuth } from "../auth/authStore";
 import { ProfileStackParamList } from "../navigation";
@@ -18,50 +19,6 @@ import { hapticWarning } from "../utils/haptics";
 type BusyAction = "logout" | "logoutAll" | null;
 type Channel = "whatsapp" | "sms";
 type FeatherIcon = keyof typeof Feather.glyphMap;
-
-type SettingsRowProps = {
-  icon: FeatherIcon;
-  title: string;
-  subtitle?: string;
-  onPress: () => void | Promise<void>;
-  disabled?: boolean;
-  loading?: boolean;
-  danger?: boolean;
-};
-
-const SettingsRow: React.FC<SettingsRowProps> = ({
-  icon,
-  title,
-  subtitle,
-  onPress,
-  disabled,
-  loading,
-  danger
-}) => {
-  const iconColor = danger ? theme.colors.danger : theme.colors.text;
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.settingsRow, disabled ? styles.rowDisabled : null]}
-      accessibilityRole="button"
-      disabled={disabled || loading}
-      activeOpacity={0.75}
-    >
-      <View style={[styles.rowIconWrap, danger ? styles.rowIconDanger : null]}>
-        <Feather name={icon} size={18} color={iconColor} />
-      </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, danger ? styles.rowTitleDanger : null]}>{title}</Text>
-        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
-      </View>
-      {loading ? (
-        <ActivityIndicator size="small" color={danger ? theme.colors.danger : theme.colors.primary} />
-      ) : (
-        <Feather name="chevron-right" size={18} color={theme.colors.muted} />
-      )}
-    </TouchableOpacity>
-  );
-};
 
 type ChannelOptionProps = {
   channel: Channel;
@@ -193,15 +150,15 @@ const SettingsScreen: React.FC = () => {
         />
 
         <View style={styles.settingsList}>
-          <SettingsRow
+          <ListRow
             icon="user"
             title="Editar perfil"
             subtitle="Nombre, teléfono y datos personales"
             onPress={() => navigation.navigate("EditProfile")}
             disabled={!!busyAction}
           />
-          <View style={styles.rowDivider} />
-          <SettingsRow
+          <ListDivider />
+          <ListRow
             icon="file-text"
             title="Legal y privacidad"
             subtitle="Términos, políticas y datos"
@@ -251,7 +208,7 @@ const SettingsScreen: React.FC = () => {
           Controla el acceso de esta cuenta en tus dispositivos.
         </Text>
         <View style={styles.settingsList}>
-          <SettingsRow
+          <ListRow
             icon="log-out"
             title="Cerrar sesión"
             subtitle="Salir solo de este dispositivo"
@@ -259,8 +216,8 @@ const SettingsScreen: React.FC = () => {
             disabled={!!busyAction}
             loading={busyAction === "logout"}
           />
-          <View style={styles.rowDivider} />
-          <SettingsRow
+          <ListDivider />
+          <ListRow
             icon="shield-off"
             title="Cerrar todas las sesiones"
             subtitle="Salir en todos tus dispositivos"
@@ -277,13 +234,13 @@ const SettingsScreen: React.FC = () => {
           Acciones permanentes sobre tu cuenta Papayal.
         </Text>
         <View style={styles.settingsList}>
-          <SettingsRow
+          <ListRow
             icon="trash-2"
             title="Eliminar cuenta"
             subtitle="Eliminar datos y cerrar acceso"
             onPress={() => navigation.navigate("DeleteAccount")}
             disabled={!!busyAction}
-            danger
+            variant="danger"
           />
         </View>
       </Card>
@@ -318,53 +275,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     overflow: "hidden",
     backgroundColor: theme.colors.card
-  },
-  settingsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(1),
-    paddingVertical: theme.spacing(1.25),
-    paddingHorizontal: theme.spacing(1.25),
-    backgroundColor: theme.colors.card
-  },
-  rowDisabled: {
-    opacity: 0.55
-  },
-  rowIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
-  },
-  rowIconDanger: {
-    backgroundColor: "#FFF5F5",
-    borderColor: "#F4C7C7"
-  },
-  rowText: {
-    flex: 1,
-    gap: 2
-  },
-  rowTitle: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.bold,
-    fontSize: 16
-  },
-  rowTitleDanger: {
-    color: theme.colors.danger
-  },
-  rowSubtitle: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.small,
-    lineHeight: 18
-  },
-  rowDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.border,
-    marginLeft: theme.spacing(6.5)
   },
   currentPreference: {
     flexDirection: "row",

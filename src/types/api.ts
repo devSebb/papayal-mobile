@@ -9,6 +9,28 @@ export type AuthResponse = {
   request_id: string;
 };
 
+/**
+ * Returned by /auth/signup and /auth/login when the account exists but its
+ * email isn't verified yet. No tokens are issued until the emailed 6-digit
+ * code is confirmed via /auth/verify_email.
+ */
+export type EmailVerificationRequired = {
+  verification_required: true;
+  email: string;
+  masked_email?: string | null;
+  /** Seconds until a resend is allowed. */
+  resend_available_in?: number;
+};
+
+/** Auth endpoints return either tokens (verified) or a verification challenge. */
+export type SignupResponse = AuthTokens | EmailVerificationRequired;
+
+/** Payload from /auth/resend_verification. */
+export type EmailVerificationDetails = {
+  masked_email?: string | null;
+  resend_available_in?: number;
+};
+
 export type User = {
   id: string;
   email: string;

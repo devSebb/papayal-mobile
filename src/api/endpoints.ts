@@ -3,15 +3,18 @@ import {
   AppConfig,
   AuthTokens,
   CheckoutQuote,
+  EmailVerificationDetails,
   GiftCard,
   Merchant,
   RedemptionToken,
+  SignupResponse,
   User
 } from "../types/api";
 
 export const authApi = {
   login: async (params: { email: string; password: string; device_id?: string }) => {
-    const { data } = await request<AuthTokens>("/api/v1/auth/login", {
+    // May return tokens OR a verification challenge (unverified email).
+    const { data } = await request<SignupResponse>("/api/v1/auth/login", {
       method: "POST",
       body: params
     });
@@ -34,9 +37,27 @@ export const authApi = {
      */
     claim_otp?: string;
   }) => {
-    const { data } = await request<AuthTokens>("/api/v1/auth/signup", {
+    // Fresh signups return a verification challenge; pending-account claims
+    // (with a valid claim_otp) return tokens.
+    const { data } = await request<SignupResponse>("/api/v1/auth/signup", {
       method: "POST",
       body: params
+    });
+    return data;
+  },
+  /** Confirm the emailed 6-digit code for a fresh signup; returns tokens. */
+  verifyEmail: async (params: { email: string; code: string; device_id?: string }) => {
+    const { data } = await request<AuthTokens>("/api/v1/auth/verify_email", {
+      method: "POST",
+      body: params
+    });
+    return data;
+  },
+  /** Re-send the email verification code. */
+  resendEmailVerification: async (email: string) => {
+    const { data } = await request<EmailVerificationDetails>("/api/v1/auth/resend_verification", {
+      method: "POST",
+      body: { email }
     });
     return data;
   },

@@ -68,7 +68,18 @@ const InterestsScreen: React.FC = () => {
   const handleSubmit = async (interests: string[]) => {
     setError(null);
     try {
-      await signup({ ...route.params.formData, interests });
+      const result = await signup({ ...route.params.formData, interests });
+      // Fresh signup: a 6-digit code was emailed — go confirm it before
+      // the account is activated. (A pending-account claim returns tokens
+      // instead and auto-navigates via RootNavigator.)
+      if (result.verificationRequired) {
+        navigation.navigate("EmailVerification", {
+          email: result.email,
+          maskedEmail: result.maskedEmail,
+          resendAvailableIn: result.resendAvailableIn
+        });
+        return;
+      }
     } catch (err) {
       const httpErr = err as HttpError;
 

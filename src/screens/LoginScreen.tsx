@@ -25,7 +25,17 @@ const LoginScreen: React.FC = () => {
   const handleLogin = async () => {
     setError(null);
     try {
-      await login(email.trim(), password);
+      const result = await login(email.trim(), password);
+      // An account that never verified its email can't get tokens — a fresh
+      // code was emailed; route into the verification screen.
+      if (result.verificationRequired) {
+        navigation.navigate("EmailVerification", {
+          email: result.email,
+          maskedEmail: result.maskedEmail,
+          resendAvailableIn: result.resendAvailableIn
+        });
+        return;
+      }
     } catch (err) {
       const friendly =
         (err as HttpError)?.error?.message ??

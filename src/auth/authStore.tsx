@@ -509,13 +509,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...state,
       login,
       signup,
+      verifyEmail,
+      resendEmailVerification,
       logout,
       logoutAll,
       deleteAccount,
       refreshTokens,
       hydrateFromStorage
     }),
-    [deleteAccount, hydrateFromStorage, login, logout, logoutAll, refreshTokens, signup, state]
+    [
+      deleteAccount,
+      hydrateFromStorage,
+      login,
+      logout,
+      logoutAll,
+      refreshTokens,
+      resendEmailVerification,
+      signup,
+      state,
+      verifyEmail
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

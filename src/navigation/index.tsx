@@ -34,6 +34,7 @@ import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import MerchantProfileScreen from "../screens/MerchantProfileScreen";
 import InterestsScreen from "../screens/InterestsScreen";
 import ClaimVerificationScreen from "../screens/ClaimVerificationScreen";
+import EmailVerificationScreen from "../screens/EmailVerificationScreen";
 import type { ClaimVerificationDetails } from "../types/api";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
 import { consumePendingPostAuthIntent } from "./postAuthIntent";
@@ -65,6 +66,14 @@ export type AuthStackParamList = {
     };
     /** Masked channel info from the 409 auth.claim_verification_required. */
     details: ClaimVerificationDetails;
+  };
+  EmailVerification: {
+    /** Address the 6-digit code was sent to; used for verify + resend. */
+    email: string;
+    /** Masked form for display, e.g. "s•••@gmail.com". */
+    maskedEmail?: string | null;
+    /** Seconds until a resend is allowed (from signup/login response). */
+    resendAvailableIn?: number;
   };
   ForgotPassword: { email?: string };
   ResetPassword: { token?: string };
@@ -284,6 +293,11 @@ const AuthNavigator = () => (
     <AuthStack.Screen
       name="ClaimVerification"
       component={ClaimVerificationScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
+      name="EmailVerification"
+      component={EmailVerificationScreen}
       options={{ headerShown: false }}
     />
     <AuthStack.Screen

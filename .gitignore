@@ -52,3 +52,9 @@ GIFT_CARD_TRANSFER_PLAN.md
 # google-services.json
 
 MASTER_CHECKLIST_STATUS.md 
+# AI agent tooling (local only — skills installed via `npx skills add`,
+# symlinked per-agent; not part of the app)
+.agents/
+.claude/
+.hermes/
+skills-lock.json

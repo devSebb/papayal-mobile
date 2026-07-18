@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -276,19 +276,56 @@ const MerchantProfileScreen: React.FC = () => {
   );
 };
 
+/**
+ * Height bands that equalize optical weight across logo shapes: the more
+ * square a logo, the taller it must render to carry the same visual weight
+ * as a wide wordmark (calibrated against Tuenti's ~36pt of visible ink).
+ */
+const bandedLogoHeight = (aspect: number) => {
+  if (aspect >= 3) return 36;
+  if (aspect >= 1.7) return 46;
+  return 54;
+};
+
 const MerchantGiftCardHero: React.FC<{
   merchant: Merchant;
   merchantName: string;
 }> = ({ merchant, merchantName }) => {
   const hasLogo = Boolean(merchant.logo_url);
   const initial = merchantName.trim().charAt(0).toUpperCase() || "C";
+  const [logoAspect, setLogoAspect] = useState<number | null>(null);
+  const [logoAreaWidth, setLogoAreaWidth] = useState(0);
+
+  useEffect(() => {
+    const url = merchant.logo_url;
+    if (!url) return;
+    let cancelled = false;
+    Image.getSize(url, (width, height) => {
+      if (!cancelled && width > 0 && height > 0) setLogoAspect(width / height);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [merchant.logo_url]);
+
+  const bandedLogoStyle = useMemo(() => {
+    if (!logoAspect || !logoAreaWidth) return null;
+    const width = Math.min(bandedLogoHeight(logoAspect) * logoAspect, logoAreaWidth);
+    return { width, height: width / logoAspect, resizeMode: "contain" as const };
+  }, [logoAspect, logoAreaWidth]);
 
   return (
     <View style={styles.giftCard}>
       <View style={styles.giftCardTopRow}>
-        <View style={styles.merchantLogoArea}>
+        <View
+          style={[styles.merchantLogoArea, bandedLogoStyle ? styles.merchantLogoAreaAuto : null]}
+          onLayout={(event) => setLogoAreaWidth(event.nativeEvent.layout.width)}
+        >
           {hasLogo ? (
-            <Image source={{ uri: merchant.logo_url as string }} style={styles.logo} />
+            <Image
+              source={{ uri: merchant.logo_url as string }}
+              style={bandedLogoStyle ?? styles.logo}
+            />
           ) : (
             <View style={styles.logoFallback}>
               <Text style={styles.logoInitial}>{initial}</Text>
@@ -437,6 +474,10 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "flex-start",
     justifyContent: "center"
+  },
+  merchantLogoAreaAuto: {
+    height: "auto",
+    minHeight: 40
   },
   cardBrandColumn: {
     alignItems: "center",

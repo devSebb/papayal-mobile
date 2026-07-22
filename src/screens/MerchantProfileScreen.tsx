@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,11 +17,11 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import Svg, { Path } from "react-native-svg";
 
 import Screen from "../ui/components/Screen";
 import Button from "../ui/components/Button";
 import AppHeader from "../ui/components/AppHeader";
+import MerchantGiftCardHero from "../ui/components/MerchantGiftCardHero";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { merchantsApi } from "../api/endpoints";
@@ -61,7 +60,6 @@ const HOW_IT_WORKS: { icon: keyof typeof Feather.glyphMap; title: string; text: 
   { icon: "message-square", title: "Tu familia recibe un código", text: "Lo recibe listo para usar." },
   { icon: "check-circle", title: "Lo canjea en el local", text: "Presenta el código al pagar." }
 ];
-const papayalBrandRing = require("../../assets/Papayal-logoTag.png");
 
 const MerchantProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavProps>();
@@ -188,8 +186,8 @@ const MerchantProfileScreen: React.FC = () => {
       >
         <View style={styles.heroBand}>
           <MerchantGiftCardHero
-            merchant={merchant}
             merchantName={displayName}
+            logoUrl={merchant.logo_url}
           />
         </View>
 
@@ -276,110 +274,6 @@ const MerchantProfileScreen: React.FC = () => {
   );
 };
 
-/**
- * Height bands that equalize optical weight across logo shapes: the more
- * square a logo, the taller it must render to carry the same visual weight
- * as a wide wordmark (calibrated against Tuenti's ~36pt of visible ink).
- */
-const bandedLogoHeight = (aspect: number) => {
-  if (aspect >= 3) return 36;
-  if (aspect >= 1.7) return 46;
-  return 54;
-};
-
-const MerchantGiftCardHero: React.FC<{
-  merchant: Merchant;
-  merchantName: string;
-}> = ({ merchant, merchantName }) => {
-  const hasLogo = Boolean(merchant.logo_url);
-  const initial = merchantName.trim().charAt(0).toUpperCase() || "C";
-  const [logoAspect, setLogoAspect] = useState<number | null>(null);
-  const [logoAreaWidth, setLogoAreaWidth] = useState(0);
-
-  useEffect(() => {
-    const url = merchant.logo_url;
-    if (!url) return;
-    let cancelled = false;
-    Image.getSize(url, (width, height) => {
-      if (!cancelled && width > 0 && height > 0) setLogoAspect(width / height);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [merchant.logo_url]);
-
-  const bandedLogoStyle = useMemo(() => {
-    if (!logoAspect || !logoAreaWidth) return null;
-    const width = Math.min(bandedLogoHeight(logoAspect) * logoAspect, logoAreaWidth);
-    return { width, height: width / logoAspect, resizeMode: "contain" as const };
-  }, [logoAspect, logoAreaWidth]);
-
-  return (
-    <View style={styles.giftCard}>
-      <View style={styles.giftCardTopRow}>
-        <View
-          style={[styles.merchantLogoArea, bandedLogoStyle ? styles.merchantLogoAreaAuto : null]}
-          onLayout={(event) => setLogoAreaWidth(event.nativeEvent.layout.width)}
-        >
-          {hasLogo ? (
-            <Image
-              source={{ uri: merchant.logo_url as string }}
-              style={bandedLogoStyle ?? styles.logo}
-            />
-          ) : (
-            <View style={styles.logoFallback}>
-              <Text style={styles.logoInitial}>{initial}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.cardBrandColumn}>
-          <Image source={papayalBrandRing} style={styles.brandRing} />
-        </View>
-      </View>
-      <View style={styles.contactlessSlot}>
-        <ContactlessGlyph />
-      </View>
-
-      <View style={styles.giftCardBottomBlock}>
-        <Text style={styles.cardNumber}>1234 5678 9009 8765</Text>
-        <View style={styles.giftCardMetaRow}>
-          <Text style={styles.giftCardCaption}>TARJETA DE REGALO</Text>
-          <View style={styles.validBlock}>
-            <Text style={styles.validLabel}>VÁLIDA HASTA</Text>
-            <Text style={styles.validDate}>08/28</Text>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-};
-
-const ContactlessGlyph: React.FC = () => (
-  <Svg width={28} height={22} viewBox="0 0 28 22" style={styles.contactlessGlyph}>
-    <Path
-      d="M9 6.5c2.2 2.2 2.2 6.8 0 9"
-      stroke={theme.colors.mutedTeal42}
-      strokeWidth={2}
-      strokeLinecap="round"
-      fill="none"
-    />
-    <Path
-      d="M14 3.5c3.9 3.9 3.9 11.1 0 15"
-      stroke={theme.colors.mutedTeal42}
-      strokeWidth={2}
-      strokeLinecap="round"
-      fill="none"
-    />
-    <Path
-      d="M19 1c5.2 5.2 5.2 14.8 0 20"
-      stroke={theme.colors.mutedTeal42}
-      strokeWidth={2}
-      strokeLinecap="round"
-      fill="none"
-    />
-  </Svg>
-);
-
 const merchantDisplayName = (merchant?: Merchant | null) =>
   merchant ? merchant.store_name || merchant.name : "Comercio";
 
@@ -450,106 +344,6 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing(1.5),
     paddingBottom: theme.spacing(1.75),
     backgroundColor: theme.colors.background
-  },
-  giftCard: {
-    width: "90%",
-    alignSelf: "center",
-    aspectRatio: 1.86,
-    borderRadius: theme.radius.xl,
-    backgroundColor: theme.colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.subtleTealBorder,
-    padding: theme.spacing(2),
-    justifyContent: "space-between",
-    position: "relative",
-    ...theme.shadow.md
-  },
-  giftCardTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between"
-  },
-  merchantLogoArea: {
-    width: "58%",
-    height: 40,
-    alignItems: "flex-start",
-    justifyContent: "center"
-  },
-  merchantLogoAreaAuto: {
-    height: "auto",
-    minHeight: 40
-  },
-  cardBrandColumn: {
-    alignItems: "center",
-    justifyContent: "flex-start"
-  },
-  logo: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain"
-  },
-  logoFallback: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.secondary,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  logoInitial: {
-    color: theme.colors.card,
-    fontFamily: theme.fonts.black,
-    fontSize: 20
-  },
-  brandRing: {
-    width: 30,
-    height: 30,
-    resizeMode: "contain"
-  },
-  contactlessGlyph: {
-    alignSelf: "flex-end"
-  },
-  contactlessSlot: {
-    position: "absolute",
-    right: theme.spacing(2.25),
-    top: "50%",
-    transform: [{ translateY: -11 }]
-  },
-  giftCardBottomBlock: {
-    gap: theme.spacing(1.1)
-  },
-  cardNumber: {
-    color: theme.colors.secondary,
-    fontFamily: theme.fonts.bold,
-    fontSize: 18,
-    letterSpacing: 2
-  },
-  giftCardMetaRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: theme.spacing(1)
-  },
-  giftCardCaption: {
-    color: theme.colors.mutedTeal55,
-    fontFamily: theme.fonts.bold,
-    fontSize: 11,
-    letterSpacing: 1.2
-  },
-  validBlock: {
-    alignItems: "flex-end"
-  },
-  validLabel: {
-    color: theme.colors.mutedTeal55,
-    fontFamily: theme.fonts.bold,
-    fontSize: 8,
-    letterSpacing: 0.7
-  },
-  validDate: {
-    color: theme.colors.secondary,
-    fontFamily: theme.fonts.bold,
-    fontSize: 12,
-    marginTop: 1
   },
   titleBlock: {
     paddingHorizontal: theme.spacing(2),

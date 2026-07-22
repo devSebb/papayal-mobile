@@ -19,6 +19,7 @@ import { centsToDollars, formatMoney } from "../utils/money";
 import { mapGiftCardVM } from "../domain/wallet/mapGiftCardVM";
 import { classifyGiftCards } from "../domain/wallet/classifyGiftCards";
 import { buildActivityFeed } from "../domain/wallet/buildActivityFeed";
+import { MerchantGroup, groupReceivedByMerchant } from "../domain/wallet/groupByMerchant";
 import { ActivityItem, GiftCardVM, TabKey } from "../domain/wallet/types";
 import { GiftCard } from "../types/api";
 
@@ -178,13 +179,16 @@ const shortName = (full: string) => {
 };
 
 const SummaryBanner: React.FC<{
+  balanceTitle: string;
   balanceLabel: string | null;
   activeCardsCount: number;
-}> = ({ balanceLabel, activeCardsCount }) => (
+}> = ({ balanceTitle, balanceLabel, activeCardsCount }) => (
   <View style={styles.walletStrip}>
     <View style={styles.walletMainRow}>
       <SummaryLeftWithGradientBorder>
-        <Text style={styles.summaryBalanceLabel}>Total disponible</Text>
+        <Text style={styles.summaryBalanceLabel} numberOfLines={1}>
+          {balanceTitle}
+        </Text>
         <Text style={styles.summaryBalanceValue}>{balanceLabel ?? "—"}</Text>
       </SummaryLeftWithGradientBorder>
       <View style={styles.activeCardsCard}>
@@ -259,8 +263,64 @@ const GiftCardRow: React.FC<{ item: GiftCardVM; senderName?: string; onPress: ()
   );
 };
 
+/** One merchant row in the grouped "Recibidas" view: aggregated balance
+ *  with card count — tapping opens the per-merchant screen. */
+const MerchantGroupRow: React.FC<{ group: MerchantGroup; onPress: () => void }> = ({
+  group,
+  onPress
+}) => {
+  const merchantInitial = group.merchantLabel.charAt(0).toUpperCase();
+  const cardCount = group.activeCards.length;
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.row}>
+      <Card style={styles.cardWithAccent}>
+        <View style={styles.rowTop}>
+          <View style={styles.merchantLogoContainer}>
+            {group.merchantLogoUrl ? (
+              <Image source={{ uri: group.merchantLogoUrl }} style={styles.merchantLogoImage} />
+            ) : (
+              <Text style={styles.badgeInitial}>{merchantInitial}</Text>
+            )}
+          </View>
+          <View style={styles.rowMiddle}>
+            <Text style={styles.merchantTitle} numberOfLines={1}>
+              {group.merchantLabel}
+            </Text>
+            <View style={styles.senderRow}>
+              {cardCount > 1 ? (
+                <View style={styles.groupCountPill}>
+                  <Text style={styles.groupCountLabel}>{cardCount} tarjetas</Text>
+                </View>
+              ) : (
+                <Text style={styles.senderLabel}>1 tarjeta</Text>
+              )}
+              {group.heldCents > 0 ? (
+                <View style={styles.groupHeldRow}>
+                  <Feather name="lock" size={12} color="#B45309" />
+                  <Text style={styles.groupHeldLabel}>
+                    {formatMoney(centsToDollars(group.heldCents), group.currency)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+          <View style={styles.cardDivider} />
+          <View style={styles.amountColumn}>
+            <Text style={styles.amount}>
+              {formatMoney(centsToDollars(group.availableCents), group.currency)}
+            </Text>
+            <Text style={styles.muted}>disponible</Text>
+          </View>
+        </View>
+      </Card>
+    </TouchableOpacity>
+  );
+};
+
 type ListItem =
   | { type: "card"; key: string; card: GiftCardVM }
+  | { type: "group"; key: string; group: MerchantGroup }
   | { type: "empty"; key: string }
   | { type: "error"; key: string }
   | { type: "skeleton"; key: string }
@@ -425,6 +485,13 @@ const WalletListScreen: React.FC = () => {
     redeemed: 1
   });
   const listRef = useRef<FlatList<ListItem>>(null);
+  const userPickedTab = useRef(false);
+  const autoDefaulted = useRef(false);
+
+  const handleSelectTab = useCallback((tab: TabKey) => {
+    userPickedTab.current = true;
+    setActiveTab(tab);
+  }, []);
 
   useEffect(() => {
     setPageByTab({ all: 1, received: 1, sent: 1, redeemed: 1 });
@@ -442,6 +509,25 @@ const WalletListScreen: React.FC = () => {
     () => classifyGiftCards(mappedCards, user?.id),
     [mappedCards, user?.id]
   );
+
+  // Merchant-level aggregation for the "Recibidas" view: one row per
+  // merchant with the summed balance, instead of a flat card list.
+  const groups = useMemo(
+    () => groupReceivedByMerchant(giftCards ?? [], user?.id),
+    [giftCards, user?.id]
+  );
+
+  // The aggregated per-merchant view is the primary wallet experience:
+  // once cards load, land recipients on "Recibidas" — but only once, and
+  // never after the user has picked a tab themselves.
+  useEffect(() => {
+    if (autoDefaulted.current || userPickedTab.current) return;
+    if (!classification.canClassifyTransfers) return;
+    autoDefaulted.current = true;
+    if (classification.received.length > 0) {
+      setActiveTab("received");
+    }
+  }, [classification]);
 
   const activityFeed = useMemo(
     () => buildActivityFeed(giftCards ?? [], user?.id).slice(0, 7),
@@ -474,30 +560,28 @@ const WalletListScreen: React.FC = () => {
             (card.remainingBalanceCents ?? 0) > 0
         )
       : [];
-    const activeWithAmounts = spendableCards.filter(
-      (card) => typeof card.remainingBalanceCents === "number" && !!card.currency
-    );
-    const currencies = new Set(
-      activeWithAmounts.map((card) => card.currency).filter(Boolean) as string[]
-    );
-    const canShowActiveBalance =
-      classification.canClassifyTransfers &&
-      activeWithAmounts.length === spendableCards.length &&
-      activeWithAmounts.length > 0 &&
-      currencies.size === 1;
-    const activeBalanceCents = canShowActiveBalance
-      ? activeWithAmounts.reduce((sum, card) => sum + (card.remainingBalanceCents ?? 0), 0)
-      : null;
-    const activeBalanceLabel =
-      canShowActiveBalance && activeBalanceCents !== null
-        ? formatMoney(centsToDollars(activeBalanceCents), activeWithAmounts[0]?.currency)
-        : null;
+
+    // Merchant-scoped framing: balances belong to a merchant, never to a
+    // cross-merchant "wallet total". One merchant → its amount; several →
+    // how many merchants hold a balance.
+    const groupsWithBalance = groups.filter((group) => group.availableCents > 0);
+    let balanceTitle = "Total disponible";
+    let balanceLabel: string | null = null;
+    if (groupsWithBalance.length === 1) {
+      const group = groupsWithBalance[0];
+      balanceTitle = `Disponible en ${group.merchantLabel}`;
+      balanceLabel = formatMoney(centsToDollars(group.availableCents), group.currency);
+    } else if (groupsWithBalance.length > 1) {
+      balanceTitle = "Comercios con saldo";
+      balanceLabel = String(groupsWithBalance.length);
+    }
 
     return {
-      activeBalanceLabel,
+      balanceTitle,
+      balanceLabel,
       activeCardsCount: spendableCards.length
     };
-  }, [classification]);
+  }, [classification, groups]);
 
   const tabCards = classification[activeTab] ?? [];
   const totalCards = tabCards.length;
@@ -534,6 +618,22 @@ const WalletListScreen: React.FC = () => {
       items.push({ type: "error", key: "wallet-error" });
       return items;
     }
+    // "Recibidas" shows one aggregated row per merchant (few rows, no
+    // pagination needed); the other tabs keep the per-card list.
+    if (activeTab === "received" && classification.canClassifyTransfers) {
+      // Merchants whose cards are all spent have nothing to aggregate;
+      // those cards stay reachable per-card under "Canjeadas".
+      const groupsWithCards = groups.filter((group) => group.activeCards.length > 0);
+      if (groupsWithCards.length === 0) {
+        items.push({ type: "empty", key: "empty-received" });
+      } else {
+        groupsWithCards.forEach((group) =>
+          items.push({ type: "group", key: `group-${group.key}`, group })
+        );
+      }
+      items.push({ type: "activity", key: "activity-received" });
+      return items;
+    }
     if (pagedCards.length === 0) {
       items.push({ type: "empty", key: `empty-${activeTab}` });
     } else {
@@ -544,7 +644,16 @@ const WalletListScreen: React.FC = () => {
     }
     items.push({ type: "activity", key: `activity-${activeTab}` });
     return items;
-  }, [activeTab, currentPage, hasLoadError, isInitialLoading, pageCount, pagedCards]);
+  }, [
+    activeTab,
+    classification.canClassifyTransfers,
+    currentPage,
+    groups,
+    hasLoadError,
+    isInitialLoading,
+    pageCount,
+    pagedCards
+  ]);
 
   const changePage = useCallback(
     (delta: number) => {
@@ -562,7 +671,8 @@ const WalletListScreen: React.FC = () => {
   const renderHeader = () => (
     <View style={styles.header}>
       <SummaryBanner
-        balanceLabel={summary.activeBalanceLabel}
+        balanceTitle={summary.balanceTitle}
+        balanceLabel={summary.balanceLabel}
         activeCardsCount={summary.activeCardsCount}
       />
       <Text style={styles.sectionTitle}>Mis tarjetas</Text>
@@ -572,7 +682,7 @@ const WalletListScreen: React.FC = () => {
             key={tab}
             tab={tab}
             active={tab === activeTab}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => handleSelectTab(tab)}
           />
         ))}
       </View>
@@ -621,7 +731,7 @@ const WalletListScreen: React.FC = () => {
             title="No podemos separar estas tarjetas todavía"
             message="Clasificar recibidas/enviadas requiere campos de remitente y destinatario."
             actionLabel="Ver todas"
-            onAction={() => setActiveTab("all")}
+            onAction={() => handleSelectTab("all")}
           />
         );
       }
@@ -646,6 +756,16 @@ const WalletListScreen: React.FC = () => {
     }
     if (item.type === "skeleton") {
       return <WalletSkeletonRows />;
+    }
+    if (item.type === "group") {
+      return (
+        <MerchantGroupRow
+          group={item.group}
+          onPress={() =>
+            navigation.navigate("MerchantWallet", { merchantId: item.group.merchantId })
+          }
+        />
+      );
     }
     if (item.type === "card") {
       return (
@@ -874,6 +994,30 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing(0.4),
     borderRadius: theme.radius.sm,
     borderWidth: 1
+  },
+  groupCountPill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: theme.spacing(1),
+    paddingVertical: theme.spacing(0.4),
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    backgroundColor: "#FFF7E6",
+    borderColor: "rgba(252, 165, 15, 0.55)"
+  },
+  groupCountLabel: {
+    fontFamily: theme.fonts.bold,
+    fontSize: theme.typography.small,
+    color: theme.colors.secondary
+  },
+  groupHeldRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.35)
+  },
+  groupHeldLabel: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small,
+    color: "#B45309"
   },
   statusText: {
     fontFamily: theme.fonts.bold,

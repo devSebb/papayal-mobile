@@ -13,6 +13,8 @@ import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import HomeScreen from "../screens/HomeScreen";
 import WalletListScreen from "../screens/WalletListScreen";
 import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
+import MerchantWalletScreen from "../screens/MerchantWalletScreen";
+import MerchantRedemptionFlowScreen from "../screens/MerchantRedemptionFlowScreen";
 import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
@@ -108,6 +110,11 @@ export type HomeStackParamList = {
 export type WalletStackParamList = {
   WalletList: undefined;
   GiftCardDetail: { id: string };
+  /** Aggregated per-merchant balance: card carousel + history + redeem CTA. */
+  MerchantWallet: { merchantId: string | null };
+  /** Guided card-by-card redemption at the register. initialCardId = explicit
+   *  user pick from the carousel; omitted for the default (crumbs-first) queue. */
+  MerchantRedemptionFlow: { merchantId: string | null; initialCardId?: string };
   RedemptionToken: { id: string };
   Activity: undefined;
   /** Gift teaser behind a papayal.app/claim/<token> deep link (signed in). */
@@ -196,6 +203,16 @@ const WalletStackNavigator = () => (
       name="GiftCardDetail"
       component={GiftCardDetailScreen}
       options={{ title: "Tarjeta de regalo" }}
+    />
+    <WalletStack.Screen
+      name="MerchantWallet"
+      component={MerchantWalletScreen}
+      options={{ title: "Mi saldo" }}
+    />
+    <WalletStack.Screen
+      name="MerchantRedemptionFlow"
+      component={MerchantRedemptionFlowScreen}
+      options={{ title: "Canjear en tienda" }}
     />
     <WalletStack.Screen
       name="RedemptionToken"

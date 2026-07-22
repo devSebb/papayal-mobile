@@ -8,7 +8,7 @@ const parseDate = (value?: string | null) => {
   return Number.isNaN(parsed) ? null : new Date(parsed);
 };
 
-const deriveMerchantLabel = (card: GiftCard) => {
+export const deriveMerchantLabel = (card: GiftCard) => {
   const candidates = [
     card.merchant_store_name,
     card.store_name,

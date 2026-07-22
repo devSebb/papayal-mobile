@@ -283,7 +283,7 @@ const StripePaymentScreen: React.FC = () => {
   const isProcessing = phase === "processing";
 
   return (
-    <Screen scrollable>
+    <Screen scrollable keyboardShouldPersistTaps="always">
       {isProcessing && (
         <View style={styles.processingOverlay}>
           <Card style={styles.loadingCard}>
@@ -343,25 +343,34 @@ const StripePaymentScreen: React.FC = () => {
           </View>
         </View>
 
-        <CardField
-          postalCodeEnabled={false}
-          placeholders={{
-            number: "4242 4242 4242 4242"
-          }}
-          cardStyle={{
-            backgroundColor: "#F8FAFB",
-            textColor: theme.colors.text,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: 12,
-            fontSize: 16,
-            placeholderColor: theme.colors.muted
-          }}
-          style={styles.cardField}
-          onCardChange={handleCardChange}
-          // Keep CardField enabled but visually indicate processing
-          // It must stay mounted for confirmPayment to access card details
-        />
+        {/*
+          Wrap the CardField in an explicit-height container. The native
+          composite field (STPPaymentCardTextField) derives its per-subfield tap
+          targets from a stable frame; giving it a fixed-height wrapper (instead
+          of relying on marginVertical on the field itself) keeps the number
+          field's hit area aligned with what's drawn.
+        */}
+        <View style={styles.cardFieldWrap}>
+          <CardField
+            postalCodeEnabled={false}
+            placeholders={{
+              number: "4242 4242 4242 4242"
+            }}
+            cardStyle={{
+              backgroundColor: "#F8FAFB",
+              textColor: theme.colors.text,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              borderRadius: 12,
+              fontSize: 16,
+              placeholderColor: theme.colors.muted
+            }}
+            style={styles.cardField}
+            onCardChange={handleCardChange}
+            // Keep CardField enabled but visually indicate processing
+            // It must stay mounted for confirmPayment to access card details
+          />
+        </View>
 
         <View style={styles.stripeFooter}>
           <Feather name="shield" size={14} color={theme.colors.muted} />
@@ -575,10 +584,14 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.extraBold,
     fontSize: theme.typography.body
   },
+  cardFieldWrap: {
+    height: 56,
+    marginVertical: 8,
+    justifyContent: "center"
+  },
   cardField: {
     width: "100%",
-    height: 50,
-    marginVertical: 8
+    height: 56
   },
   stripeSecure: {
     flexDirection: "row",

@@ -21,6 +21,13 @@ type Props = ViewProps & {
   /** Keeps focused inputs visible when the keyboard opens on scrollable screens */
   keyboardAware?: boolean;
   keyboardVerticalOffset?: number;
+  /**
+   * Touch handling for the inner ScrollView. Defaults to "handled". Screens
+   * hosting native composite inputs (e.g. Stripe's CardField) should pass
+   * "always" so the ScrollView never swallows the first tap routed through the
+   * native field.
+   */
+  keyboardShouldPersistTaps?: "always" | "never" | "handled";
   /** Pull-to-refresh for scrollable screens; ignored when scrollable is false */
   refreshControl?: React.ReactElement<RefreshControlProps>;
 };
@@ -35,6 +42,7 @@ const Screen: React.FC<Props> = ({
   header,
   keyboardAware = true,
   keyboardVerticalOffset = 0,
+  keyboardShouldPersistTaps = "handled",
   refreshControl,
   ...rest
 }) => {
@@ -62,7 +70,7 @@ const Screen: React.FC<Props> = ({
     <ScrollView
       style={[styles.scroll, { backgroundColor }]}
       contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
       showsVerticalScrollIndicator={false}

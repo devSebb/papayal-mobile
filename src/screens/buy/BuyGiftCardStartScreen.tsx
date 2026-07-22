@@ -45,19 +45,40 @@ const AmountChip: React.FC<{
   label: string;
   selected: boolean;
   onPress: () => void;
-}> = ({ label, selected, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    style={[styles.amountChip, selected ? styles.amountChipSelected : styles.amountChipIdle]}
-    hitSlop={8}
-    accessibilityRole="button"
-    accessibilityState={{ selected }}
-  >
-    <Text style={[styles.amountChipLabel, selected ? styles.amountChipLabelSelected : null]}>
-      {label}
-    </Text>
-  </Pressable>
-);
+  icon?: React.ComponentProps<typeof Feather>["name"];
+  variant?: "preset" | "custom";
+}> = ({ label, selected, onPress, icon, variant = "preset" }) => {
+  const isCustom = variant === "custom";
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.amountChip,
+        isCustom ? styles.amountChipCustom : null,
+        selected
+          ? styles.amountChipSelected
+          : isCustom
+          ? styles.amountChipCustomIdle
+          : styles.amountChipIdle
+      ]}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+    >
+      {icon ? (
+        <Feather
+          name={icon}
+          size={15}
+          color={selected ? theme.colors.secondary : theme.colors.primary}
+          style={styles.amountChipIcon}
+        />
+      ) : null}
+      <Text style={[styles.amountChipLabel, selected ? styles.amountChipLabelSelected : null]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
 
 const MerchantCard: React.FC<{
   merchant: MerchantOption;
@@ -305,7 +326,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Monto</Text>
-          <Text style={styles.sectionHint}>USD • mínimo ${minAmount} • máximo ${maxAmount}</Text>
+          <View style={styles.minMaxBadge}>
+            <Feather name="info" size={12} color={theme.colors.secondary} />
+            <Text style={styles.minMaxBadgeText}>
+              Mín {formatMoney(minAmount, "USD")} · Máx {formatMoney(maxAmount, "USD")}
+            </Text>
+          </View>
         </View>
         <View style={styles.amountGrid}>
           {presetAmounts.map((amt) => (
@@ -321,6 +347,8 @@ const BuyGiftCardStartScreen: React.FC = () => {
           ))}
           <AmountChip
             label="Otro monto"
+            variant="custom"
+            icon="edit-3"
             selected={useCustomAmount}
             onPress={() => {
               setUseCustomAmount(true);
@@ -328,6 +356,11 @@ const BuyGiftCardStartScreen: React.FC = () => {
             }}
           />
         </View>
+        {!useCustomAmount ? (
+          <Text style={styles.otroHint}>
+            ¿Buscas otro valor? Toca “Otro monto” para escribir la cantidad exacta.
+          </Text>
+        ) : null}
         {useCustomAmount ? (
           <View style={styles.customAmountRow}>
             <TextField
@@ -346,6 +379,14 @@ const BuyGiftCardStartScreen: React.FC = () => {
                   : undefined
               }
             />
+            {!(amountCents !== null && !amountValid) ? (
+              <View style={styles.customHelperRow}>
+                <Feather name="alert-circle" size={12} color={theme.colors.muted} />
+                <Text style={styles.customHelperText}>
+                  El monto mínimo es {formatMoney(minAmount, "USD")}.
+                </Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
         <View style={styles.summaryRow}>
@@ -378,7 +419,8 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end"
+    alignItems: "center",
+    gap: theme.spacing(1)
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
@@ -481,6 +523,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing(1)
   },
   amountChip: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: theme.spacing(1),
     paddingHorizontal: theme.spacing(1.5),
     borderRadius: 14,
@@ -494,12 +538,55 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary
   },
+  amountChipCustom: {
+    borderWidth: 1.5
+  },
+  amountChipCustomIdle: {
+    backgroundColor: "#FFF7E6",
+    borderColor: theme.colors.primary,
+    borderStyle: "dashed"
+  },
+  amountChipIcon: {
+    marginRight: theme.spacing(0.5)
+  },
   amountChipLabel: {
     fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
   amountChipLabelSelected: {
     color: theme.colors.secondary
+  },
+  minMaxBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    paddingVertical: theme.spacing(0.4),
+    paddingHorizontal: theme.spacing(0.9),
+    borderRadius: 999,
+    backgroundColor: "#FFF7E6",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(252, 165, 15, 0.55)"
+  },
+  minMaxBadgeText: {
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small
+  },
+  otroHint: {
+    marginTop: theme.spacing(0.75),
+    color: theme.colors.muted,
+    fontSize: theme.typography.small,
+    lineHeight: 18
+  },
+  customHelperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    marginTop: theme.spacing(0.6)
+  },
+  customHelperText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.small
   },
   customAmountRow: {
     marginTop: theme.spacing(1)

@@ -62,6 +62,7 @@
     "android": {
       "package": "com.papayal.app",
       "versionCode": 1,
+      "icon": "./assets/Papayal-icon.png",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
@@ -92,13 +93,13 @@
         "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Papayal-logoTag.png",
-        "backgroundColor": "#FDF1E1"
+        "foregroundImage": "./assets/Papayal-icon.png",
+        "backgroundColor": "#0D2F32"
       }
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/Papayal-logoTag.png"
+      "favicon": "./assets/Papayal-icon.png"
     },
     "plugins": [
       "expo-font",

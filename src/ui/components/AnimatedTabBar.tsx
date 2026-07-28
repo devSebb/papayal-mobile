@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { BottomTabBarHeightCallbackContext, type BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { StackActions, type NavigationState, type PartialState } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -52,6 +52,10 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, theme.spacing(1));
+  // Report the real height so useBottomTabBarHeight() matches this custom bar;
+  // without it, react-navigation only knows the default bar's estimate and
+  // screens pad too little, hiding content behind the floating rail.
+  const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
   // const bottomPadding = Math.max(bottomInset, theme.spacing(3));
   const panX = useSharedValue(0);
   
@@ -173,6 +177,7 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
           railStyle
         ]}
         pointerEvents={isHidden ? "none" : "auto"}
+        onLayout={(event) => onHeightChange?.(event.nativeEvent.layout.height)}
       >
         <View style={[styles.rail, { width: railWidth, paddingBottom: bottomInset + theme.spacing(2) }]} pointerEvents="box-none">
           <Animated.View style={[styles.indicator, { width: indicatorWidth }, indicatorStyle]} />

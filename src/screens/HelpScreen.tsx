@@ -13,18 +13,19 @@ import {
 } from "react-native";
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
+import * as Application from "expo-application";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
 import BackButton from "../ui/components/BackButton";
 import TextField from "../ui/components/TextField";
+import { ListDivider, ListGroup, ListRow } from "../ui/components/ListRow";
 import { theme } from "../ui/theme";
 import { AppTabsParamList, ProfileStackParamList } from "../navigation";
-import { openLegal } from "../utils/openExternal";
 import { shareApp } from "../sharing/shareApp";
-import appConfig from "../../app.json";
 
 type BaseCategory = "Cuenta" | "Tarjeta" | "Pagos" | "Seguridad" | "Comercios";
 type CategoryFilter = "Todos" | BaseCategory;
@@ -176,9 +177,12 @@ const quickActions: { label: string; category: BaseCategory; icon: keyof typeof 
 
 type HelpNav = NativeStackNavigationProp<ProfileStackParamList>;
 
+const SUPPORT_EMAIL = "hola@papayal.app";
+
 const HelpScreen: React.FC = () => {
   const navigation = useNavigation<HelpNav>();
   const tabNavigation = navigation.getParent<NavigationProp<AppTabsParamList>>();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const scrollRef = useRef<ScrollView>(null);
   const [faqSectionY, setFaqSectionY] = useState(0);
@@ -192,7 +196,7 @@ const HelpScreen: React.FC = () => {
     }
   }, []);
 
-  const appVersion = appConfig?.expo?.version ?? "1.0.0";
+  const appVersion = Application.nativeApplicationVersion;
 
   const filteredFaqs = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -228,16 +232,18 @@ const HelpScreen: React.FC = () => {
     });
   };
 
-  const handleLinkPress = async (url: string) => {
+  // No canOpenURL gate: on iOS it always reports false for mailto unless the
+  // scheme is declared in LSApplicationQueriesSchemes, so we just try to open
+  // and surface the address if no mail app is available.
+  const handleContactSupport = async () => {
+    const subject = encodeURIComponent("Ayuda con Papayal");
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        Alert.alert("No se pudo abrir el enlace", "Intenta de nuevo o escríbenos a soporte.");
-        return;
-      }
-      await Linking.openURL(url);
+      await Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}`);
     } catch (error) {
-      Alert.alert("No se pudo abrir el enlace", "Intenta de nuevo o escríbenos a soporte.");
+      Alert.alert(
+        "Escríbenos por correo",
+        `No pudimos abrir tu app de correo. Envíanos un mensaje a ${SUPPORT_EMAIL} y te respondemos en un día hábil.`
+      );
     }
   };
 
@@ -261,7 +267,7 @@ const HelpScreen: React.FC = () => {
       <ScrollView
         ref={scrollRef}
         style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + theme.spacing(2) }]}
         showsVerticalScrollIndicator={false}
       >
         <Card style={styles.card}>
@@ -347,38 +353,34 @@ const HelpScreen: React.FC = () => {
           </ScrollView>
         </Card>
 
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Contactar soporte</Text>
-          <Text style={styles.sectionSubtitle}>Si no ves tu respuesta aquí, nuestro equipo puede ayudarte.</Text>
-          <View style={styles.supportRow}>
-            <Button
-              label="Enviar email"
-              variant="secondary"
-              onPress={() => handleLinkPress("mailto:hola@papayal.app")}
-              style={styles.supportButton}
+        <View style={styles.supportSection}>
+          <Text style={styles.supportLabel}>Contactar soporte</Text>
+          <ListGroup>
+            <ListRow
+              icon="mail"
+              variant="accent"
+              title="Enviar email"
+              subtitle={SUPPORT_EMAIL}
+              onPress={handleContactSupport}
             />
-            <Button
-              label="Compartir Papayal"
-              variant="ghost"
+            <ListDivider />
+            <ListRow
+              icon="share-2"
+              title="Compartir Papayal"
+              subtitle="Invita a tu familia y amigos"
               onPress={shareApp}
-              style={styles.supportButton}
-              accessibilityLabel="Compartir Papayal con tus contactos"
             />
-          </View>
-          <View style={styles.linksRow}>
-            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/terminos")}>
-              <Text style={styles.linkText}>Ver términos</Text>
-            </Pressable>
-            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/privacidad")}>
-              <Text style={styles.linkText}>Ver privacidad</Text>
-            </Pressable>
-          </View>
-        </Card>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerWordmark}>Papayal</Text>
-          <Text style={styles.footerSubtitle}>Versión {appVersion}</Text>
+            <ListDivider />
+            <ListRow
+              icon="file-text"
+              title="Legal y privacidad"
+              subtitle="Términos y políticas de datos"
+              onPress={() => navigation.navigate("LegalPrivacy")}
+            />
+          </ListGroup>
         </View>
+
+        <Text style={styles.version}>Papayal · Versión {appVersion ?? "—"}</Text>
       </ScrollView>
     </Screen>
   );
@@ -389,8 +391,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   scrollContent: {
-    gap: theme.spacing(1.5),
-    paddingBottom: theme.spacing(4)
+    gap: theme.spacing(1.5)
   },
   headerRow: {
     flexDirection: "row",
@@ -567,47 +568,23 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     textAlign: "center"
   },
-  supportRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing(1)
+  supportSection: {
+    marginTop: theme.spacing(0.5)
   },
-  supportButton: {
-    flex: 1,
-    minWidth: 140
-  },
-  linksRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing(1),
-    marginTop: theme.spacing(1)
-  },
-  linkPill: {
-    paddingVertical: theme.spacing(0.75),
-    paddingHorizontal: theme.spacing(1.5),
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background
-  },
-  linkText: {
+  supportLabel: {
+    marginBottom: theme.spacing(1),
+    paddingLeft: theme.spacing(0.5),
     color: theme.colors.secondary,
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.typography.small
+    fontFamily: theme.fonts.extraBold,
+    fontSize: 16
   },
-  footer: {
-    alignItems: "center",
-    gap: theme.spacing(0.25),
-    marginTop: theme.spacing(0.5),
-    paddingBottom: theme.spacing(1)
-  },
-  footerWordmark: {
-    fontSize: theme.typography.body,
-    fontFamily: theme.fonts.brandBlack,
-    color: theme.colors.text
-  },
-  footerSubtitle: {
-    color: theme.colors.muted
+  version: {
+    marginTop: theme.spacing(1),
+    textAlign: "center",
+    color: theme.colors.captionMuted,
+    fontSize: 12,
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.3
   }
 });
 

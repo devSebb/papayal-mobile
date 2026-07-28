@@ -41,6 +41,7 @@ import ClaimLandingScreen from "../screens/ClaimLandingScreen";
 import EmailVerificationScreen from "../screens/EmailVerificationScreen";
 import type { ClaimVerificationDetails } from "../types/api";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
+import BackButton from "../ui/components/BackButton";
 import { consumePendingPostAuthIntent } from "./postAuthIntent";
 
 export type AuthStackParamList = {
@@ -187,13 +188,23 @@ const HomeStackNavigator = () => (
   </HomeStack.Navigator>
 );
 
-const walletHeaderFonts = {
+// Native headers would render the platform chevron; headerLeft swaps in the
+// same BackButton every custom-header screen uses, so back looks identical
+// everywhere in the app.
+const walletScreenOptions = ({
+  navigation
+}: {
+  navigation: { canGoBack: () => boolean; goBack: () => void };
+}) => ({
   headerTitleStyle: { fontFamily: theme.fonts.semiBold },
-  headerBackTitleStyle: { fontFamily: theme.fonts.regular }
-};
+  headerBackTitleStyle: { fontFamily: theme.fonts.regular },
+  headerBackVisible: false,
+  headerLeft: () =>
+    navigation.canGoBack() ? <BackButton onPress={() => navigation.goBack()} /> : null
+});
 
 const WalletStackNavigator = () => (
-  <WalletStack.Navigator screenOptions={walletHeaderFonts}>
+  <WalletStack.Navigator screenOptions={walletScreenOptions}>
     <WalletStack.Screen
       name="WalletList"
       component={WalletListScreen}

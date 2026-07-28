@@ -190,7 +190,17 @@ const WelcomeScreen: React.FC = () => {
             { opacity: headlineIn, transform: [{ translateY: headlineTranslate }] }
           ]}
         >
-          <Text style={styles.headline}>Envía Tarjetas de Regalo Digitales</Text>
+          {/* Balanced two-line break. Left to wrap on its own the headline
+              drops "Digitales" alone onto the second line on phone widths;
+              the shrink guard keeps both lines intact on narrow screens. */}
+          <Text
+            style={styles.headline}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+          >
+            Envía Tarjetas de{"\n"}Regalo Digitales
+          </Text>
         </Animated.View>
 
         <Animated.Text style={[styles.subheadline, { opacity: subheadIn, transform: [{ translateY: subheadTranslate }] }]}>

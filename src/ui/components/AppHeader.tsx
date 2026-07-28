@@ -1,8 +1,9 @@
 import React from "react";
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from "react-native";
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import { theme } from "../theme";
+import BackButton from "./BackButton";
 
 type Props = {
   title?: string;
@@ -37,16 +38,12 @@ const AppHeader: React.FC<Props> = ({
       {hasTopRow ? (
         <View style={styles.topRow}>
           {onBack ? (
-            <TouchableOpacity
+            <BackButton
               onPress={onBack}
-              style={styles.backButton}
-              accessibilityRole="button"
-              accessibilityLabel={backLabel}
+              label={backLabel}
+              showLabel={showBackLabel}
               disabled={disabledBack}
-            >
-              <Feather name="arrow-left" size={20} color={theme.colors.text} />
-              {showBackLabel ? <Text style={styles.backLabel}>{backLabel}</Text> : null}
-            </TouchableOpacity>
+            />
           ) : (
             <View style={styles.backPlaceholder} />
           )}
@@ -75,22 +72,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: theme.spacing(0.5)
   },
-  backButton: {
-    minHeight: 36,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(0.5),
-    paddingVertical: theme.spacing(0.5),
-    paddingHorizontal: theme.spacing(0.5),
-    borderRadius: theme.radius.md
-  },
   backPlaceholder: {
-    width: 36,
-    height: 36
-  },
-  backLabel: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.semiBold
+    width: 40,
+    height: 40
   },
   iconBadge: {
     width: 36,

@@ -10,6 +10,7 @@ import Card from "../ui/components/Card";
 import TextField from "../ui/components/TextField";
 import PhoneInput from "../ui/components/PhoneInput";
 import Button from "../ui/components/Button";
+import BackButton from "../ui/components/BackButton";
 import { theme } from "../ui/theme";
 import type { AuthStackParamList } from "../navigation";
 import { openLegal } from "../utils/openExternal";
@@ -102,6 +103,9 @@ const SignupScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
+      <View style={styles.navRow}>
+        <BackButton onPress={() => navigation.goBack()} />
+      </View>
       <View style={styles.header}>
         <Text style={styles.step}>Paso 1 de 2</Text>
         <Text style={styles.title}>Crea tu cuenta</Text>
@@ -245,6 +249,11 @@ const SignupScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacing(1)
+  },
   header: {
     marginBottom: theme.spacing(2)
   },

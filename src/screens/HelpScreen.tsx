@@ -18,6 +18,7 @@ import { Feather } from "@expo/vector-icons";
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import BackButton from "../ui/components/BackButton";
 import TextField from "../ui/components/TextField";
 import { theme } from "../ui/theme";
 import { AppTabsParamList, ProfileStackParamList } from "../navigation";
@@ -249,6 +250,7 @@ const HelpScreen: React.FC = () => {
   return (
     <Screen scrollable={false}>
       <View style={styles.headerRow}>
+        {navigation.canGoBack() ? <BackButton onPress={() => navigation.goBack()} /> : null}
         <View style={styles.headerText}>
           <Text style={styles.title}>Ayuda</Text>
           <Text style={styles.subtitle}>Resuelve tus dudas rápidamente</Text>

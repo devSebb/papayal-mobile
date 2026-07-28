@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
 import Screen from "../ui/components/Screen";
+import BackButton from "../ui/components/BackButton";
 import Card from "../ui/components/Card";
 import TextField from "../ui/components/TextField";
 import Button from "../ui/components/Button";
@@ -133,15 +134,7 @@ const EmailVerificationScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <Pressable
-        onPress={() => navigation.goBack()}
-        style={styles.backButton}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Volver"
-      >
-        <Feather name="arrow-left" size={24} color={theme.colors.text} />
-      </Pressable>
+      <BackButton onPress={() => navigation.goBack()} style={styles.backButton} />
 
       <View style={styles.header}>
         <Text style={styles.title}>Verifica tu correo</Text>

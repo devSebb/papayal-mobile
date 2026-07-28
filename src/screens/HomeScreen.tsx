@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import {
   FlatList,
-  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -21,6 +20,7 @@ import MerchantGridCard, {
   MERCHANT_SHELF_PAGE_PADDING,
   getMerchantShelfCardMetrics
 } from "../ui/components/MerchantGridCard";
+import HomeHeroCard from "../ui/components/HomeHeroCard";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
 import { merchantsApi, meApi } from "../api/endpoints";
@@ -29,8 +29,6 @@ import { useAuth } from "../auth/authStore";
 import TopNavBar from "../ui/components/TopNavBar";
 import { Merchant } from "../types/api";
 import { CATEGORIES } from "../constants/categories";
-
-const heroImage = require("../../assets/home-hero.png");
 
 type CategoryShelf = {
   key: string;
@@ -133,45 +131,11 @@ const HomeScreen: React.FC = () => {
         <Text style={styles.title}>Bienvenido</Text>
         <Text style={styles.subtitle}>Administra tus tarjetas y canjes fácilmente.</Text>
 
-        <Card style={[styles.card, styles.heroCard]}>
-          <Text style={styles.heroTitle}>Tarjetas de regalo digitales para lo esencial en Ecuador.</Text>
-          <View style={styles.heroSubSection}>
-            <Text style={styles.heroSubtitle}>Rápido. Seguro.</Text>
-
-            <View style={styles.heroActionRow}>
-              <View style={styles.heroImageWrap}>
-                <Image source={heroImage} style={styles.heroImage} />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.flowSection}>
-            <Text style={styles.flowTitle}>Cómo funciona</Text>
-            <View style={styles.flowSteps}>
-              <View style={styles.flowStep}>
-                <Feather name="shopping-bag" size={28} color={theme.colors.secondary} />
-                <Text style={styles.flowLabel}>Elige una{"\n"}tienda</Text>
-              </View>
-              <Feather name="arrow-right" size={20} color={theme.colors.navbarMuted} />
-              <View style={styles.flowStep}>
-                <Feather name="send" size={28} color={theme.colors.secondary} />
-                <Text style={styles.flowLabel}>Envía la{"\n"}tarjeta</Text>
-              </View>
-              <Feather name="arrow-right" size={20} color={theme.colors.navbarMuted} />
-              <View style={styles.flowStep}>
-                <Feather name="map-pin" size={28} color={theme.colors.secondary} />
-                <Text style={styles.flowLabel}>Gasta{"\n"}localmente</Text>
-              </View>
-            </View>
-          </View>
-
-          <Button
-            label="Comprar tarjeta de regalo"
-            onPress={() => navigation.navigate("BuyGiftCardStart")}
-            variant="primary"
-            style={styles.promoButton}
-          />
-        </Card>
+        <HomeHeroCard
+          ctaLabel="Comprar tarjeta de regalo"
+          onPressCta={() => navigation.navigate("BuyGiftCardStart")}
+          style={styles.card}
+        />
       </View>
     ),
     [navigation]
@@ -447,71 +411,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: theme.colors.muted
-  },
-  heroCard: {
-    gap: theme.spacing(2),
-    marginBottom: theme.spacing(1)
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontFamily: theme.fonts.extraBold,
-    lineHeight: 36,
-    color: theme.colors.text
-  },
-  heroSubSection: {
-    gap: theme.spacing(0.4)
-  },
-  heroSubtitle: {
-    fontSize: 20,
-    fontFamily: theme.fonts.bold,
-    color: theme.colors.text
-  },
-  heroActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing(0.75),
-    paddingVertical: 0
-  },
-  heroImageWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: theme.spacing(1.5),
-    marginBottom: -theme.spacing(5)
-  },
-  heroImage: {
-    width: 220,
-    height: 180,
-    resizeMode: "contain"
-  },
-  flowSection: {
-    gap: theme.spacing(1)
-  },
-  flowTitle: {
-    fontSize: theme.typography.subheading,
-    fontFamily: theme.fonts.bold,
-    color: theme.colors.text
-  },
-  flowSteps: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap"
-  },
-  flowStep: {
-    alignItems: "center",
-    gap: theme.spacing(0.5),
-    flexGrow: 1,
-    minWidth: 90
-  },
-  flowLabel: {
-    color: theme.colors.text,
-    textAlign: "center",
-    fontSize: theme.typography.small
-  },
-  promoButton: {
-    marginTop: theme.spacing(1)
   },
   card: {
     marginTop: theme.spacing(1.5)

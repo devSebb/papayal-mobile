@@ -102,7 +102,15 @@ const PurchaseConfirmationScreen: React.FC = () => {
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Resumen</Text>
-          <Pressable onPress={() => navigation.navigate("BuyGiftCardStart")} hitSlop={8}>
+          {/* Entering from a merchant profile skips BuyGiftCardStart, so this
+              can push a fresh copy instead of popping back to one — carry the
+              merchant so it opens on the right comercio either way. */}
+          <Pressable
+            onPress={() =>
+              navigation.navigate("BuyGiftCardStart", { merchantId: draft.merchant?.id })
+            }
+            hitSlop={8}
+          >
             <Text style={styles.link}>Editar</Text>
           </Pressable>
         </View>

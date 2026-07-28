@@ -22,7 +22,7 @@ import { SkeletonBlock } from "../../ui/components/StateViews";
 import { theme } from "../../ui/theme";
 import { merchantsApi } from "../../api/endpoints";
 import { Merchant } from "../../types/api";
-import { formatMoney } from "../../utils/money";
+import { formatMoney, formatMoneyCompact } from "../../utils/money";
 import {
   GIFT_CARD_MAX_AMOUNT_USD,
   GIFT_CARD_MIN_AMOUNT_USD
@@ -132,9 +132,15 @@ const BuyGiftCardStartScreen: React.FC = () => {
   // Remote config: limits, kill switch, min supported version. All treated
   // as "use local defaults" when unavailable — a config outage never blocks.
   const { data: appConfig } = useAppConfig();
-  const minAmount = appConfig?.gift_card_limits?.min_cents
-    ? appConfig.gift_card_limits.min_cents / 100
-    : GIFT_CARD_MIN_AMOUNT_USD;
+  // The $5 floor is a product rule, not a config value: remote config may raise
+  // the minimum but never take it below GIFT_CARD_MIN_AMOUNT_USD. (The config
+  // endpoint currently returns 100 cents, which is what surfaced as "Mín $1".)
+  const minAmount = Math.max(
+    appConfig?.gift_card_limits?.min_cents
+      ? appConfig.gift_card_limits.min_cents / 100
+      : GIFT_CARD_MIN_AMOUNT_USD,
+    GIFT_CARD_MIN_AMOUNT_USD
+  );
   const maxAmount = appConfig?.gift_card_limits?.max_cents
     ? appConfig.gift_card_limits.max_cents / 100
     : GIFT_CARD_MAX_AMOUNT_USD;
@@ -172,7 +178,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(
     draft.amount_cents ? draft.amount_cents / 100 : null
   );
-  const [useCustomAmount, setUseCustomAmount] = useState<boolean>(false);
+  // A draft amount that isn't one of the chips (e.g. picked from a merchant
+  // profile, or carried across login from the public profile) opens as a
+  // pre-filled custom amount so the selection stays visible here.
+  const [useCustomAmount, setUseCustomAmount] = useState<boolean>(
+    Boolean(draft.amount_cents && !presetAmounts.includes(draft.amount_cents / 100))
+  );
   const [customAmount, setCustomAmount] = useState<string>(
     draft.amount_cents && (!presetAmounts.includes(draft.amount_cents / 100))
       ? String(draft.amount_cents / 100)
@@ -329,7 +340,8 @@ const BuyGiftCardStartScreen: React.FC = () => {
           <View style={styles.minMaxBadge}>
             <Feather name="info" size={12} color={theme.colors.secondary} />
             <Text style={styles.minMaxBadgeText}>
-              Mín {formatMoney(minAmount, "USD")} · Máx {formatMoney(maxAmount, "USD")}
+              Mín {formatMoneyCompact(minAmount, "USD")} · Máx{" "}
+              {formatMoneyCompact(maxAmount, "USD")}
             </Text>
           </View>
         </View>
@@ -337,7 +349,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
           {presetAmounts.map((amt) => (
             <AmountChip
               key={amt}
-              label={formatMoney(amt, "USD")}
+              label={formatMoneyCompact(amt, "USD")}
               selected={!useCustomAmount && selectedAmount === amt}
               onPress={() => {
                 setUseCustomAmount(false);
@@ -372,10 +384,10 @@ const BuyGiftCardStartScreen: React.FC = () => {
               accessibilityLabel="Monto personalizado en dólares"
               error={
                 amountCents !== null && !amountValid
-                  ? `Ingresa entre ${formatMoney(minAmount, "USD")} y ${formatMoney(
-                      maxAmount,
+                  ? `Ingresa entre ${formatMoneyCompact(
+                      minAmount,
                       "USD"
-                    )}`
+                    )} y ${formatMoneyCompact(maxAmount, "USD")}`
                   : undefined
               }
             />
@@ -383,7 +395,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
               <View style={styles.customHelperRow}>
                 <Feather name="alert-circle" size={12} color={theme.colors.muted} />
                 <Text style={styles.customHelperText}>
-                  El monto mínimo es {formatMoney(minAmount, "USD")}.
+                  El monto mínimo es {formatMoneyCompact(minAmount, "USD")}.
                 </Text>
               </View>
             ) : null}

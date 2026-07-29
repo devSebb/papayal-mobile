@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -26,6 +26,7 @@ import {
   isCardHeld,
   senderShortName
 } from "../domain/wallet/groupByMerchant";
+import { BALANCE_POLL_MS, useBalanceCaptureDetector } from "../domain/wallet/useBalanceCaptureDetector";
 import { WalletStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
 import { centsToDollars, formatMoney } from "../utils/money";
@@ -33,9 +34,6 @@ import { toDisplayTime } from "../utils/date";
 import { hapticImpactLight, hapticSuccess } from "../utils/haptics";
 
 const CRUMBS_FIRST_STORAGE_KEY = "papayal.redemption.crumbsFirst";
-
-/** How long the balance poll waits between checks while a code is on screen. */
-const BALANCE_POLL_MS = 4000;
 
 /** Pause on the "card redeemed" celebration before advancing to the next one. */
 const CELEBRATE_MS = 1600;
@@ -88,7 +86,6 @@ const MerchantRedemptionFlowScreen: React.FC = () => {
   const [flowState, setFlowState] = useState<FlowState>("showing");
   const [sessionCents, setSessionCents] = useState(0);
   const [partialCents, setPartialCents] = useState<number | null>(null);
-  const baselines = useRef(new Map<string, number>());
 
   useEffect(() => {
     let cancelled = false;
@@ -191,32 +188,18 @@ const MerchantRedemptionFlowScreen: React.FC = () => {
     setTokenVersion((v) => v + 1);
   }, [queueIds, index]);
 
-  useEffect(() => {
-    if (!currentCard || flowState !== "showing") return;
-
-    const baseline = baselines.current.get(currentCard.id);
-    if (baseline === undefined) {
-      baselines.current.set(currentCard.id, currentCard.remaining_balance_cents);
-      return;
-    }
-
-    const remaining = currentCard.remaining_balance_cents;
-    if (remaining >= baseline) return;
-
-    const delta = baseline - remaining;
-    baselines.current.set(currentCard.id, remaining);
-    setSessionCents((total) => total + delta);
+  useBalanceCaptureDetector(currentCard, flowState === "showing", ({ deltaCents, remainingCents }) => {
+    setSessionCents((total) => total + deltaCents);
     hapticSuccess();
-
-    if (remaining === 0) {
+    if (remainingCents === 0) {
       setFlowState("celebrating");
     } else {
       // Partial capture: the card still has balance, so stay on it with a
       // fresh code (the previous token was consumed by the capture).
-      setPartialCents(delta);
+      setPartialCents(deltaCents);
       setTokenVersion((v) => v + 1);
     }
-  }, [currentCard, flowState]);
+  });
 
   useEffect(() => {
     if (flowState !== "celebrating") return;

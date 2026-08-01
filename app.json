@@ -4,6 +4,12 @@
     "name": "Papayal",
     "slug": "papayal-mobile",
     "version": "1.0.1",
+    "updates": {
+      "url": "https://u.expo.dev/089f71cd-3c34-4cdd-ae21-fae443cec5e0"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/Papayal-icon.png",
     "splash": {

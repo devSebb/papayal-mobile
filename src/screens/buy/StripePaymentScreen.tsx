@@ -28,6 +28,7 @@ import { giftCardApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
 import { GiftCard } from "../../types/api";
 import CheckoutHeader from "./CheckoutHeader";
+import { reportFloating } from "../../boot/sentry";
 
 type PaymentPhase = "input" | "processing" | "confirming" | "generating";
 
@@ -382,7 +383,7 @@ const StripePaymentScreen: React.FC = () => {
 
       <Button
         label={`Pagar ${totalLabel}`}
-        onPress={handlePay}
+        onPress={() => reportFloating(handlePay(), "handlePay")}
         disabled={!canPay || isProcessing}
         style={[styles.payButton, (!canPay || isProcessing) && styles.payButtonDisabled]}
       />

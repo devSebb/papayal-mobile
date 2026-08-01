@@ -125,3 +125,17 @@ export const setSentryUser = (deviceId: string | null) => {
   if (!sentryEnabled) return;
   Sentry.setUser(deviceId ? { id: deviceId } : null);
 };
+
+/**
+ * Handles a promise that is deliberately started but not awaited.
+ *
+ * A floating promise that rejects becomes an unhandled rejection: in release
+ * builds nothing surfaces, the work silently doesn't happen, and there is no
+ * report. Wrapping makes the failure visible without changing control flow —
+ * the caller still doesn't wait.
+ */
+export const reportFloating = (promise: Promise<unknown>, context: string): void => {
+  void promise.catch((err) => {
+    Sentry.captureException(err, { tags: { floating_promise: context } });
+  });
+};

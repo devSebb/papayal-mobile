@@ -1,8 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Image,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,135 +12,24 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import Animated, {
-  Extrapolation,
-  FadeIn,
-  interpolate,
-  SharedValue,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue
-} from "react-native-reanimated";
 
 import Screen from "../ui/components/Screen";
 import Button from "../ui/components/Button";
 import Banner from "../ui/components/Banner";
-import MerchantGiftCardHero from "../ui/components/MerchantGiftCardHero";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
+import GiftCardCarousel from "../ui/wallet/GiftCardCarousel";
+import GiftCardDetailPanel from "../ui/wallet/GiftCardDetailPanel";
 import { theme } from "../ui/theme";
 import { giftCardApi, meApi, merchantsApi } from "../api/endpoints";
 import { partnerRedemption } from "../domain/merchants/partnerRedemption";
 import {
   MerchantGroup,
   groupReceivedByMerchant,
-  isCardHeld,
   senderShortName
 } from "../domain/wallet/groupByMerchant";
 import { WalletStackParamList } from "../navigation";
 import { useAuth } from "../auth/authStore";
-import { GiftCard } from "../types/api";
 import { centsToDollars, formatMoney } from "../utils/money";
-import { getInitials } from "../utils/initials";
-import { hapticImpactLight } from "../utils/haptics";
-
-const avatarPlaceholder = require("../../assets/avatar-default.png");
-
-const HOLD_UNLOCK_FORMATTER = new Intl.DateTimeFormat("es-EC", {
-  day: "numeric",
-  month: "long",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false
-});
-
-const RECEIVED_DATE_FORMATTER = new Intl.DateTimeFormat("es-EC", {
-  day: "numeric",
-  month: "long",
-  year: "numeric"
-});
-
-const formatReceivedDate = (value?: string | null) => {
-  if (!value) return null;
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return null;
-  return RECEIVED_DATE_FORMATTER.format(new Date(parsed));
-};
-
-/** One carousel page: the hero card scaling/dimming as it leaves center. */
-const CarouselCard: React.FC<{
-  card: GiftCard;
-  merchantLabel: string;
-  index: number;
-  step: number;
-  cardWidth: number;
-  scrollX: SharedValue<number>;
-}> = ({ card, merchantLabel, index, step, cardWidth, scrollX }) => {
-  const animatedStyle = useAnimatedStyle(() => {
-    const position = scrollX.value / step;
-    return {
-      transform: [
-        {
-          scale: interpolate(
-            position,
-            [index - 1, index, index + 1],
-            [0.94, 1, 0.94],
-            Extrapolation.CLAMP
-          )
-        }
-      ],
-      opacity: interpolate(
-        position,
-        [index - 1, index, index + 1],
-        [0.65, 1, 0.65],
-        Extrapolation.CLAMP
-      )
-    };
-  });
-
-  return (
-    <Animated.View style={[{ width: cardWidth }, animatedStyle]}>
-      <MerchantGiftCardHero
-        variant="owned"
-        merchantName={merchantLabel}
-        logoUrl={card.merchant_logo_url}
-        remainingCents={card.remaining_balance_cents}
-        originalCents={card.amount_cents}
-        currency={card.currency}
-        senderLabel={senderShortName(card)}
-        held={isCardHeld(card)}
-        style={{ width: cardWidth }}
-      />
-    </Animated.View>
-  );
-};
-
-const Dots: React.FC<{
-  count: number;
-  step: number;
-  scrollX: SharedValue<number>;
-}> = ({ count, step, scrollX }) => (
-  <View style={styles.dotsRow}>
-    {Array.from({ length: count }).map((_, index) => (
-      <Dot key={index} index={index} step={step} scrollX={scrollX} />
-    ))}
-  </View>
-);
-
-const Dot: React.FC<{
-  index: number;
-  step: number;
-  scrollX: SharedValue<number>;
-}> = ({ index, step, scrollX }) => {
-  const animatedStyle = useAnimatedStyle(() => {
-    const position = scrollX.value / step;
-    return {
-      width: interpolate(position, [index - 1, index, index + 1], [8, 22, 8], Extrapolation.CLAMP),
-      opacity: interpolate(position, [index - 1, index, index + 1], [0.35, 1, 0.35], Extrapolation.CLAMP)
-    };
-  });
-
-  return <Animated.View style={[styles.dot, animatedStyle]} />;
-};
 
 const MerchantWalletScreen: React.FC = () => {
   const route = useRoute<RouteProp<WalletStackParamList, "MerchantWallet">>();
@@ -154,10 +40,9 @@ const MerchantWalletScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const isQueryEnabled = !!accessToken;
 
+  // Only used to size the loading skeleton; the carousel derives its own
+  // layout from the window width.
   const cardWidth = Math.round(width * 0.8);
-  const cardGap = theme.spacing(1.5);
-  const step = cardWidth + cardGap;
-  const sidePadding = Math.max(0, (width - cardWidth) / 2);
 
   const { data: user } = useQuery({ queryKey: ["me"], queryFn: meApi.me, enabled: isQueryEnabled });
   const { data: giftCards, isLoading } = useQuery({
@@ -181,32 +66,12 @@ const MerchantWalletScreen: React.FC = () => {
     navigation.setOptions({ title: group?.merchantLabel ?? "Mi saldo" });
   }, [navigation, group?.merchantLabel]);
 
-  const scrollX = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollX.value = event.contentOffset.x;
-  });
-
   const [activeIndex, setActiveIndex] = useState(0);
   const [showRedeemed, setShowRedeemed] = useState(false);
-  const previousIndex = useRef(0);
 
   const activeCards = group?.activeCards ?? [];
   const clampedIndex = Math.min(activeIndex, Math.max(0, activeCards.length - 1));
   const activeCard = activeCards[clampedIndex] ?? null;
-  const activeCardHeld = activeCard ? isCardHeld(activeCard) : false;
-
-  const handleMomentumEnd = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const index = Math.round(event.nativeEvent.contentOffset.x / step);
-      const next = Math.max(0, Math.min(index, activeCards.length - 1));
-      setActiveIndex(next);
-      if (next !== previousIndex.current) {
-        previousIndex.current = next;
-        hapticImpactLight();
-      }
-    },
-    [step, activeCards.length]
-  );
 
   const openRedemptionFlow = useCallback(
     (initialCardId?: string) => {
@@ -243,13 +108,6 @@ const MerchantWalletScreen: React.FC = () => {
   }
 
   const canRedeem = group.availableCents > 0;
-  const senderName =
-    activeCard?.sender?.full_name?.trim() ||
-    [activeCard?.sender?.name, activeCard?.sender?.last_name].filter(Boolean).join(" ").trim() ||
-    null;
-  const receivedDate = formatReceivedDate(activeCard?.created_at);
-  const heldUntilDate =
-    activeCardHeld && activeCard?.held_until ? new Date(activeCard.held_until) : null;
 
   return (
     <Screen style={styles.screen} edges={["left", "right"]}>
@@ -271,35 +129,11 @@ const MerchantWalletScreen: React.FC = () => {
         </View>
 
         {activeCards.length > 0 ? (
-          <>
-            <Animated.FlatList
-              data={activeCards}
-              keyExtractor={(card) => card.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={step}
-              decelerationRate="fast"
-              disableIntervalMomentum
-              onScroll={scrollHandler}
-              scrollEventThrottle={16}
-              onMomentumScrollEnd={handleMomentumEnd}
-              contentContainerStyle={{ paddingHorizontal: sidePadding }}
-              ItemSeparatorComponent={() => <View style={{ width: cardGap }} />}
-              renderItem={({ item, index }) => (
-                <CarouselCard
-                  card={item}
-                  merchantLabel={group.merchantLabel}
-                  index={index}
-                  step={step}
-                  cardWidth={cardWidth}
-                  scrollX={scrollX}
-                />
-              )}
-            />
-            {activeCards.length > 1 ? (
-              <Dots count={activeCards.length} step={step} scrollX={scrollX} />
-            ) : null}
-          </>
+          <GiftCardCarousel
+            cards={activeCards}
+            merchantLabel={group.merchantLabel}
+            onActiveIndexChange={setActiveIndex}
+          />
         ) : (
           <View style={styles.noActiveBlock}>
             <EmptyStateCard
@@ -311,60 +145,17 @@ const MerchantWalletScreen: React.FC = () => {
         )}
 
         {activeCard ? (
-          <Animated.View
-            key={activeCard.id}
-            entering={FadeIn.duration(220)}
-            style={styles.detailPanel}
-          >
-            {senderName ? (
-              <View style={styles.senderRow}>
-                <View style={styles.senderAvatarWrapper}>
-                  {activeCard.sender?.avatar_url ? (
-                    <Image
-                      source={{ uri: activeCard.sender.avatar_url }}
-                      style={styles.senderAvatar}
-                    />
-                  ) : (
-                    <>
-                      <Image source={avatarPlaceholder} style={styles.senderAvatar} />
-                      <Text style={styles.senderInitials}>{getInitials(senderName)}</Text>
-                    </>
-                  )}
-                </View>
-                <View style={styles.senderInfo}>
-                  <Text style={styles.senderName}>{senderName}</Text>
-                  {receivedDate ? (
-                    <Text style={styles.senderMeta}>Recibida el {receivedDate}</Text>
-                  ) : null}
-                </View>
-              </View>
-            ) : null}
-
-            {activeCard.note?.trim() ? (
-              <View style={styles.noteBox}>
-                <Text style={styles.noteText}>{activeCard.note}</Text>
-              </View>
-            ) : null}
-
-            {heldUntilDate ? (
-              <Banner
-                icon="lock"
-                tone="warning"
-                title="Verificación de seguridad"
-                message={`Esta tarjeta estará disponible para canje el ${HOLD_UNLOCK_FORMATTER.format(heldUntilDate)}.`}
-              />
-            ) : (
-              <Button
-                label="Canjear esta tarjeta"
-                variant="ghost"
-                onPress={() => openRedemptionFlow(activeCard.id)}
-                accessibilityLabel={`Canjear la tarjeta de ${formatMoney(
-                  centsToDollars(activeCard.remaining_balance_cents),
-                  activeCard.currency
-                )}`}
-              />
-            )}
-          </Animated.View>
+          <GiftCardDetailPanel card={activeCard}>
+            <Button
+              label="Canjear esta tarjeta"
+              variant="ghost"
+              onPress={() => openRedemptionFlow(activeCard.id)}
+              accessibilityLabel={`Canjear la tarjeta de ${formatMoney(
+                centsToDollars(activeCard.remaining_balance_cents),
+                activeCard.currency
+              )}`}
+            />
+          </GiftCardDetailPanel>
         ) : null}
 
         {partner ? (
@@ -463,82 +254,8 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.semiBold,
     color: "#B45309"
   },
-  dotsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: theme.spacing(0.6),
-    marginTop: theme.spacing(1.5)
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary
-  },
   noActiveBlock: {
     paddingHorizontal: theme.spacing(2)
-  },
-  detailPanel: {
-    marginTop: theme.spacing(2),
-    marginHorizontal: theme.spacing(2),
-    backgroundColor: theme.colors.card,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.cardBorder,
-    padding: theme.spacing(2),
-    gap: theme.spacing(1.5),
-    ...theme.shadow.sm
-  },
-  senderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(1.5)
-  },
-  senderAvatarWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: "hidden",
-    backgroundColor: theme.colors.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  senderAvatar: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover"
-  },
-  senderInitials: {
-    position: "absolute",
-    color: theme.colors.secondary,
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.typography.body
-  },
-  senderInfo: {
-    flex: 1,
-    gap: theme.spacing(0.25)
-  },
-  senderName: {
-    fontSize: theme.typography.body,
-    fontFamily: theme.fonts.semiBold,
-    color: theme.colors.text
-  },
-  senderMeta: {
-    fontSize: theme.typography.small,
-    color: theme.colors.muted
-  },
-  noteBox: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.radius.sm,
-    padding: theme.spacing(1.5)
-  },
-  noteText: {
-    fontSize: theme.typography.body,
-    color: theme.colors.text,
-    fontFamily: theme.fonts.italic,
-    lineHeight: 24
   },
   partnerBanner: {
     marginTop: theme.spacing(2),

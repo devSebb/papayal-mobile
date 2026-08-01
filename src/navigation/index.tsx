@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { setupNotificationResponseListener, handleInitialNotification } from "../notifications/handler";
 import { setupAppLinkListener, handleInitialAppLink } from "../linking/handler";
-import { navigationIntegration } from "../boot/sentry";
+import { navigationIntegration, reportFloating } from "../boot/sentry";
 
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -379,7 +379,7 @@ const RootNavigator = () => {
   useEffect(() => {
     if (!accessToken) return;
     const sub = setupNotificationResponseListener(navigationRef);
-    handleInitialNotification(navigationRef);
+    reportFloating(handleInitialNotification(navigationRef), "handleInitialNotification");
     return () => sub.remove();
   }, [accessToken]);
 
@@ -387,7 +387,7 @@ const RootNavigator = () => {
   // states — unlike notifications, links matter while signed out too.
   useEffect(() => {
     const sub = setupAppLinkListener(navigationRef, !!accessToken);
-    handleInitialAppLink(navigationRef, !!accessToken);
+    reportFloating(handleInitialAppLink(navigationRef, !!accessToken), "handleInitialAppLink");
     return () => sub.remove();
   }, [accessToken]);
 

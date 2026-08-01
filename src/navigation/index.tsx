@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { setupNotificationResponseListener, handleInitialNotification } from "../notifications/handler";
 import { setupAppLinkListener, handleInitialAppLink } from "../linking/handler";
+import { navigationIntegration } from "../boot/sentry";
 
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -425,7 +426,13 @@ const RootNavigator = () => {
   // BootGate ensures we only render after hydration is complete,
   // so we can directly switch based on accessToken without a loading state.
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      // Gives Sentry screen-transition breadcrumbs, so a crash report says
+      // which screen the user was on. No-op when Sentry has no DSN.
+      onReady={() => navigationIntegration.registerNavigationContainer(navigationRef)}
+    >
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {accessToken ? (
           <RootStack.Screen name="App" component={AppTabs} />

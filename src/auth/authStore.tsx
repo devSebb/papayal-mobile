@@ -27,6 +27,7 @@ const isVerificationRequired = (
 import { queryClient } from "../query/queryClient";
 import { unregisterPushToken } from "../notifications/register";
 import { generateUUID } from "../utils/uuid";
+import { setSentryUser } from "../boot/sentry";
 
 type AuthState = {
   accessToken: string | null;
@@ -245,6 +246,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const hydrateFromStorage = useCallback(async () => {
+    // Attach the per-install device id to every Sentry event, including for
+    // guests — without an identity, "users affected" and crash-free-users are
+    // both meaningless. resolveDeviceId never throws (it falls back to a
+    // session-scoped UUID if SecureStore is unavailable).
+    setSentryUser(await resolveDeviceId());
+
     const storedRefresh = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
     if (storedRefresh) {
       refreshTokenRef.current = storedRefresh;
@@ -413,6 +420,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // push token row was already destroyed by the server; tolerate 4xx
       }
       await clearAuth();
+      // The account is gone — drop the Sentry identity too rather than keep
+      // reporting under an id tied to a deleted user.
+      setSentryUser(null);
     },
     [clearAuth]
   );

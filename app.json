@@ -125,7 +125,14 @@
         }
       ],
       "expo-web-browser",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "url": "https://sentry.io/",
+          "organization": "papayal",
+          "project": "papayal-mobile"
+        }
+      ]
     ],
     "extra": {
       "eas": {

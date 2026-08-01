@@ -16,26 +16,14 @@ import { theme } from "./src/ui/theme";
 import { PurchaseDraftProvider } from "./src/domain/purchase/purchaseDraftStore";
 import BootGate from "./src/boot/BootGate";
 import { AppErrorBoundary } from "./src/boot/AppErrorBoundary";
+import { initSentry, sentryEnabled } from "./src/boot/sentry";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
-const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
 
-/**
- * Crash reporting. Fully dormant unless EXPO_PUBLIC_SENTRY_DSN is set at
- * build time (EXPO_PUBLIC_* vars are inlined into the bundle): without it we
- * never call Sentry.init, and every Sentry.* call elsewhere (captureException,
- * wrap) is a no-op on the uninitialized SDK. Init runs synchronously at module
- * top, before the component tree mounts, so early errors are captured too.
- */
-const sentryEnabled = SENTRY_DSN.length > 0;
-if (sentryEnabled) {
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    tracesSampleRate: 0,
-    sendDefaultPii: false
-  });
-}
+// Init runs synchronously at module top, before the component tree mounts, so
+// early errors are captured too. Configuration lives in src/boot/sentry.ts.
+initSentry();
 
 /**
  * StripeProvider with empty publishableKey can crash the native Stripe SDK

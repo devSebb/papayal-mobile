@@ -10,11 +10,6 @@
     <integer>0</integer>
     <key>EXUpdatesURL</key>
     <string>https://u.expo.dev/089f71cd-3c34-4cdd-ae21-fae443cec5e0</string>
-    <!-- Must equal what `eas update` resolves from app.json's
-         runtimeVersion policy "appVersion" — i.e. expo.version. Because ios/
-         is committed, prebuild does not regenerate this file, so BUMPING
-         expo.version REQUIRES BUMPING THIS STRING TOO. If they diverge,
-         published updates silently never apply to the shipped binary. -->
     <key>EXUpdatesRuntimeVersion</key>
     <string>1.0.1</string>
   </dict>

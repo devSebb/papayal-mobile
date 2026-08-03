@@ -7,9 +7,7 @@
     "updates": {
       "url": "https://u.expo.dev/089f71cd-3c34-4cdd-ae21-fae443cec5e0"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/Papayal-icon.png",
     "splash": {

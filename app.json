@@ -94,7 +94,9 @@
         "android.permission.READ_CONTACTS"
       ],
       "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/Papayal-icon.png",

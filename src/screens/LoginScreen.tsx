@@ -51,7 +51,7 @@ const LoginScreen: React.FC = () => {
       </View>
       <View style={styles.header}>
         <Text style={styles.title}>Papayal</Text>
-        <Text style={styles.subtitle}>Inicia sesión para administrar tu billetera.</Text>
+        <Text style={styles.subtitle}>Inicia sesión para ver tus tarjetas de regalo.</Text>
       </View>
       <Card>
         <View style={styles.form}>

@@ -13,9 +13,7 @@ import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import HomeScreen from "../screens/HomeScreen";
 import WalletListScreen from "../screens/WalletListScreen";
-import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
-import MerchantWalletScreen from "../screens/MerchantWalletScreen";
-import MerchantRedemptionFlowScreen from "../screens/MerchantRedemptionFlowScreen";
+import GiftCardScreen from "../screens/GiftCardScreen";
 import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
@@ -90,7 +88,8 @@ export type AuthStackParamList = {
 export type HomeStackParamList = {
   Home: undefined;
   MerchantProfile: { id: string };
-  BuyGiftCardStart: { merchantId?: string } | undefined;
+  /** `self` enters the "Recargar mi tarjeta" path: no recipient form (§11.3). */
+  BuyGiftCardStart: { merchantId?: string; self?: boolean } | undefined;
   DeliveryProfile: undefined;
   PurchaseConfirmation: undefined;
   CompleteDetails:
@@ -103,20 +102,25 @@ export type HomeStackParamList = {
   PurchaseSuccess: {
     merchantName?: string;
     amountLabel?: string;
-    recipientEmail?: string;
+    /** Recipient's first name; absent on a self-reload. */
+    recipientName?: string;
     paymentIntentId?: string;
     cardReady?: boolean;
+    /** The buyer reloaded their own card. */
+    self?: boolean;
+    /** False = this payment created the recipient's first card at the merchant. */
+    isReload?: boolean;
+    /** Card balance after this load, when the server reported it (§8.3). */
+    projectedBalanceCents?: number;
+    /** The card this load landed on, for "Ver mi tarjeta". */
+    giftCardId?: string;
   };
 };
 
 export type WalletStackParamList = {
   WalletList: undefined;
-  GiftCardDetail: { id: string };
-  /** Aggregated per-merchant balance: card carousel + history + redeem CTA. */
-  MerchantWallet: { merchantId: string | null };
-  /** Guided card-by-card redemption at the register. initialCardId = explicit
-   *  user pick from the carousel; omitted for the default (crumbs-first) queue. */
-  MerchantRedemptionFlow: { merchantId: string | null; initialCardId?: string };
+  /** The user's single card at one merchant: balance, recargas, canjes (D1). */
+  GiftCard: { id: string };
   RedemptionToken: { id: string };
   Activity: undefined;
   /** Gift teaser behind a papayal.app/claim/<token> deep link (signed in). */
@@ -209,32 +213,22 @@ const WalletStackNavigator = () => (
     <WalletStack.Screen
       name="WalletList"
       component={WalletListScreen}
-      options={{ title: "Billetera", headerShown: false }}
+      options={{ title: "Mis tarjetas", headerShown: false }}
     />
     <WalletStack.Screen
-      name="GiftCardDetail"
-      component={GiftCardDetailScreen}
+      name="GiftCard"
+      component={GiftCardScreen}
       options={{ title: "Tarjeta de regalo" }}
-    />
-    <WalletStack.Screen
-      name="MerchantWallet"
-      component={MerchantWalletScreen}
-      options={{ title: "Mi saldo" }}
-    />
-    <WalletStack.Screen
-      name="MerchantRedemptionFlow"
-      component={MerchantRedemptionFlowScreen}
-      options={{ title: "Canjear en tienda" }}
     />
     <WalletStack.Screen
       name="RedemptionToken"
       component={RedemptionTokenScreen}
-      options={{ title: "Token de canje" }}
+      options={{ title: "Canjear en tienda" }}
     />
     <WalletStack.Screen
       name="Activity"
       component={ActivityScreen}
-      options={{ title: "Actividad" }}
+      options={{ title: "Historial" }}
     />
     <WalletStack.Screen
       name="ClaimLanding"
@@ -280,7 +274,7 @@ const AppTabs = () => (
     <Tab.Screen
       name="WalletTab"
       component={WalletStackNavigator}
-      options={{ title: "Billetera" }}
+      options={{ title: "Mis tarjetas" }}
     />
     <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: "Perfil" }} />
   </Tab.Navigator>
@@ -303,7 +297,7 @@ const GuestAppTabs = () => (
     }}
   >
     <GuestTab.Screen name="HomeTab" component={GuestHomeStackNavigator} options={{ title: "Explorar" }} />
-    <GuestTab.Screen name="WalletTab" component={GuestWalletGate} options={{ title: "Billetera" }} />
+    <GuestTab.Screen name="WalletTab" component={GuestWalletGate} options={{ title: "Mis tarjetas" }} />
     <GuestTab.Screen name="ProfileTab" component={GuestProfileGate} options={{ title: "Perfil" }} />
   </GuestTab.Navigator>
 );
@@ -413,7 +407,7 @@ const RootNavigator = () => {
         navigationRef.navigate("App", {
           screen: "WalletTab",
           params: {
-            screen: "GiftCardDetail",
+            screen: "GiftCard",
             params: { id: intent.giftCardId }
           }
         });

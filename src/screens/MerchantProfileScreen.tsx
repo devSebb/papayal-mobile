@@ -10,7 +10,9 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 
 import Button from "../ui/components/Button";
-import { merchantsApi } from "../api/endpoints";
+import { giftCardApi, merchantsApi } from "../api/endpoints";
+import { useAuth } from "../auth/authStore";
+import { centsToDollars, formatMoney } from "../utils/money";
 import { AppTabsParamList, HomeStackParamList } from "../navigation";
 import { usePurchaseDraft } from "../domain/purchase/purchaseDraftStore";
 import { GIFT_CARD_MIN_AMOUNT_USD as MIN_AMOUNT } from "../domain/purchase/giftCardAmountLimits";
@@ -37,7 +39,8 @@ const MerchantProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavProps>();
   const tabNavigation = navigation.getParent<TabNavProps>();
   const route = useRoute<RouteProps>();
-  const { setMerchant, setAmount } = usePurchaseDraft();
+  const { setMerchant, setAmount, setRecipient } = usePurchaseDraft();
+  const { accessToken } = useAuth();
   const { id } = route.params;
   const [selectedAmountCents, setSelectedAmountCents] = useState<number | null>(null);
 
@@ -59,6 +62,19 @@ const MerchantProfileScreen: React.FC = () => {
     queryFn: () => merchantsApi.detail(id),
     enabled: !!id
   });
+
+  // The user's own card at this merchant, if any: it turns the screen's
+  // second action into "Recargar mi tarjeta" and shows the balance (§11.3).
+  const { data: myCards } = useQuery({
+    queryKey: ["giftCards"],
+    queryFn: giftCardApi.list,
+    enabled: !!accessToken
+  });
+  const ownCard = useMemo(
+    () => (myCards ?? []).find((card) => String(card.merchant_id ?? "") === String(id)) ?? null,
+    [myCards, id]
+  );
+  const ownBalanceCents = ownCard?.spendable_cents ?? ownCard?.remaining_balance_cents ?? null;
 
   const displayName = merchantDisplayName(merchant);
   const amountPresets = useMemo(() => resolveAmountPresets(merchant), [merchant]);
@@ -92,6 +108,7 @@ const MerchantProfileScreen: React.FC = () => {
 
   const handlePrimaryAction = () => {
     if (!merchant) return;
+    setRecipient(null);
     if (!selectedAmountCents) {
       seedMerchant(null);
       navigation.navigate("BuyGiftCardStart", { merchantId: merchant.id });
@@ -100,6 +117,15 @@ const MerchantProfileScreen: React.FC = () => {
 
     seedMerchant(selectedAmountCents);
     navigation.navigate("DeliveryProfile");
+  };
+
+  // Self-reload: no recipient step at all (§11.3). The amount picker on
+  // BuyGiftCardStart also shows the card's current balance from here.
+  const handleTopUpOwnCard = () => {
+    if (!merchant) return;
+    seedMerchant(selectedAmountCents);
+    setRecipient({ self: true });
+    navigation.navigate("BuyGiftCardStart", { merchantId: merchant.id, self: true });
   };
 
   if (isLoading) {
@@ -128,6 +154,17 @@ const MerchantProfileScreen: React.FC = () => {
         onPress={handlePrimaryAction}
         variant="primary"
       />
+      {ownCard ? (
+        <Button
+          label={
+            ownBalanceCents !== null
+              ? `Recargar mi tarjeta · ${formatMoney(centsToDollars(ownBalanceCents), ownCard.currency)}`
+              : `Recargar mi tarjeta de ${displayName}`
+          }
+          onPress={handleTopUpOwnCard}
+          variant="ghost"
+        />
+      ) : null}
     </MerchantProfileScaffold>
   );
 };

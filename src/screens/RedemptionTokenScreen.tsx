@@ -104,6 +104,7 @@ const RedemptionTokenScreen: React.FC = () => {
     enabled: isQueryEnabled && !!giftCard?.merchant_id
   });
   const partner = partnerRedemption(merchantDetail);
+  const spendableCents = giftCard?.spendable_cents ?? giftCard?.remaining_balance_cents ?? 0;
   const merchantName =
     giftCard?.merchant_store_name?.trim() ||
     giftCard?.store_name?.trim() ||
@@ -112,8 +113,9 @@ const RedemptionTokenScreen: React.FC = () => {
     giftCard?.merchant?.name?.trim() ||
     null;
 
-  // Watch the balance drop to detect the merchant capturing the code, then
-  // confirm the redemption on screen (mirrors MerchantRedemptionFlowScreen).
+  // Watch the spendable balance drop to detect the merchant capturing the
+  // code, then confirm the redemption on screen. A partial capture spans
+  // loads server-side (FIFO); from here it is simply a smaller balance.
   useBalanceCaptureDetector(giftCard, flowState === "showing", ({ deltaCents, remainingCents }) => {
     setRedeemedCents((total) => total + deltaCents);
     hapticSuccess();
@@ -192,9 +194,18 @@ const RedemptionTokenScreen: React.FC = () => {
   const friendlyError = useMemo(() => {
     if (!error) return null;
     const err = error as HttpError;
-    if (err.status === 422) return "La tarjeta está inactiva o no puede generar un token.";
+    if (err.status === 422) {
+      switch (err.error?.code) {
+        case "gift_card.no_spendable_balance":
+          return "Esta tarjeta no tiene saldo disponible ahora.";
+        case "gift_card.frozen":
+          return "Esta tarjeta está congelada. Escríbenos si crees que es un error.";
+        default:
+          return err.error?.message ?? "Esta tarjeta no puede generar un código ahora.";
+      }
+    }
     if (err.status === 403) return "No puedes canjear esta tarjeta.";
-    return err.error?.message ?? "No pudimos generar el token.";
+    return err.error?.message ?? "No pudimos generar el código.";
   }, [error]);
 
   const handleRegenerate = () => {
@@ -219,16 +230,16 @@ const RedemptionTokenScreen: React.FC = () => {
             <View style={styles.finishedIcon}>
               <Feather name="check-circle" size={44} color={theme.colors.success} />
             </View>
-            <Text style={styles.finishedTitle}>¡Pago confirmado!</Text>
+            <Text style={styles.finishedTitle}>¡Listo!</Text>
             <Text style={styles.finishedSubtitle}>
               {redeemedCents > 0
                 ? merchantName
                   ? `Canjeaste ${formatMoney(centsToDollars(redeemedCents), giftCard?.currency)} en ${merchantName}.`
                   : `Canjeaste ${formatMoney(centsToDollars(redeemedCents), giftCard?.currency)} con Papayal.`
-                : "Tu tarjeta fue canjeada."}
+                : "Usaste el saldo de tu tarjeta."}
             </Text>
             <Button
-              label="Volver a mi billetera"
+              label="Volver a mis tarjetas"
               onPress={() => navigation.goBack()}
               style={styles.finishedButton}
             />
@@ -241,10 +252,10 @@ const RedemptionTokenScreen: React.FC = () => {
   return (
     <Screen scrollable edges={["left", "right"]}>
       <Card>
-        <Text style={[styles.title, !merchantName && styles.titleSpaced]}>Token de canje</Text>
-        {merchantName ? (
-          <Text style={styles.merchantSubtitle}>Tarjeta de {merchantName}</Text>
-        ) : null}
+        <Text style={[styles.title, !merchantName && styles.titleSpaced]}>
+          {merchantName ? `Tarjeta de ${merchantName}` : "Tarjeta de regalo"}
+        </Text>
+        <Text style={styles.merchantSubtitle}>Muestra este código en caja</Text>
         {partner ? (
           <Banner
             icon="map-pin"
@@ -253,12 +264,12 @@ const RedemptionTokenScreen: React.FC = () => {
             style={styles.partnerBanner}
           />
         ) : null}
-        {isBusy ? <Text style={styles.muted}>Generando...</Text> : null}
+        {isBusy ? <Text style={styles.muted}>Generando…</Text> : null}
         {friendlyError ? <Text style={styles.error}>{friendlyError}</Text> : null}
         {partialCents ? (
           <Text style={styles.partialNotice}>
-            Canje de {formatMoney(centsToDollars(partialCents), giftCard?.currency)} registrado.
-            Nuevo código listo.
+            Canje de {formatMoney(centsToDollars(partialCents), giftCard?.currency)} registrado. Te
+            quedan {formatMoney(centsToDollars(spendableCents), giftCard?.currency)}.
           </Text>
         ) : null}
         {data ? (
@@ -298,10 +309,10 @@ const RedemptionTokenScreen: React.FC = () => {
                   style={styles.codeOverlay}
                   accessible
                   accessibilityRole="alert"
-                  accessibilityLabel="Tarjeta canjeada por completo."
+                  accessibilityLabel="Saldo canjeado por completo."
                 >
                   <Feather name="check-circle" size={44} color={theme.colors.success} />
-                  <Text style={styles.celebrateTitle}>¡Tarjeta canjeada!</Text>
+                  <Text style={styles.celebrateTitle}>¡Canje completo!</Text>
                 </Animated.View>
               ) : null}
             </View>
@@ -323,7 +334,7 @@ const RedemptionTokenScreen: React.FC = () => {
         ) : null}
         {flowState === "showing" ? (
           <Button
-            label={isExpired ? "Generar nuevo código" : "Regenerar"}
+            label={isExpired ? "Generar nuevo código" : "Generar otro código"}
             accessibilityLabel={
               isExpired ? "Generar nuevo código de canje" : "Regenerar código de canje"
             }

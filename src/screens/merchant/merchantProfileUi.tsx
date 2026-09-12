@@ -143,7 +143,9 @@ export const MerchantProfileScaffold: React.FC<ScaffoldProps> = ({
         <View style={styles.titleBlock}>
           <Text style={styles.storeName}>{displayName}</Text>
           <Text style={styles.categorySubtitle}>{categorySubtitle(merchant)}</Text>
-          <Text style={styles.brandLine}>Envía saldo a tu familia en Ecuador, al instante.</Text>
+          <Text style={styles.brandLine}>
+            Envía una tarjeta de regalo digital a tu familia en Ecuador.
+          </Text>
         </View>
 
         <View style={styles.section}>

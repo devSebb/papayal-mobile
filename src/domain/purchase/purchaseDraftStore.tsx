@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { generateUUID } from "../../utils/uuid";
-import { CheckoutQuote } from "../../types/api";
+import { CheckoutQuote, CheckoutTarget } from "../../types/api";
 
 export type MerchantSelection = {
   id?: string;
@@ -8,10 +8,16 @@ export type MerchantSelection = {
   logoUrl?: string | null;
 };
 
+/**
+ * Who the load is for. `self: true` is the "Recargar mi tarjeta" path (§8.3):
+ * the backend resolves the buyer from the token, so no contact fields are
+ * collected and DeliveryProfile is skipped entirely.
+ */
 export type RecipientInfo = {
-  name: string;
-  email: string;
-  phone: string;
+  self?: boolean;
+  name?: string;
+  email?: string;
+  phone?: string;
   note?: string;
 };
 
@@ -25,6 +31,9 @@ export type PurchaseDraft = {
   /** Server price breakdown (subtotal/fee/total). Cleared whenever the
    *  amount changes so a stale fee is never shown. */
   quote: CheckoutQuote | null;
+  /** Where this payment landed (§8.3). Only known once the PaymentIntent has
+   *  been created, so PurchaseSuccess reads it and the earlier screens don't. */
+  target: CheckoutTarget | null;
 };
 
 type PurchaseDraftContextValue = {
@@ -33,6 +42,7 @@ type PurchaseDraftContextValue = {
   setAmount: (amountCents: number | null, currency?: string) => void;
   setRecipient: (recipient: RecipientInfo | null) => void;
   setQuote: (quote: CheckoutQuote | null) => void;
+  setTarget: (target: CheckoutTarget | null) => void;
   resetDraft: () => void;
 };
 
@@ -42,7 +52,8 @@ const createInitialDraft = (): PurchaseDraft => ({
   amount_cents: null,
   currency: "USD",
   recipient: null,
-  quote: null
+  quote: null,
+  target: null
 });
 
 const PurchaseDraftContext = createContext<PurchaseDraftContextValue | undefined>(undefined);
@@ -68,11 +79,14 @@ export const PurchaseDraftProvider: React.FC<{ children: React.ReactNode }> = ({
   const setQuote = (quote: CheckoutQuote | null) =>
     setDraft((prev) => ({ ...prev, quote }));
 
+  const setTarget = (target: CheckoutTarget | null) =>
+    setDraft((prev) => ({ ...prev, target }));
+
   /** Resets draft completely and generates a new draft_id for the next purchase */
   const resetDraft = () => setDraft(createInitialDraft());
 
   const value = useMemo<PurchaseDraftContextValue>(
-    () => ({ draft, setMerchant, setAmount, setRecipient, setQuote, resetDraft }),
+    () => ({ draft, setMerchant, setAmount, setRecipient, setQuote, setTarget, resetDraft }),
     [draft]
   );
 

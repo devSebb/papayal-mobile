@@ -26,7 +26,7 @@ import {
 } from "../../api/payments";
 import { giftCardApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
-import { GiftCard } from "../../types/api";
+import { CheckoutTarget, GiftCardWithLoad } from "../../types/api";
 import CheckoutHeader from "./CheckoutHeader";
 import { reportFloating } from "../../boot/sentry";
 
@@ -36,7 +36,8 @@ const StripePaymentScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const queryClient = useQueryClient();
   const { confirmPayment } = useStripe();
-  const { draft, setQuote } = usePurchaseDraft();
+  const { draft, setQuote, setTarget } = usePurchaseDraft();
+  const isSelfLoad = Boolean(draft.recipient?.self);
 
   const [cardComplete, setCardComplete] = useState(false);
   const [cardDetails, setCardDetails] = useState<{
@@ -100,7 +101,8 @@ const StripePaymentScreen: React.FC = () => {
     draft.merchant?.id &&
     draft.amount_cents &&
     draft.amount_cents > 0 &&
-    (draft.recipient?.email || draft.recipient?.phone) &&
+    // A self-reload carries no contact fields: the backend resolves the buyer.
+    (isSelfLoad || draft.recipient?.email || draft.recipient?.phone) &&
     phase === "input";
 
   const handleCardChange = useCallback(
@@ -136,6 +138,7 @@ const StripePaymentScreen: React.FC = () => {
     // Step 1: Create PaymentIntent on backend
     let clientSecret: string;
     let piId: string;
+    let resolvedTarget: CheckoutTarget | null = null;
 
     try {
       if (__DEV__) {
@@ -146,10 +149,15 @@ const StripePaymentScreen: React.FC = () => {
       clientSecret = result.clientSecret;
       piId = result.paymentIntentId;
       setPaymentIntentId(piId);
-      // The PI response carries the authoritative breakdown actually charged.
+      // The PI response carries the authoritative breakdown actually charged,
+      // and `target`: the card this load lands on and the balance it reaches.
       if (result.quote) {
         setQuote(result.quote);
       }
+      if (result.target) {
+        setTarget(result.target);
+      }
+      resolvedTarget = result.target ?? null;
 
       if (__DEV__) {
         console.log("[StripePayment] PaymentIntent created:", piId);
@@ -234,22 +242,29 @@ const StripePaymentScreen: React.FC = () => {
     // Step 3: Payment succeeded, show "generating" state
     setPhase("generating");
 
-    const merchantId = draft.merchant?.id;
-    const amountCents = draft.amount_cents ?? undefined;
-    const cardReady = await waitForGiftCardGeneration({
-      paymentIntentId: piId,
-      merchantId,
-      amountCents,
-      confirmedAt: paymentConfirmedAt
-    });
+    const created = await waitForGiftCardGeneration(piId);
     await queryClient.invalidateQueries({ queryKey: ["giftCards"] });
+    await queryClient.invalidateQueries({ queryKey: ["sentLoads"] });
+    await queryClient.invalidateQueries({ queryKey: ["activity"] });
+
+    // A card that already existed before this payment makes it a reload; the
+    // server's `target` is the authority, and the resolved card's load count
+    // is the fallback when the PI response predates it.
+    const isReload = resolvedTarget
+      ? Boolean(resolvedTarget.existing_card_id)
+      : (created?.loads_count ?? 1) > 1;
 
     navigation.navigate("PurchaseSuccess", {
       merchantName: draft.merchant?.name,
       amountLabel,
-      recipientEmail: draft.recipient?.email,
+      recipientName: draft.recipient?.name,
       paymentIntentId: piId,
-      cardReady
+      cardReady: Boolean(created),
+      self: isSelfLoad,
+      isReload,
+      projectedBalanceCents:
+        resolvedTarget?.projected_balance_cents ?? created?.spendable_cents ?? undefined,
+      giftCardId: created ? String(created.id) : undefined
     });
   };
 
@@ -269,7 +284,7 @@ const StripePaymentScreen: React.FC = () => {
             <Feather name="check" size={32} color="#fff" />
           </View>
           <Text style={styles.loadingTitle}>Pago confirmado</Text>
-          <Text style={styles.loadingSubtitle}>Confirmando la creación de tu tarjeta...</Text>
+          <Text style={styles.loadingSubtitle}>Cargando el saldo en la tarjeta…</Text>
           <ActivityIndicator
             size="small"
             color={theme.colors.primary}
@@ -289,7 +304,7 @@ const StripePaymentScreen: React.FC = () => {
         <View style={styles.processingOverlay}>
           <Card style={styles.loadingCard}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingTitle}>Procesando pago...</Text>
+            <Text style={styles.loadingTitle}>Confirmando tu pago…</Text>
             <Text style={styles.loadingSubtitle}>
               No cierres la aplicación
             </Text>
@@ -318,7 +333,7 @@ const StripePaymentScreen: React.FC = () => {
           <Text style={styles.sectionHint}>{draft.merchant?.name ?? ""}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Monto</Text>
+          <Text style={styles.summaryLabel}>{isSelfLoad ? "Recarga" : "Monto"}</Text>
           <Text style={styles.summaryValue}>{amountLabel}</Text>
         </View>
         <View style={styles.summaryRow}>
@@ -329,10 +344,12 @@ const StripePaymentScreen: React.FC = () => {
           <Text style={styles.summaryLabel}>Total a pagar</Text>
           <Text style={[styles.summaryValue, styles.summaryTotal]}>{totalLabel}</Text>
         </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Destinatario</Text>
-          <Text style={styles.summaryValue}>{draft.recipient?.email ?? "—"}</Text>
-        </View>
+        {isSelfLoad ? null : (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Destinatario</Text>
+            <Text style={styles.summaryValue}>{draft.recipient?.email ?? "—"}</Text>
+          </View>
+        )}
       </Card>
 
       <Card style={styles.sectionCard}>
@@ -445,38 +462,38 @@ function mapStripeError(error: { code?: string; message?: string; declineCode?: 
 }
 
 /**
- * Polls for the gift card generated by the payment webhook.
- * Returns false after a bounded wait so the user can continue even if webhook
- * processing is still catching up.
+ * Polls for the load created by the payment webhook (§5.3), and returns the
+ * card it landed on — or null after a bounded wait, so the user can continue
+ * even if webhook processing is still catching up.
+ *
+ * The payment intent is the only lookup. The old fallback (scan the wallet
+ * for a card with the same amount_cents created in the last minute) cannot
+ * work on a reloadable card: a top-up changes an existing card instead of
+ * creating one, and amount_cents is now the card's lifetime total.
  */
-async function waitForGiftCardGeneration(params: {
-  paymentIntentId: string;
-  merchantId?: string;
-  amountCents?: number;
-  confirmedAt: number;
-}): Promise<boolean> {
+async function waitForGiftCardGeneration(paymentIntentId: string): Promise<GiftCardWithLoad | null> {
   const maxAttempts = 10;
   const pollIntervalMs = 1500;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const byPaymentIntent = await lookupGiftCardByPaymentIntent(params.paymentIntentId);
-    if (byPaymentIntent) return true;
-
-    const matchingWalletCard = await lookupMatchingWalletCard(params);
-    if (matchingWalletCard) return true;
+    const card = await lookupGiftCardByPaymentIntent(paymentIntentId);
+    if (card) return card;
 
     if (attempt < maxAttempts - 1) {
       await delay(pollIntervalMs);
     }
   }
 
-  return false;
+  return null;
 }
 
-async function lookupGiftCardByPaymentIntent(paymentIntentId: string): Promise<GiftCard | null> {
+async function lookupGiftCardByPaymentIntent(
+  paymentIntentId: string
+): Promise<GiftCardWithLoad | null> {
   try {
     const result = await giftCardApi.byPaymentIntent(paymentIntentId);
-    return extractGiftCard(result);
+    // 404 until the webhook runs; anything with an id is the real card.
+    return result?.id ? result : null;
   } catch (err) {
     const status = (err as HttpError)?.status;
     if (__DEV__ && status && status !== 404) {
@@ -484,50 +501,6 @@ async function lookupGiftCardByPaymentIntent(paymentIntentId: string): Promise<G
     }
     return null;
   }
-}
-
-async function lookupMatchingWalletCard(params: {
-  merchantId?: string;
-  amountCents?: number;
-  confirmedAt: number;
-}): Promise<GiftCard | null> {
-  try {
-    const cards = await giftCardApi.list();
-    return findMatchingGiftCard(cards, params);
-  } catch (err) {
-    if (__DEV__) {
-      console.log("[StripePayment] Wallet polling pending:", (err as HttpError)?.status ?? err);
-    }
-    return null;
-  }
-}
-
-function extractGiftCard(
-  result: GiftCard | { gift_card?: GiftCard | null; status?: string } | null | undefined
-): GiftCard | null {
-  if (!result) return null;
-  if ("amount_cents" in result && "remaining_balance_cents" in result) return result;
-  return result.gift_card ?? null;
-}
-
-function findMatchingGiftCard(
-  cards: GiftCard[],
-  params: { merchantId?: string; amountCents?: number; confirmedAt: number }
-): GiftCard | null {
-  const earliestLikelyCreatedAt = params.confirmedAt - 60_000;
-  const matches = cards.filter((card) => {
-    const merchantMatches = params.merchantId ? card.merchant_id === params.merchantId : true;
-    const amountMatches = params.amountCents ? card.amount_cents === params.amountCents : true;
-    const createdOrUpdated = Date.parse(card.created_at ?? card.updated_at ?? "");
-    const isRecent = !Number.isNaN(createdOrUpdated) && createdOrUpdated >= earliestLikelyCreatedAt;
-    return merchantMatches && amountMatches && isRecent;
-  });
-
-  return matches.sort((a, b) => {
-    const aTime = Date.parse(a.created_at ?? a.updated_at ?? "");
-    const bTime = Date.parse(b.created_at ?? b.updated_at ?? "");
-    return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
-  })[0] ?? null;
 }
 
 function delay(ms: number): Promise<void> {

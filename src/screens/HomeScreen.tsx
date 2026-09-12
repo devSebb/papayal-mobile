@@ -171,7 +171,7 @@ const HomeScreen: React.FC = () => {
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Acciones rápidas</Text>
           <Button
-            label="Abrir billetera"
+            label="Ver mis tarjetas"
             onPress={() => navigation.navigate("WalletTab")}
             variant="primary"
             style={styles.button}

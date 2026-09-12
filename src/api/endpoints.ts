@@ -1,5 +1,6 @@
 import { request } from "./http";
 import {
+  ActivityPage,
   AppConfig,
   AuthTokens,
   CheckoutQuote,
@@ -7,7 +8,10 @@ import {
   EmailVerificationDetails,
   GiftCard,
   GiftCardShareLink,
+  GiftCardWithLoad,
   Merchant,
+  PaginatedLoads,
+  PaginatedSentLoads,
   RedemptionToken,
   SignupResponse,
   User
@@ -192,8 +196,16 @@ export const giftCardApi = {
     const { data } = await request<GiftCard>(`/api/v1/me/gift_cards/${id}`);
     return data;
   },
+  /** Every load on the card (recipient) or only the caller's own (sender). */
+  loads: async (id: string, page = 1) => {
+    const { data } = await request<PaginatedLoads>(
+      `/api/v1/me/gift_cards/${id}/loads?page=${page}`
+    );
+    return data;
+  },
+  /** Post-checkout polling: 404 until the webhook creates the load (§5.3). */
   byPaymentIntent: async (paymentIntentId: string) => {
-    const { data } = await request<GiftCard | { gift_card?: GiftCard | null; status?: string }>(
+    const { data } = await request<GiftCardWithLoad>(
       `/api/v1/gift_cards/by_payment_intent/${encodeURIComponent(paymentIntentId)}`
     );
     return data;
@@ -204,18 +216,38 @@ export const giftCardApi = {
     });
     return data;
   },
-  /** Sender-only: claim URL + prewritten message for the native share sheet. */
-  shareLink: async (id: string) => {
-    const { data } = await request<GiftCardShareLink>(`/api/v1/me/gift_cards/${id}/share_link`, {
-      method: "POST"
-    });
+  /** Buyer-only: claim URL + prewritten message for the native share sheet.
+   *  Without a loadId the backend shares the caller's latest load (compat). */
+  shareLink: async (id: string, loadId?: string) => {
+    const path = loadId
+      ? `/api/v1/me/gift_cards/${id}/loads/${loadId}/share_link`
+      : `/api/v1/me/gift_cards/${id}/share_link`;
+    const { data } = await request<GiftCardShareLink>(path, { method: "POST" });
     return data;
   },
-  /** Sender-only: re-deliver the original notification. 429 when throttled. */
-  resend: async (id: string) => {
-    const { data } = await request<{ resent: boolean }>(`/api/v1/me/gift_cards/${id}/resend`, {
-      method: "POST"
-    });
+  /** Buyer-only: re-deliver that load's notification. 429 when throttled. */
+  resend: async (id: string, loadId?: string) => {
+    const path = loadId
+      ? `/api/v1/me/gift_cards/${id}/loads/${loadId}/resend`
+      : `/api/v1/me/gift_cards/${id}/resend`;
+    const { data } = await request<{ resent: boolean; load_id?: string }>(path, { method: "POST" });
+    return data;
+  }
+};
+
+export const loadsApi = {
+  /** "Enviadas": the loads the current user paid for, newest first. */
+  sent: async (page = 1) => {
+    const { data } = await request<PaginatedSentLoads>(`/api/v1/me/loads?role=sent&page=${page}`);
+    return data;
+  }
+};
+
+export const activityApi = {
+  /** "Historial": server-built feed, cursor-paginated. */
+  list: async (cursor?: string | null) => {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const { data } = await request<ActivityPage>(`/api/v1/me/activity${query}`);
     return data;
   }
 };

@@ -26,6 +26,9 @@ import { ListDivider, ListGroup, ListRow } from "../ui/components/ListRow";
 import { theme } from "../ui/theme";
 import { AppTabsParamList, ProfileStackParamList } from "../navigation";
 import { shareApp } from "../sharing/shareApp";
+import { useAppConfig } from "../hooks/useAppConfig";
+import { centsToDollars, formatMoneyCompact } from "../utils/money";
+import type { AppConfigLimits } from "../types/api";
 
 type BaseCategory = "Cuenta" | "Tarjeta" | "Pagos" | "Seguridad" | "Comercios";
 type CategoryFilter = "Todos" | BaseCategory;
@@ -39,6 +42,19 @@ type FaqItem = {
 
 const CATEGORY_OPTIONS: CategoryFilter[] = ["Todos", "Cuenta", "Tarjeta", "Pagos", "Seguridad", "Comercios"];
 
+/** Caps FAQ (§4.4). The numbers come from GET /config, never from the build. */
+const limitsAnswer = (limits?: AppConfigLimits) => {
+  if (!limits) {
+    return "Sí, por seguridad hay límites por recarga, por día y de saldo máximo por tarjeta. Si necesitas más, escríbenos.";
+  }
+  const money = (cents: number) => formatMoneyCompact(centsToDollars(cents) ?? 0, "USD");
+  return (
+    `Sí, por seguridad: hasta ${money(limits.max_load_cents)} por recarga, ` +
+    `${limits.max_loads_per_card_per_day} recargas y ${money(limits.max_daily_load_per_card_cents)} por tarjeta al día, ` +
+    `y un saldo máximo de ${money(limits.max_card_balance_cents)} por tarjeta. Si necesitas más, escríbenos.`
+  );
+};
+
 const FAQS: FaqItem[] = [
   {
     id: "que-es",
@@ -50,9 +66,16 @@ const FAQS: FaqItem[] = [
   {
     id: "recibir-token",
     category: "Tarjeta",
-    question: "¿Cómo recibo mi tarjeta digital o token de canje?",
+    question: "¿Cómo recibo mi tarjeta digital o código de canje?",
     answer:
-      "Cuando alguien te envía una tarjeta de regalo, te avisamos por correo y aparece en tu billetera dentro de Papayal. El QR y el código de canje solo se muestran en la app cuando estés listo para usarla."
+      "Cuando alguien te envía una tarjeta de regalo, te avisamos por WhatsApp o correo y aparece en Mis tarjetas. El código de canje solo se muestra en la app cuando estés listo para pagar."
+  },
+  {
+    id: "recargar",
+    category: "Tarjeta",
+    question: "¿Puedo recargar mi tarjeta?",
+    answer:
+      "Sí. Tienes una sola tarjeta por comercio y cada compra, tuya o de otra persona, se suma a esa tarjeta. Así nunca tienes saldos sueltos."
   },
   {
     id: "donde-usar",
@@ -80,7 +103,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Cómo consulto mi saldo y movimientos?",
     answer:
-      "En tu billetera verás el saldo disponible y los últimos canjes. Si un comercio devuelve un monto, también aparecerá como reverso."
+      "En Mis tarjetas verás el saldo de cada tarjeta, tus recargas y tus últimos canjes. Si un comercio devuelve un monto, también aparecerá ahí."
   },
   {
     id: "parcial",
@@ -94,14 +117,14 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Mi tarjeta expira?",
     answer:
-      "No. Tus tarjetas de regalo no tienen fecha de vencimiento. El saldo queda disponible en tu billetera hasta que lo uses."
+      "No. Tus tarjetas de regalo digitales no vencen. El saldo queda en tu tarjeta hasta que lo uses."
   },
   {
     id: "reembolso",
     category: "Pagos",
     question: "¿Hay reembolsos o reversos?",
     answer:
-      "Si necesitas un reembolso, escríbenos a soporte o acude al comercio donde hiciste la compra. Los reembolsos se devuelven al medio de pago original y el tiempo en reflejarse depende de tu banco."
+      "Si te arrepientes de una recarga que aún no se ha usado, escríbenos dentro de las 72 horas y la devolvemos a la tarjeta de pago de quien la compró. Los saldos ya canjeados se gestionan con el comercio."
   },
   {
     id: "pago-rechazado",
@@ -197,17 +220,33 @@ const HelpScreen: React.FC = () => {
   }, []);
 
   const appVersion = Application.nativeApplicationVersion;
+  const { data: appConfig } = useAppConfig();
+
+  // The caps entry is built at render time so it always states the limits the
+  // server is currently enforcing (§4.1), not the ones shipped in this build.
+  const faqs = useMemo<FaqItem[]>(
+    () => [
+      ...FAQS,
+      {
+        id: "limites",
+        category: "Pagos",
+        question: "¿Hay límites?",
+        answer: limitsAnswer(appConfig?.limits)
+      }
+    ],
+    [appConfig?.limits]
+  );
 
   const filteredFaqs = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return FAQS.filter((faq) => {
+    return faqs.filter((faq) => {
       const matchesCategory = selectedCategory === "Todos" ? true : faq.category === selectedCategory;
       const matchesQuery = query
         ? `${faq.question} ${faq.answer}`.toLowerCase().includes(query)
         : true;
       return matchesCategory && matchesQuery;
     });
-  }, [search, selectedCategory]);
+  }, [faqs, search, selectedCategory]);
 
   const handleToggle = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

@@ -58,3 +58,6 @@ MASTER_CHECKLIST_STATUS.md
 .claude/
 .hermes/
 skills-lock.json
+
+# Reloadable-card design doc (local planning, not for repo history)
+RELOADABLE_CARD_PLAN.md

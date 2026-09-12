@@ -1,32 +1,18 @@
 import { ClassifiedGiftCards, GiftCardVM } from "./types";
 
+/**
+ * "Mis tarjetas" = the cards this account holds. Since D1 every card belongs
+ * to exactly one recipient and every purchase is a load, so there is nothing
+ * to classify as "sent" here — sent purchases come from loadsApi.sent().
+ */
 export const classifyGiftCards = (
   cards: GiftCardVM[],
   currentUserId?: string
 ): ClassifiedGiftCards => {
-  const hasSenderRecipientFields = cards.some(
-    (card) => card.senderId !== undefined || card.recipientId !== undefined
-  );
-  const canClassifyTransfers = hasSenderRecipientFields && Boolean(currentUserId);
-
-  const redeemed = cards.filter((card) => card.isRedeemed);
-  const received = canClassifyTransfers
-    ? cards.filter((card) => card.recipientId && card.recipientId === currentUserId)
-    : [];
-  const sent = canClassifyTransfers
-    ? cards.filter((card) => card.senderId && card.senderId === currentUserId)
-    : [];
+  if (!currentUserId) return { cards: [], canClassify: false };
 
   return {
-    all: cards,
-    received,
-    sent,
-    redeemed,
-    hasSenderRecipientFields,
-    canClassifyTransfers
+    cards: cards.filter((card) => card.recipientId === currentUserId),
+    canClassify: true
   };
 };
-
-
-
-

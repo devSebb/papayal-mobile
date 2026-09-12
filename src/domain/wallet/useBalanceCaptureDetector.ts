@@ -8,13 +8,17 @@ export const BALANCE_POLL_MS = 4000;
 export type BalanceCaptureEvent = {
   /** How much the balance dropped since the last observation, in cents. */
   deltaCents: number;
-  /** The card's new remaining balance, in cents (0 means fully redeemed). */
+  /** The card's new SPENDABLE balance, in cents (0 means nothing left to
+   *  redeem right now — held or disputed money may still exist). */
   remainingCents: number;
 };
 
+/** What a redemption draws down: spendable, not the held/disputed total. */
+const spendableOf = (card: GiftCard) => card.spendable_cents ?? card.remaining_balance_cents;
+
 /**
- * Turns a gift card's polled balance into "the merchant just captured a
- * payment" events. The card itself is refetched on an interval by the caller
+ * Turns a gift card's polled SPENDABLE balance into "the merchant just
+ * captured a payment" events. The card itself is refetched on an interval by the caller
  * (see BALANCE_POLL_MS); this hook only compares each observed balance against
  * a per-card baseline and fires `onCapture` once per drop — so a late poll
  * response or a re-render with an unchanged balance can never double-count.
@@ -42,11 +46,11 @@ export function useBalanceCaptureDetector(
 
     const baseline = baselines.current.get(card.id);
     if (baseline === undefined) {
-      baselines.current.set(card.id, card.remaining_balance_cents);
+      baselines.current.set(card.id, spendableOf(card));
       return;
     }
 
-    const remaining = card.remaining_balance_cents;
+    const remaining = spendableOf(card);
     if (remaining >= baseline) return;
 
     const delta = baseline - remaining;

@@ -25,15 +25,18 @@ type PromoProps = {
 };
 
 type OwnedProps = {
-  /** A card the user actually holds: real balance + sender attribution. */
+  /**
+   * The card the user holds at this merchant (one per merchant, D1). The
+   * balance on the face is what can be spent right now; held or disputed
+   * money is explained in the strips under the hero, never folded in here.
+   */
   variant: "owned";
-  remainingCents: number;
-  originalCents?: number | null;
+  spendableCents: number;
   currency: string;
-  /** Short sender attribution, e.g. "María P." */
-  senderLabel?: string | null;
-  /** Security hold: amber accent + "EN VERIFICACIÓN" instead of validity. */
+  /** Security hold on part of the balance: amber accent + "EN VERIFICACIÓN". */
   held?: boolean;
+  /** Admin freeze (D3): nothing is redeemable until support lifts it. */
+  frozen?: boolean;
 };
 
 type Props = (PromoProps | OwnedProps) & {
@@ -66,7 +69,7 @@ const MerchantGiftCardHero: React.FC<Props> = (props) => {
     return { width, height: width / logoAspect, resizeMode: "contain" as const };
   }, [logoAspect, logoAreaWidth]);
 
-  const held = props.variant === "owned" && props.held;
+  const held = props.variant === "owned" && (props.held || props.frozen);
 
   return (
     <View style={[styles.giftCard, held ? styles.giftCardHeld : null, style]}>
@@ -94,30 +97,26 @@ const MerchantGiftCardHero: React.FC<Props> = (props) => {
       {props.variant === "owned" ? (
         <View style={styles.giftCardBottomBlock}>
           <View style={styles.balanceRow}>
+            <Text style={styles.balanceLabel}>Disponible</Text>
             <Text style={styles.balanceValue}>
-              {formatMoney(centsToDollars(props.remainingCents), props.currency)}
+              {formatMoney(centsToDollars(props.spendableCents), props.currency)}
             </Text>
-            {typeof props.originalCents === "number" &&
-            props.originalCents !== props.remainingCents ? (
-              <Text style={styles.balanceOriginal}>
-                de {formatMoney(centsToDollars(props.originalCents), props.currency)}
-              </Text>
-            ) : null}
           </View>
           <View style={styles.giftCardMetaRow}>
             <Text style={styles.giftCardCaption} numberOfLines={1}>
-              {props.senderLabel ? `DE: ${props.senderLabel.toUpperCase()}` : "TARJETA DE REGALO"}
+              TARJETA DE REGALO DIGITAL · SIN VENCIMIENTO
             </Text>
-            {props.held ? (
+            {props.frozen ? (
               <View style={styles.heldPill}>
                 <Feather name="lock" size={10} color="#B45309" />
-                <Text style={styles.heldPillLabel}>EN VERIFICACIÓN</Text>
+                <Text style={styles.heldPillLabel}>CONGELADA</Text>
               </View>
-            ) : (
-              <View style={styles.validBlock}>
-                <Text style={styles.validLabel}>SIN VENCIMIENTO</Text>
+            ) : props.held ? (
+              <View style={styles.heldPill}>
+                <Feather name="lock" size={10} color="#B45309" />
+                <Text style={styles.heldPillLabel}>EN REVISIÓN</Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
       ) : (
@@ -251,10 +250,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     letterSpacing: 0.5
   },
-  balanceOriginal: {
+  balanceLabel: {
     color: theme.colors.mutedTeal55,
-    fontFamily: theme.fonts.semiBold,
-    fontSize: 13
+    fontFamily: theme.fonts.bold,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: "uppercase"
   },
   giftCardMetaRow: {
     flexDirection: "row",

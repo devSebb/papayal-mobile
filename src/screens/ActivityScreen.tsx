@@ -1,50 +1,53 @@
-import React, { useMemo } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import React from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import { EmptyStateCard, SkeletonBlock } from "../ui/components/StateViews";
 import { theme } from "../ui/theme";
-import { giftCardApi, meApi } from "../api/endpoints";
+import { activityApi } from "../api/endpoints";
 import { useAuth } from "../auth/authStore";
-import { buildActivityFeed } from "../domain/wallet/buildActivityFeed";
-import { ActivityItem } from "../domain/wallet/types";
+import { WalletStackParamList } from "../navigation";
+import type { ActivityEvent } from "../types/api";
+import { centsToDollars, formatMoney } from "../utils/money";
+import { activityIcon, activitySubtitle, activityTitle, formatActivityDate } from "./activityCopy";
 
-const iconForKind: Record<ActivityItem["kind"], { name: keyof typeof Feather.glyphMap; color: string }> = {
-  redeemed: { name: "shopping-bag", color: theme.colors.primary },
-  expired: { name: "clock", color: theme.colors.danger },
-  added: { name: "gift", color: theme.colors.secondary },
-  received: { name: "arrow-down-left", color: theme.colors.secondary },
-  sent: { name: "arrow-up-right", color: theme.colors.secondary }
-};
-
-const formatTimestamp = (timestamp?: string) => {
-  if (!timestamp) return "Reciente";
-  const parsed = Date.parse(timestamp);
-  if (Number.isNaN(parsed)) return "Reciente";
-  const date = new Date(parsed);
-  return date.toLocaleDateString("es-EC", { month: "short", day: "numeric", year: "numeric" });
-};
-
-const ActivityRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
-  const icon = iconForKind[item.kind];
+const ActivityRow: React.FC<{ event: ActivityEvent; onPress?: () => void }> = ({
+  event,
+  onPress
+}) => {
+  const icon = activityIcon(event.type);
   return (
-    <Card style={styles.activityCard}>
-      <View style={styles.activityRow}>
-        <View style={[styles.iconCircle, { backgroundColor: `${icon.color}1A` }]}>
-          <Feather name={icon.name} size={18} color={icon.color} />
-        </View>
-        <View style={styles.activityText}>
-          <Text style={styles.activityTitle}>{item.title}</Text>
-          <Text style={styles.activitySubtitle}>
-            {item.subtitle ?? "Tarjeta de regalo"} • {formatTimestamp(item.timestamp)}
+    <TouchableOpacity onPress={onPress} disabled={!onPress} activeOpacity={0.9}>
+      <Card style={styles.activityCard}>
+        <View style={styles.activityRow}>
+          <View style={[styles.iconCircle, { backgroundColor: `${icon.color}1A` }]}>
+            <Feather name={icon.name} size={18} color={icon.color} />
+          </View>
+          <View style={styles.activityText}>
+            <Text style={styles.activityTitle}>{activityTitle(event)}</Text>
+            <Text style={styles.activitySubtitle}>
+              {activitySubtitle(event)} • {formatActivityDate(event.created_at)}
+            </Text>
+          </View>
+          <Text style={styles.amount}>
+            {formatMoney(centsToDollars(event.amount_cents), event.currency)}
           </Text>
         </View>
-        {item.amountLabel ? <Text style={styles.amount}>{item.amountLabel}</Text> : null}
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 };
 
@@ -65,52 +68,70 @@ const ActivitySkeleton: React.FC = () => (
   </View>
 );
 
+/**
+ * "Historial": the server-built feed (§8.2). It replaces the old client-side
+ * reconstruction from card rows, which could only ever guess at redemptions,
+ * reversals and refunds — the ledger knows them exactly.
+ */
 const ActivityScreen: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<WalletStackParamList>>();
   const { accessToken } = useAuth();
   const isQueryEnabled = !!accessToken;
 
-  const { data: user } = useQuery({
-    queryKey: ["me"],
-    queryFn: meApi.me,
-    enabled: isQueryEnabled
-  });
-
   const {
-    data: giftCards,
+    data,
     isLoading,
     isRefetching,
     error,
-    refetch
-  } = useQuery({
-    queryKey: ["giftCards"],
-    queryFn: giftCardApi.list,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["activity", "paged"],
+    queryFn: ({ pageParam }: { pageParam: string | null }) => activityApi.list(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
     enabled: isQueryEnabled
   });
 
-  const activityFeed = useMemo(
-    () => buildActivityFeed(giftCards ?? [], user?.id),
-    [giftCards, user?.id]
-  );
-
+  const events = data?.pages.flatMap((page) => page.events) ?? [];
   const isBusy = isLoading || isRefetching || !isQueryEnabled;
-  // Only surface the error state when there is no cached data to show;
-  // with cached cards we keep rendering the feed (pull-to-refresh still works).
-  const hasLoadError = Boolean(error) && !giftCards;
+  // With cached events we keep rendering them; pull-to-refresh still works.
+  const hasLoadError = Boolean(error) && !data;
 
   return (
     <Screen style={styles.screen} edges={["left", "right"]}>
       <FlatList
-        data={activityFeed}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ActivityRow item={item} />}
+        data={events}
+        keyExtractor={(item, index) => `${item.type}-${item.load_id ?? item.transaction_id}-${index}`}
+        renderItem={({ item }) => (
+          <ActivityRow
+            event={item}
+            onPress={
+              item.gift_card_id
+                ? () => navigation.navigate("GiftCard", { id: String(item.gift_card_id) })
+                : undefined
+            }
+          />
+        )}
         contentContainerStyle={styles.list}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+        }}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator color={theme.colors.primary} style={styles.footerSpinner} />
+          ) : null
+        }
         ListEmptyComponent={
           isBusy ? (
             <ActivitySkeleton />
           ) : hasLoadError ? (
             <EmptyStateCard
               icon="wifi-off"
-              title="No pudimos cargar tu actividad"
+              title="No pudimos cargar tu historial"
               message="Revisa tu conexión e inténtalo de nuevo."
               actionLabel="Reintentar"
               onAction={() => refetch()}
@@ -118,8 +139,8 @@ const ActivityScreen: React.FC = () => {
           ) : (
             <EmptyStateCard
               icon="clock"
-              title="Aún no hay actividad"
-              message="Tus compras, regalos recibidos y canjes aparecerán aquí."
+              title="Aún no hay movimientos"
+              message="Tus recargas, regalos y canjes aparecerán aquí."
             />
           )
         }
@@ -156,6 +177,9 @@ const styles = StyleSheet.create({
   skeletonLine: {
     marginTop: theme.spacing(0.6)
   },
+  footerSpinner: {
+    marginVertical: theme.spacing(1.5)
+  },
   activityRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -182,9 +206,6 @@ const styles = StyleSheet.create({
   amount: {
     fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
-  },
-  muted: {
-    color: theme.colors.muted
   }
 });
 

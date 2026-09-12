@@ -16,9 +16,9 @@ type Props = {
 const copy = {
   wallet: {
     icon: "credit-card" as const,
-    title: "Inicia sesión para ver tu billetera",
+    title: "Inicia sesión para ver tus tarjetas",
     message:
-      "Tus tarjetas, saldos, tokens de canje y actividad están protegidos en tu cuenta Papayal."
+      "Tus tarjetas, tu saldo, tus códigos de canje y tu historial están protegidos en tu cuenta Papayal."
   },
   profile: {
     icon: "user" as const,

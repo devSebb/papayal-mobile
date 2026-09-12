@@ -109,7 +109,9 @@ const SignupScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.step}>Paso 1 de 2</Text>
         <Text style={styles.title}>Crea tu cuenta</Text>
-        <Text style={styles.subtitle}>Empieza a gestionar tu billetera Papayal.</Text>
+        <Text style={styles.subtitle}>
+          Crea tu cuenta para enviar y recibir tarjetas de regalo digitales.
+        </Text>
       </View>
       <Card>
         <View style={styles.form}>

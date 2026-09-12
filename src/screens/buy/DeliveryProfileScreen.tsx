@@ -88,7 +88,9 @@ const DeliveryProfileScreen: React.FC = () => {
       <CheckoutHeader
         step="recipient"
         title="Destinatario"
-        subtitle="Ingresa los datos de entrega. Validamos email y teléfono para evitar errores."
+        subtitle={`¿Para quién es? Si ya tiene una tarjeta de ${
+          draft.merchant?.name ?? "este comercio"
+        }, le añadimos el saldo.`}
         onBack={() => navigation.goBack()}
       />
 

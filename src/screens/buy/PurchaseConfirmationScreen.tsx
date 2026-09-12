@@ -12,8 +12,8 @@ import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { partnerRedemption } from "../../domain/merchants/partnerRedemption";
-import { formatMoney } from "../../utils/money";
-import { checkoutApi, merchantsApi } from "../../api/endpoints";
+import { centsToDollars, formatMoney } from "../../utils/money";
+import { checkoutApi, giftCardApi, merchantsApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
 import { formatValidationDetails } from "../../utils/formErrors";
 import CheckoutHeader from "./CheckoutHeader";
@@ -22,6 +22,7 @@ const PurchaseConfirmationScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { draft, setQuote } = usePurchaseDraft();
   const [checkingKyc, setCheckingKyc] = useState(false);
+  const isSelfLoad = Boolean(draft.recipient?.self);
 
   useEffect(() => {
     if (!draft.merchant || !draft.amount_cents || !draft.recipient) {
@@ -51,6 +52,26 @@ const PurchaseConfirmationScreen: React.FC = () => {
   });
   const partner = partnerRedemption(merchantDetail);
 
+  // On a self-reload the app knows the card that is about to be topped up, so
+  // it can show the before/after balance. For a gift it can't: the recipient's
+  // card belongs to them and the server only reports `target` once the
+  // PaymentIntent exists — PurchaseSuccess is where that lands.
+  const { data: myCards } = useQuery({
+    queryKey: ["giftCards"],
+    queryFn: giftCardApi.list,
+    enabled: isSelfLoad
+  });
+  const ownCard = isSelfLoad
+    ? (myCards ?? []).find(
+        (card) => String(card.merchant_id ?? "") === String(draft.merchant?.id ?? "")
+      ) ?? null
+    : null;
+  const currentBalanceCents =
+    ownCard?.spendable_cents ?? ownCard?.remaining_balance_cents ?? null;
+  const projectedBalanceCents =
+    currentBalanceCents !== null ? currentBalanceCents + (draft.amount_cents ?? 0) : null;
+  const isReload = Boolean(ownCard);
+
   const amountLabel = formatMoney(
     draft.amount_cents ? draft.amount_cents / 100 : null,
     draft.currency
@@ -67,6 +88,16 @@ const PurchaseConfirmationScreen: React.FC = () => {
     }
     return "No pudimos validar tus datos. Inténtalo de nuevo.";
   };
+
+  // §4.4 "PurchaseConfirmation hint". A gift can land on a card the recipient
+  // already has, but only the server knows that before the payment exists, so
+  // the gift copy describes the first-card case and DeliveryProfile has
+  // already said that an existing card gets topped up instead.
+  const merchantLabel = draft.merchant?.name ?? "el comercio";
+  const recipientFirstName = draft.recipient?.name?.trim().split(/\s+/)[0] ?? "tu destinatario";
+  const confirmationHint = isSelfLoad
+    ? `Al confirmar el pago, tu tarjeta de regalo digital de ${merchantLabel} se recarga al instante.`
+    : `Al confirmar el pago, ${recipientFirstName} recibe una tarjeta de regalo digital de ${merchantLabel} y le avisamos al instante. También la verás en Mis tarjetas.`;
 
   const handleContinue = async () => {
     if (!draft.merchant || !draft.amount_cents || !draft.recipient) return;
@@ -94,7 +125,7 @@ const PurchaseConfirmationScreen: React.FC = () => {
     <Screen scrollable>
       <CheckoutHeader
         step="confirm"
-        title="Confirma tu compra"
+        title={isSelfLoad ? "Confirma tu recarga" : "Confirma tu compra"}
         subtitle="Revisa los datos antes de continuar al pago."
         onBack={() => navigation.goBack()}
       />
@@ -115,10 +146,16 @@ const PurchaseConfirmationScreen: React.FC = () => {
           </Pressable>
         </View>
         <Row label="Comercio" value={draft.merchant?.name ?? "—"} />
-        <Row label="Monto" value={amountLabel} />
+        <Row label={isReload ? "Recarga" : "Monto"} value={amountLabel} />
         <Row label="Tarifa" value={feeLabel ?? (isQuoteLoading ? "…" : formatMoney(0, draft.currency))} />
         <View style={styles.totalDivider} />
         <Row label="Total a pagar" value={totalLabel} emphasized />
+        {isReload && currentBalanceCents !== null && projectedBalanceCents !== null ? (
+          <Text style={styles.balanceLine}>
+            Saldo de la tarjeta: {formatMoney(centsToDollars(currentBalanceCents), draft.currency)} →{" "}
+            {formatMoney(centsToDollars(projectedBalanceCents), draft.currency)}
+          </Text>
+        ) : null}
       </Card>
 
       {partner ? (
@@ -130,18 +167,20 @@ const PurchaseConfirmationScreen: React.FC = () => {
         />
       ) : null}
 
-      <Card style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Destinatario</Text>
-          <Pressable onPress={() => navigation.navigate("DeliveryProfile")} hitSlop={8}>
-            <Text style={styles.link}>Editar</Text>
-          </Pressable>
-        </View>
-        <Row label="Nombre" value={draft.recipient?.name ?? "—"} />
-        <Row label="Correo" value={draft.recipient?.email ?? "—"} />
-        <Row label="Teléfono" value={draft.recipient?.phone ?? "—"} />
-        {draft.recipient?.note ? <Row label="Nota" value={draft.recipient.note} /> : null}
-      </Card>
+      {isSelfLoad ? null : (
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Destinatario</Text>
+            <Pressable onPress={() => navigation.navigate("DeliveryProfile")} hitSlop={8}>
+              <Text style={styles.link}>Editar</Text>
+            </Pressable>
+          </View>
+          <Row label="Nombre" value={draft.recipient?.name ?? "—"} />
+          <Row label="Correo" value={draft.recipient?.email ?? "—"} />
+          <Row label="Teléfono" value={draft.recipient?.phone ?? "—"} />
+          {draft.recipient?.note ? <Row label="Nota" value={draft.recipient.note} /> : null}
+        </Card>
+      )}
 
       <Card style={styles.hintCard}>
         <Text style={styles.hintTitle}>Tarifas y entrega</Text>
@@ -149,8 +188,7 @@ const PurchaseConfirmationScreen: React.FC = () => {
           {hasFee
             ? `El total incluye una tarifa de servicio de ${feeLabel}. `
             : "Aún no aplicamos comisiones. "}
-          Después de confirmar el pago, enviaremos la tarjeta al destinatario y también aparecerá
-          en tu billetera.
+          {confirmationHint}
         </Text>
       </Card>
 
@@ -223,6 +261,11 @@ const styles = StyleSheet.create({
   },
   partnerBanner: {
     marginBottom: theme.spacing(1.5)
+  },
+  balanceLine: {
+    marginTop: theme.spacing(0.5),
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold
   },
   hintCard: {
     gap: theme.spacing(0.6),

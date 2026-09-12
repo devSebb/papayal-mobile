@@ -67,7 +67,7 @@ const ClaimLandingScreen: React.FC = () => {
     if (!ownCard || !giftCardId) return;
     // The wallet stack registration is the only signed-in entry point,
     // so replace() lands on the detail screen with WalletList behind it.
-    navigation.replace("GiftCardDetail", { id: giftCardId });
+    navigation.replace("GiftCard", { id: giftCardId });
   }, [ownCard, giftCardId, navigation]);
 
   const goToAuth = (screen: "Signup" | "Login") => {
@@ -80,6 +80,10 @@ const ClaimLandingScreen: React.FC = () => {
   const senderLabel = teaser?.sender_first_name?.trim() || null;
   const amount = formatMoney(centsToDollars(teaser?.amount_cents), teaser?.currency);
   const merchantName = teaser?.merchant_name?.trim() || "Papayal";
+  // A link resolves ONE load (§8.2): the first one is a gift, every later one
+  // is a top-up of a card the recipient already holds. The server writes the
+  // headline (§4.4) so the wording can change without an app release.
+  const isReload = Boolean(teaser?.is_reload);
   const hasLogo = Boolean(teaser?.merchant_logo_url);
   const logoSource = hasLogo ? { uri: teaser?.merchant_logo_url as string } : merchantPlaceholder;
   // If the recipient already has an account, lead with login instead of signup.
@@ -104,7 +108,7 @@ const ClaimLandingScreen: React.FC = () => {
         <EmptyStateCard
           icon="gift"
           title="Este enlace ya no está activo"
-          message="Puede que la tarjeta ya haya sido reclamada o que el enlace haya expirado. Pide a quien la envió que la comparta de nuevo desde la app."
+          message="Puede que el enlace haya expirado o que la tarjeta ya no esté disponible. Pide a quien la envió que la comparta de nuevo desde la app."
           actionLabel="Entendido"
           onAction={() => navigation.goBack()}
           style={styles.fullWidthCard}
@@ -119,7 +123,7 @@ const ClaimLandingScreen: React.FC = () => {
       <Screen centerContent edges={["left", "right"]}>
         <EmptyStateCard
           icon="gift"
-          title="Este regalo es para otra persona"
+          title="Esta tarjeta es de otra persona"
           message={
             teaser.recipient_masked_phone
               ? `La tarjeta fue enviada al número ${teaser.recipient_masked_phone}. Solo esa persona puede reclamarla.`
@@ -142,7 +146,10 @@ const ClaimLandingScreen: React.FC = () => {
         </View>
 
         <Text style={styles.title}>
-          {senderLabel ? `${senderLabel} te envió un regalo` : "Te enviaron un regalo"}
+          {teaser.teaser?.trim() ||
+            (isReload
+              ? `${senderLabel ?? "Alguien"} recargó tu tarjeta de ${merchantName} con ${amount}`
+              : `${senderLabel ?? "Alguien"} te envió una tarjeta de regalo digital de ${merchantName}`)}
         </Text>
 
         <View style={styles.merchantRow}>
@@ -165,7 +172,9 @@ const ClaimLandingScreen: React.FC = () => {
           title="Reclamo seguro"
           message={
             teaser.recipient_masked_phone
-              ? `Crea tu cuenta con el número ${teaser.recipient_masked_phone} y confirma el código de verificación para recibirla.`
+              ? `Crea tu cuenta con el número ${teaser.recipient_masked_phone} y confirma el código de verificación para ${
+                  isReload ? "ver tu saldo" : "recibirla"
+                }.`
               : "Crea tu cuenta con el número o correo que recibió el mensaje y confirma el código de verificación."
           }
           style={styles.banner}
@@ -174,12 +183,18 @@ const ClaimLandingScreen: React.FC = () => {
         <View style={styles.actions}>
           {recipientRegistered ? (
             <>
-              <Button label="Iniciar sesión y ver mi regalo" onPress={() => goToAuth("Login")} />
+              <Button
+                label={isReload ? "Iniciar sesión y ver mi tarjeta" : "Iniciar sesión y ver mi regalo"}
+                onPress={() => goToAuth("Login")}
+              />
               <Button label="Crear cuenta" variant="ghost" onPress={() => goToAuth("Signup")} />
             </>
           ) : (
             <>
-              <Button label="Crear cuenta y reclamar" onPress={() => goToAuth("Signup")} />
+              <Button
+                label={isReload ? "Crear cuenta y ver mi tarjeta" : "Crear cuenta y reclamar"}
+                onPress={() => goToAuth("Signup")}
+              />
               <Button label="Ya tengo cuenta" variant="ghost" onPress={() => goToAuth("Login")} />
             </>
           )}

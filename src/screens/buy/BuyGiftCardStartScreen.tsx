@@ -20,9 +20,9 @@ import Banner from "../../ui/components/Banner";
 import TextField from "../../ui/components/TextField";
 import { SkeletonBlock } from "../../ui/components/StateViews";
 import { theme } from "../../ui/theme";
-import { merchantsApi } from "../../api/endpoints";
+import { giftCardApi, merchantsApi } from "../../api/endpoints";
 import { Merchant } from "../../types/api";
-import { formatMoney, formatMoneyCompact } from "../../utils/money";
+import { centsToDollars, formatMoney, formatMoneyCompact } from "../../utils/money";
 import {
   GIFT_CARD_MAX_AMOUNT_USD,
   GIFT_CARD_MIN_AMOUNT_USD
@@ -126,8 +126,11 @@ const BuyGiftCardStartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<BuyGiftCardStartRoute>();
   const { accessToken } = useAuth();
-  const { draft, setMerchant, setAmount } = usePurchaseDraft();
+  const { draft, setMerchant, setAmount, setRecipient } = usePurchaseDraft();
   const isQueryEnabled = !!accessToken;
+  // "Recargar mi tarjeta" (§11.3): the buyer is the recipient, so there is no
+  // delivery step and the merchant is fixed to the card they came from.
+  const isSelfLoad = Boolean(route.params?.self) || Boolean(draft.recipient?.self);
 
   // Remote config: limits, kill switch, min supported version. All treated
   // as "use local defaults" when unavailable — a config outage never blocks.
@@ -135,15 +138,17 @@ const BuyGiftCardStartScreen: React.FC = () => {
   // The $5 floor is a product rule, not a config value: remote config may raise
   // the minimum but never take it below GIFT_CARD_MIN_AMOUNT_USD. (The config
   // endpoint currently returns 100 cents, which is what surfaced as "Mín $1".)
+  // `limits` (§4.1) is authoritative once the backend serves it; the old
+  // gift_card_limits block is the fallback for a pre-Phase-3 API.
+  const limits = appConfig?.limits;
   const minAmount = Math.max(
-    appConfig?.gift_card_limits?.min_cents
-      ? appConfig.gift_card_limits.min_cents / 100
-      : GIFT_CARD_MIN_AMOUNT_USD,
+    (limits?.min_load_cents ?? appConfig?.gift_card_limits?.min_cents ?? 0) / 100 ||
+      GIFT_CARD_MIN_AMOUNT_USD,
     GIFT_CARD_MIN_AMOUNT_USD
   );
-  const maxAmount = appConfig?.gift_card_limits?.max_cents
-    ? appConfig.gift_card_limits.max_cents / 100
-    : GIFT_CARD_MAX_AMOUNT_USD;
+  const maxAmount =
+    (limits?.max_load_cents ?? appConfig?.gift_card_limits?.max_cents ?? 0) / 100 ||
+    GIFT_CARD_MAX_AMOUNT_USD;
   const purchasesEnabled = appConfig?.purchases_enabled !== false;
   const minSupported =
     Platform.OS === "ios"
@@ -161,6 +166,14 @@ const BuyGiftCardStartScreen: React.FC = () => {
     queryKey: ["merchants"],
     queryFn: merchantsApi.list,
     enabled: isQueryEnabled
+  });
+
+  // Self-reload only: the buyer's own card at this merchant, for the
+  // "Saldo actual" hint and the client-side balance cap.
+  const { data: myCards } = useQuery({
+    queryKey: ["giftCards"],
+    queryFn: giftCardApi.list,
+    enabled: isQueryEnabled && isSelfLoad
   });
 
   const merchantOptions = useMemo(() => {
@@ -223,6 +236,17 @@ const BuyGiftCardStartScreen: React.FC = () => {
     selectedMerchantId
   ]);
 
+  const existingCard = useMemo(() => {
+    if (!isSelfLoad || !selectedMerchantId) return null;
+    return (
+      (myCards ?? []).find(
+        (card) => String(card.merchant_id ?? "") === String(selectedMerchantId)
+      ) ?? null
+    );
+  }, [isSelfLoad, myCards, selectedMerchantId]);
+  const currentBalanceCents =
+    existingCard?.spendable_cents ?? existingCard?.remaining_balance_cents ?? null;
+
   const parsedCustomAmount = Number.parseFloat(customAmount.replace(/,/g, "."));
   const amountValue = useCustomAmount ? parsedCustomAmount : selectedAmount ?? null;
   const amountCents =
@@ -234,8 +258,29 @@ const BuyGiftCardStartScreen: React.FC = () => {
     !Number.isNaN(amountCents);
   const amountLabel = formatMoney(amountCents ? amountCents / 100 : null, draft.currency);
 
+  // Instant feedback for the one cap the app can evaluate on its own: the
+  // card's balance ceiling, when we know the balance (self-reload). Every
+  // other cap in §4.1 needs the server's rolling windows, so the server
+  // stays authoritative and its 422 carries the exact room left.
+  const balanceCapCents = limits?.max_card_balance_cents ?? null;
+  const exceedsBalanceCap = Boolean(
+    balanceCapCents !== null &&
+      currentBalanceCents !== null &&
+      amountCents !== null &&
+      currentBalanceCents + amountCents > balanceCapCents
+  );
+  const balanceCapMessage = exceedsBalanceCap
+    ? `Esta tarjeta puede tener hasta ${formatMoney(
+        centsToDollars(balanceCapCents),
+        "USD"
+      )} de saldo. Puedes recargar ${formatMoney(
+        centsToDollars(Math.max(0, (balanceCapCents ?? 0) - (currentBalanceCents ?? 0))),
+        "USD"
+      )}.`
+    : null;
+
   const canContinue = Boolean(
-    selectedMerchant && amountValid && purchasesEnabled && !updateRequired
+    selectedMerchant && amountValid && !exceedsBalanceCap && purchasesEnabled && !updateRequired
   );
   const isMerchantBusy = isLoadingMerchants || isRefetchingMerchants;
   const hasMerchantOptions = merchantOptions.length > 0;
@@ -248,6 +293,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
       logoUrl: selectedMerchant.logoUrl
     });
     setAmount(amountCents, "USD");
+    if (isSelfLoad) {
+      // No recipient to collect: the backend resolves the buyer (§8.3).
+      setRecipient({ self: true });
+      navigation.navigate("PurchaseConfirmation");
+      return;
+    }
     navigation.navigate("DeliveryProfile");
   };
 
@@ -255,8 +306,14 @@ const BuyGiftCardStartScreen: React.FC = () => {
     <Screen scrollable>
       <CheckoutHeader
         step="merchant"
-        title="Compra una tarjeta de regalo"
-        subtitle="Selecciona el comercio y el monto para empezar tu compra."
+        title={
+          isSelfLoad && selectedMerchant
+            ? `Recarga tu tarjeta de ${selectedMerchant.name}`
+            : "Envía una tarjeta de regalo digital"
+        }
+        subtitle={
+          isSelfLoad ? "Elige cuánto quieres añadir" : "Elige el comercio y el monto"
+        }
         onBack={() => navigation.goBack()}
         showSummary={false}
       />
@@ -279,6 +336,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
         />
       ) : null}
 
+      {isSelfLoad ? null : (
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Comercio</Text>
@@ -333,6 +391,7 @@ const BuyGiftCardStartScreen: React.FC = () => {
           </View>
         )}
       </Card>
+      )}
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
@@ -400,6 +459,14 @@ const BuyGiftCardStartScreen: React.FC = () => {
               </View>
             ) : null}
           </View>
+        ) : null}
+        {isSelfLoad && currentBalanceCents !== null ? (
+          <Text style={styles.currentBalanceHint}>
+            Saldo actual: {formatMoney(centsToDollars(currentBalanceCents), "USD")}
+          </Text>
+        ) : null}
+        {balanceCapMessage ? (
+          <Text style={styles.capError}>{balanceCapMessage}</Text>
         ) : null}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Monto seleccionado</Text>
@@ -583,6 +650,18 @@ const styles = StyleSheet.create({
     color: theme.colors.secondary,
     fontFamily: theme.fonts.semiBold,
     fontSize: theme.typography.small
+  },
+  currentBalanceHint: {
+    marginTop: theme.spacing(0.75),
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small + 1
+  },
+  capError: {
+    marginTop: theme.spacing(0.5),
+    color: theme.colors.danger,
+    fontSize: theme.typography.small,
+    lineHeight: 18
   },
   otroHint: {
     marginTop: theme.spacing(0.75),

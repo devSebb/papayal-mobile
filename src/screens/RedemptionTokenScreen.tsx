@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { RouteProp, useFocusEffect, useRoute } from "@react-navigation/native";
+import {
+  RouteProp,
+  useFocusEffect,
+  useNavigation,
+  useRoute
+} from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
@@ -7,17 +13,36 @@ import { Barcode } from "expo-barcode-generator";
 import { Feather } from "@expo/vector-icons";
 import * as Brightness from "expo-brightness";
 import { usePreventScreenCapture } from "expo-screen-capture";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import Banner from "../ui/components/Banner";
 import { theme } from "../ui/theme";
-import { giftCardApi } from "../api/endpoints";
+import { giftCardApi, merchantsApi } from "../api/endpoints";
+import { partnerRedemption } from "../domain/merchants/partnerRedemption";
+import {
+  BALANCE_POLL_MS,
+  useBalanceCaptureDetector
+} from "../domain/wallet/useBalanceCaptureDetector";
 import { WalletStackParamList } from "../navigation";
 import { HttpError } from "../api/http";
 import { useAuth } from "../auth/authStore";
 import { toDisplayTime } from "../utils/date";
+import { centsToDollars, formatMoney } from "../utils/money";
 import { hapticImpactLight, hapticSuccess } from "../utils/haptics";
+
+/** Pause on the "card redeemed" celebration before showing the confirmation. */
+const CELEBRATE_MS = 1600;
+
+/**
+ * A tiny explicit state machine: the code is `showing` until a balance drop is
+ * detected, a full redemption briefly `celebrating`s, then settles on the
+ * `finished` confirmation. A partial redemption stays in `showing` with a
+ * fresh code.
+ */
+type FlowState = "showing" | "celebrating" | "finished";
 
 const formatCountdown = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -35,6 +60,7 @@ const formatTokenForDisplay = (token: string) => {
 const RedemptionTokenScreen: React.FC = () => {
   usePreventScreenCapture();
   const route = useRoute<RouteProp<WalletStackParamList, "RedemptionToken">>();
+  const navigation = useNavigation<NativeStackNavigationProp<WalletStackParamList>>();
   const { id } = route.params;
   const { accessToken } = useAuth();
   const queryClient = useQueryClient();
@@ -42,12 +68,17 @@ const RedemptionTokenScreen: React.FC = () => {
   const [version, setVersion] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [cooldown, setCooldown] = useState(0);
+  const [flowState, setFlowState] = useState<FlowState>("showing");
+  const [redeemedCents, setRedeemedCents] = useState(0);
+  const [partialCents, setPartialCents] = useState<number | null>(null);
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["redemptionToken", id, version],
     queryFn: () => giftCardApi.redemptionToken(id),
     staleTime: 0,
-    enabled: isQueryEnabled,
+    // Stop minting codes once the card has been captured — the balance poll
+    // has taken over and we're headed to the confirmation.
+    enabled: isQueryEnabled && flowState === "showing",
     retry: (failureCount, err: any) => {
       const httpErr = err as HttpError;
       if (httpErr.status === 422 || httpErr.status === 403) return false;
@@ -55,6 +86,55 @@ const RedemptionTokenScreen: React.FC = () => {
     }
   });
   const isBusy = !isQueryEnabled || isLoading || isFetching;
+
+  // Card + merchant context for the cashier: which merchant this card is for
+  // and, for partner-routed merchants, where it's actually paid. Both come
+  // from caches warmed by the detail screen; failures never block the token.
+  // While a code is on screen this also polls the balance so we can detect
+  // the merchant capturing the payment and confirm it on screen.
+  const { data: giftCard } = useQuery({
+    queryKey: ["giftCard", id],
+    queryFn: () => giftCardApi.detail(id),
+    enabled: isQueryEnabled,
+    refetchInterval: flowState === "showing" ? BALANCE_POLL_MS : false
+  });
+  const { data: merchantDetail } = useQuery({
+    queryKey: ["merchant", giftCard?.merchant_id],
+    queryFn: () => merchantsApi.detail(giftCard?.merchant_id as string),
+    enabled: isQueryEnabled && !!giftCard?.merchant_id
+  });
+  const partner = partnerRedemption(merchantDetail);
+  const spendableCents = giftCard?.spendable_cents ?? giftCard?.remaining_balance_cents ?? 0;
+  const merchantName =
+    giftCard?.merchant_store_name?.trim() ||
+    giftCard?.store_name?.trim() ||
+    giftCard?.merchant_name?.trim() ||
+    giftCard?.store?.name?.trim() ||
+    giftCard?.merchant?.name?.trim() ||
+    null;
+
+  // Watch the spendable balance drop to detect the merchant capturing the
+  // code, then confirm the redemption on screen. A partial capture spans
+  // loads server-side (FIFO); from here it is simply a smaller balance.
+  useBalanceCaptureDetector(giftCard, flowState === "showing", ({ deltaCents, remainingCents }) => {
+    setRedeemedCents((total) => total + deltaCents);
+    hapticSuccess();
+    if (remainingCents === 0) {
+      setFlowState("celebrating");
+    } else {
+      // Partial capture: the card still has balance, so issue a fresh code
+      // (the shown token was consumed) and keep the user on this screen.
+      setPartialCents(deltaCents);
+      setVersion((v) => v + 1);
+    }
+  });
+
+  // Hold the celebration briefly, then settle on the confirmation summary.
+  useEffect(() => {
+    if (flowState !== "celebrating") return;
+    const timer = setTimeout(() => setFlowState("finished"), CELEBRATE_MS);
+    return () => clearTimeout(timer);
+  }, [flowState]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -114,9 +194,18 @@ const RedemptionTokenScreen: React.FC = () => {
   const friendlyError = useMemo(() => {
     if (!error) return null;
     const err = error as HttpError;
-    if (err.status === 422) return "La tarjeta está inactiva o no puede generar un token.";
+    if (err.status === 422) {
+      switch (err.error?.code) {
+        case "gift_card.no_spendable_balance":
+          return "Esta tarjeta no tiene saldo disponible ahora.";
+        case "gift_card.frozen":
+          return "Esta tarjeta está congelada. Escríbenos si crees que es un error.";
+        default:
+          return err.error?.message ?? "Esta tarjeta no puede generar un código ahora.";
+      }
+    }
     if (err.status === 403) return "No puedes canjear esta tarjeta.";
-    return err.error?.message ?? "No pudimos generar el token.";
+    return err.error?.message ?? "No pudimos generar el código.";
   }, [error]);
 
   const handleRegenerate = () => {
@@ -133,12 +222,56 @@ const RedemptionTokenScreen: React.FC = () => {
     }
   }, [version, data?.token]);
 
+  if (flowState === "finished") {
+    return (
+      <Screen centerContent edges={["left", "right"]}>
+        <Animated.View entering={FadeIn.duration(250)} style={styles.fullWidth}>
+          <Card style={styles.finishedCard}>
+            <View style={styles.finishedIcon}>
+              <Feather name="check-circle" size={44} color={theme.colors.success} />
+            </View>
+            <Text style={styles.finishedTitle}>¡Listo!</Text>
+            <Text style={styles.finishedSubtitle}>
+              {redeemedCents > 0
+                ? merchantName
+                  ? `Canjeaste ${formatMoney(centsToDollars(redeemedCents), giftCard?.currency)} en ${merchantName}.`
+                  : `Canjeaste ${formatMoney(centsToDollars(redeemedCents), giftCard?.currency)} con Papayal.`
+                : "Usaste el saldo de tu tarjeta."}
+            </Text>
+            <Button
+              label="Volver a mis tarjetas"
+              onPress={() => navigation.goBack()}
+              style={styles.finishedButton}
+            />
+          </Card>
+        </Animated.View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen scrollable edges={["left", "right"]}>
       <Card>
-        <Text style={styles.title}>Token de canje</Text>
-        {isBusy ? <Text style={styles.muted}>Generando...</Text> : null}
+        <Text style={[styles.title, !merchantName && styles.titleSpaced]}>
+          {merchantName ? `Tarjeta de ${merchantName}` : "Tarjeta de regalo"}
+        </Text>
+        <Text style={styles.merchantSubtitle}>Muestra este código en caja</Text>
+        {partner ? (
+          <Banner
+            icon="map-pin"
+            compact
+            message={`Presenta este código y paga en ${partner.label}.`}
+            style={styles.partnerBanner}
+          />
+        ) : null}
+        {isBusy ? <Text style={styles.muted}>Generando…</Text> : null}
         {friendlyError ? <Text style={styles.error}>{friendlyError}</Text> : null}
+        {partialCents ? (
+          <Text style={styles.partialNotice}>
+            Canje de {formatMoney(centsToDollars(partialCents), giftCard?.currency)} registrado. Te
+            quedan {formatMoney(centsToDollars(spendableCents), giftCard?.currency)}.
+          </Text>
+        ) : null}
         {data ? (
           <View style={styles.tokenContainer}>
             <View style={styles.codeArea}>
@@ -159,9 +292,9 @@ const RedemptionTokenScreen: React.FC = () => {
                 />
               </View>
               <Text style={styles.tokenText}>{formatTokenForDisplay(data.token)}</Text>
-              {isExpired ? (
+              {isExpired && flowState === "showing" ? (
                 <View
-                  style={styles.expiredOverlay}
+                  style={styles.codeOverlay}
                   accessible
                   accessibilityRole="alert"
                   accessibilityLabel="Código vencido. Genera un nuevo código para canjear."
@@ -170,29 +303,47 @@ const RedemptionTokenScreen: React.FC = () => {
                   <Text style={styles.expiredTitle}>Código vencido</Text>
                 </View>
               ) : null}
+              {flowState === "celebrating" ? (
+                <Animated.View
+                  entering={FadeIn.duration(200)}
+                  style={styles.codeOverlay}
+                  accessible
+                  accessibilityRole="alert"
+                  accessibilityLabel="Saldo canjeado por completo."
+                >
+                  <Feather name="check-circle" size={44} color={theme.colors.success} />
+                  <Text style={styles.celebrateTitle}>¡Canje completo!</Text>
+                </Animated.View>
+              ) : null}
             </View>
-            {isExpired ? (
-              <Text style={styles.expiredHint}>
-                Este código ya no es válido. Genera uno nuevo para canjear.
-              </Text>
-            ) : (
-              <>
-                <Text style={styles.muted}>Expira a las {toDisplayTime(data.expires_at)}</Text>
-                <Text style={styles.countdown}>Tiempo restante: {formatCountdown(remaining)}</Text>
-              </>
-            )}
+            {flowState === "showing" ? (
+              isExpired ? (
+                <Text style={styles.expiredHint}>
+                  Este código ya no es válido. Genera uno nuevo para canjear.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.muted}>Expira a las {toDisplayTime(data.expires_at)}</Text>
+                  <Text style={styles.countdown}>
+                    Tiempo restante: {formatCountdown(remaining)}
+                  </Text>
+                </>
+              )
+            ) : null}
           </View>
         ) : null}
-        <Button
-          label={isExpired ? "Generar nuevo código" : "Regenerar"}
-          accessibilityLabel={
-            isExpired ? "Generar nuevo código de canje" : "Regenerar código de canje"
-          }
-          onPress={handleRegenerate}
-          disabled={isFetching || cooldown > 0 || !accessToken}
-          style={styles.button}
-        />
-        {cooldown > 0 ? (
+        {flowState === "showing" ? (
+          <Button
+            label={isExpired ? "Generar nuevo código" : "Generar otro código"}
+            accessibilityLabel={
+              isExpired ? "Generar nuevo código de canje" : "Regenerar código de canje"
+            }
+            onPress={handleRegenerate}
+            disabled={isFetching || cooldown > 0 || !accessToken}
+            style={styles.button}
+          />
+        ) : null}
+        {cooldown > 0 && flowState === "showing" ? (
           <Text style={styles.cooldown}>Espera {cooldown}s antes de regenerar.</Text>
         ) : null}
       </Card>
@@ -204,7 +355,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subheading,
     fontFamily: theme.fonts.bold,
+    marginBottom: theme.spacing(0.25)
+  },
+  titleSpaced: {
     marginBottom: theme.spacing(1)
+  },
+  merchantSubtitle: {
+    color: theme.colors.muted,
+    fontFamily: theme.fonts.semiBold,
+    marginBottom: theme.spacing(1)
+  },
+  partnerBanner: {
+    marginBottom: theme.spacing(1.25)
   },
   tokenContainer: {
     alignItems: "center",
@@ -250,7 +412,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     overflow: "hidden"
   },
-  expiredOverlay: {
+  codeOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
@@ -264,13 +426,48 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
     color: theme.colors.danger
   },
+  celebrateTitle: {
+    fontSize: theme.typography.subheading,
+    fontFamily: theme.fonts.bold,
+    color: theme.colors.success
+  },
   expiredHint: {
     color: theme.colors.muted,
     textAlign: "center"
   },
+  partialNotice: {
+    color: theme.colors.success,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small,
+    marginBottom: theme.spacing(1)
+  },
   cooldown: {
     color: theme.colors.muted,
     marginTop: theme.spacing(0.5)
+  },
+  fullWidth: {
+    width: "100%"
+  },
+  finishedCard: {
+    alignItems: "center",
+    gap: theme.spacing(1)
+  },
+  finishedIcon: {
+    marginBottom: theme.spacing(0.5)
+  },
+  finishedTitle: {
+    fontSize: theme.typography.subheading,
+    fontFamily: theme.fonts.bold,
+    color: theme.colors.text
+  },
+  finishedSubtitle: {
+    color: theme.colors.muted,
+    textAlign: "center",
+    lineHeight: 21
+  },
+  finishedButton: {
+    alignSelf: "stretch",
+    marginTop: theme.spacing(1)
   }
 });
 

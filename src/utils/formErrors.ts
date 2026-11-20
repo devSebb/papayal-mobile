@@ -76,3 +76,98 @@ export const formatValidationDetails = (
   }
   return lines.length > 0 ? lines.join("\n") : null;
 };
+
+/**
+ * §4.1 checkout cap codes → the Spanish copy in §4.4. Every cap carries
+ * `details` with the numbers, so the message can say how much room is left
+ * instead of a flat "no puedes". The limits themselves are never hard-coded
+ * here: they come from the payload the server sent.
+ */
+export type CheckoutCapDetails = {
+  limit?: number;
+  limit_cents?: number;
+  used_cents?: number;
+  room_cents?: number;
+  min_cents?: number;
+  max_cents?: number;
+  resets_at?: string;
+};
+
+const money = (cents?: number) =>
+  typeof cents === "number" && Number.isFinite(cents)
+    ? new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(cents / 100)
+    : null;
+
+/** Room of exactly $0 means "no room": say so in words, never "hasta $0.00". */
+const roomLeft = (cents?: number) =>
+  typeof cents === "number" && cents > 0 ? money(cents) : null;
+
+const CAP_MESSAGES: Record<string, (d: CheckoutCapDetails) => string> = {
+  "checkout.load_amount_out_of_range": (d) => {
+    const min = money(d.min_cents);
+    const max = money(d.max_cents);
+    return min && max
+      ? `El monto por recarga debe estar entre ${min} y ${max}.`
+      : "Ese monto no está permitido para una recarga.";
+  },
+  "checkout.card_daily_load_limit": (d) => {
+    const room = roomLeft(d.room_cents);
+    return room
+      ? `Puedes recargar hasta ${room} más hoy en esta tarjeta.`
+      : "Llegaste al límite de recargas de hoy en esta tarjeta. Inténtalo mañana.";
+  },
+  "checkout.card_daily_count_limit": () =>
+    "Llegaste al límite de recargas de hoy. Inténtalo mañana.",
+  "checkout.card_balance_limit": (d) => {
+    const limit = money(d.limit_cents);
+    const room = roomLeft(d.room_cents);
+    if (limit && room) return `Esta tarjeta puede tener hasta ${limit} de saldo. Puedes recargar ${room}.`;
+    if (limit) return `Esta tarjeta puede tener hasta ${limit} de saldo.`;
+    return "Esta tarjeta llegó a su saldo máximo.";
+  },
+  "checkout.buyer_daily_limit": (d) => {
+    const room = roomLeft(d.room_cents);
+    return room
+      ? `Puedes recargar hasta ${room} más hoy.`
+      : "Llegaste al límite de recargas de hoy. Inténtalo mañana.";
+  },
+  "checkout.buyer_daily_count_limit": () =>
+    "Llegaste al límite de recargas de hoy. Inténtalo mañana.",
+  "checkout.recipient_monthly_limit": (d) => {
+    const room = roomLeft(d.room_cents);
+    return room
+      ? `Esta persona puede recibir ${room} más en los próximos 30 días.`
+      : "Esta persona llegó al límite de los últimos 30 días.";
+  },
+  "checkout.buyer_monthly_limit": (d) => {
+    const room = roomLeft(d.room_cents);
+    return room
+      ? `Puedes recargar ${room} más en los próximos 30 días.`
+      : "Llegaste a tu límite de los últimos 30 días.";
+  },
+  "checkout.buyer_dispute_open": () =>
+    "Por seguridad, no puedes recargar mientras haya un pago en revisión."
+};
+
+/**
+ * Returns the Spanish message for a `checkout.*` cap error, or null when the
+ * code isn't one — callers then fall back to their own copy.
+ */
+export const translateCheckoutError = (
+  code: string | undefined | null,
+  details?: unknown
+): string | null => {
+  if (!code) return null;
+  const build = CAP_MESSAGES[code];
+  if (!build) return null;
+  const safeDetails =
+    details && typeof details === "object" && !Array.isArray(details)
+      ? (details as CheckoutCapDetails)
+      : {};
+  return build(safeDetails);
+};

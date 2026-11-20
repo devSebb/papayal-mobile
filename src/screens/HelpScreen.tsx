@@ -13,16 +13,22 @@ import {
 } from "react-native";
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
+import * as Application from "expo-application";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
+import BackButton from "../ui/components/BackButton";
 import TextField from "../ui/components/TextField";
+import { ListDivider, ListGroup, ListRow } from "../ui/components/ListRow";
 import { theme } from "../ui/theme";
 import { AppTabsParamList, ProfileStackParamList } from "../navigation";
-import { openLegal } from "../utils/openExternal";
-import appConfig from "../../app.json";
+import { shareApp } from "../sharing/shareApp";
+import { useAppConfig } from "../hooks/useAppConfig";
+import { centsToDollars, formatMoneyCompact } from "../utils/money";
+import type { AppConfigLimits } from "../types/api";
 
 type BaseCategory = "Cuenta" | "Tarjeta" | "Pagos" | "Seguridad" | "Comercios";
 type CategoryFilter = "Todos" | BaseCategory;
@@ -36,6 +42,19 @@ type FaqItem = {
 
 const CATEGORY_OPTIONS: CategoryFilter[] = ["Todos", "Cuenta", "Tarjeta", "Pagos", "Seguridad", "Comercios"];
 
+/** Caps FAQ (§4.4). The numbers come from GET /config, never from the build. */
+const limitsAnswer = (limits?: AppConfigLimits) => {
+  if (!limits) {
+    return "Sí, por seguridad hay límites por recarga, por día y de saldo máximo por tarjeta. Si necesitas más, escríbenos.";
+  }
+  const money = (cents: number) => formatMoneyCompact(centsToDollars(cents) ?? 0, "USD");
+  return (
+    `Sí, por seguridad: hasta ${money(limits.max_load_cents)} por recarga, ` +
+    `${limits.max_loads_per_card_per_day} recargas y ${money(limits.max_daily_load_per_card_cents)} por tarjeta al día, ` +
+    `y un saldo máximo de ${money(limits.max_card_balance_cents)} por tarjeta. Si necesitas más, escríbenos.`
+  );
+};
+
 const FAQS: FaqItem[] = [
   {
     id: "que-es",
@@ -47,16 +66,23 @@ const FAQS: FaqItem[] = [
   {
     id: "recibir-token",
     category: "Tarjeta",
-    question: "¿Cómo recibo mi tarjeta digital o token de canje?",
+    question: "¿Cómo recibo mi tarjeta digital o código de canje?",
     answer:
-      "Cuando alguien te envía una tarjeta de regalo, te avisamos por correo y aparece en tu billetera dentro de Papayal. El QR y el código de canje solo se muestran en la app cuando estés listo para usarla."
+      "Cuando alguien te envía una tarjeta de regalo, te avisamos por WhatsApp o correo y aparece en Mis tarjetas. El código de canje solo se muestra en la app cuando estés listo para pagar."
+  },
+  {
+    id: "recargar",
+    category: "Tarjeta",
+    question: "¿Puedo recargar mi tarjeta?",
+    answer:
+      "Sí. Tienes una sola tarjeta por comercio y cada compra, tuya o de otra persona, se suma a esa tarjeta. Así nunca tienes saldos sueltos."
   },
   {
     id: "donde-usar",
     category: "Comercios",
     question: "¿Dónde puedo usar Papayal?",
     answer:
-      "Solo en comercios aprobados por Papayal (supermercados, farmacias, retail, comida). Verifica la lista dentro del token o pregunta en caja si aceptan Papayal."
+      "Solo en comercios aprobados por Papayal. Importante: por ahora, la mayoría de tarjetas se pagan en los locales de Medicity o Farmacias Económicas, nuestros socios de canje. Cada tarjeta te indica exactamente dónde pagar antes de canjearla."
   },
   {
     id: "canjear-qr",
@@ -77,7 +103,7 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Cómo consulto mi saldo y movimientos?",
     answer:
-      "En tu billetera verás el saldo disponible y los últimos canjes. Si un comercio devuelve un monto, también aparecerá como reverso."
+      "En Mis tarjetas verás el saldo de cada tarjeta, tus recargas y tus últimos canjes. Si un comercio devuelve un monto, también aparecerá ahí."
   },
   {
     id: "parcial",
@@ -91,14 +117,14 @@ const FAQS: FaqItem[] = [
     category: "Tarjeta",
     question: "¿Mi tarjeta expira?",
     answer:
-      "No. Tus tarjetas de regalo no tienen fecha de vencimiento. El saldo queda disponible en tu billetera hasta que lo uses."
+      "No. Tus tarjetas de regalo digitales no vencen. El saldo queda en tu tarjeta hasta que lo uses."
   },
   {
     id: "reembolso",
     category: "Pagos",
     question: "¿Hay reembolsos o reversos?",
     answer:
-      "Si necesitas un reembolso, escríbenos a soporte o acude al comercio donde hiciste la compra. Los reembolsos se devuelven al medio de pago original y el tiempo en reflejarse depende de tu banco."
+      "Si te arrepientes de una recarga que aún no se ha usado, escríbenos dentro de las 72 horas y la devolvemos a la tarjeta de pago de quien la compró. Los saldos ya canjeados se gestionan con el comercio."
   },
   {
     id: "pago-rechazado",
@@ -133,7 +159,7 @@ const FAQS: FaqItem[] = [
     category: "Pagos",
     question: "¿Tiene comisiones o costos adicionales?",
     answer:
-      "No. Por ahora no cobramos comisiones al comprar ni al canjear tu tarjeta de regalo. Si esto cambia, verás cualquier costo claramente antes de pagar."
+      "Por ahora no cobramos comisiones al comprar ni al canjear tu tarjeta de regalo. Cualquier tarifa aplicable se muestra siempre en el resumen de compra, con el total exacto, antes de que pagues."
   },
   {
     id: "comprobante",
@@ -174,9 +200,12 @@ const quickActions: { label: string; category: BaseCategory; icon: keyof typeof 
 
 type HelpNav = NativeStackNavigationProp<ProfileStackParamList>;
 
+const SUPPORT_EMAIL = "hola@papayal.app";
+
 const HelpScreen: React.FC = () => {
   const navigation = useNavigation<HelpNav>();
   const tabNavigation = navigation.getParent<NavigationProp<AppTabsParamList>>();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const scrollRef = useRef<ScrollView>(null);
   const [faqSectionY, setFaqSectionY] = useState(0);
@@ -190,18 +219,34 @@ const HelpScreen: React.FC = () => {
     }
   }, []);
 
-  const appVersion = appConfig?.expo?.version ?? "1.0.0";
+  const appVersion = Application.nativeApplicationVersion;
+  const { data: appConfig } = useAppConfig();
+
+  // The caps entry is built at render time so it always states the limits the
+  // server is currently enforcing (§4.1), not the ones shipped in this build.
+  const faqs = useMemo<FaqItem[]>(
+    () => [
+      ...FAQS,
+      {
+        id: "limites",
+        category: "Pagos",
+        question: "¿Hay límites?",
+        answer: limitsAnswer(appConfig?.limits)
+      }
+    ],
+    [appConfig?.limits]
+  );
 
   const filteredFaqs = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return FAQS.filter((faq) => {
+    return faqs.filter((faq) => {
       const matchesCategory = selectedCategory === "Todos" ? true : faq.category === selectedCategory;
       const matchesQuery = query
         ? `${faq.question} ${faq.answer}`.toLowerCase().includes(query)
         : true;
       return matchesCategory && matchesQuery;
     });
-  }, [search, selectedCategory]);
+  }, [faqs, search, selectedCategory]);
 
   const handleToggle = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -226,16 +271,18 @@ const HelpScreen: React.FC = () => {
     });
   };
 
-  const handleLinkPress = async (url: string) => {
+  // No canOpenURL gate: on iOS it always reports false for mailto unless the
+  // scheme is declared in LSApplicationQueriesSchemes, so we just try to open
+  // and surface the address if no mail app is available.
+  const handleContactSupport = async () => {
+    const subject = encodeURIComponent("Ayuda con Papayal");
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        Alert.alert("No se pudo abrir el enlace", "Intenta de nuevo o escríbenos a soporte.");
-        return;
-      }
-      await Linking.openURL(url);
+      await Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}`);
     } catch (error) {
-      Alert.alert("No se pudo abrir el enlace", "Intenta de nuevo o escríbenos a soporte.");
+      Alert.alert(
+        "Escríbenos por correo",
+        `No pudimos abrir tu app de correo. Envíanos un mensaje a ${SUPPORT_EMAIL} y te respondemos en un día hábil.`
+      );
     }
   };
 
@@ -248,6 +295,7 @@ const HelpScreen: React.FC = () => {
   return (
     <Screen scrollable={false}>
       <View style={styles.headerRow}>
+        {navigation.canGoBack() ? <BackButton onPress={() => navigation.goBack()} /> : null}
         <View style={styles.headerText}>
           <Text style={styles.title}>Ayuda</Text>
           <Text style={styles.subtitle}>Resuelve tus dudas rápidamente</Text>
@@ -258,7 +306,7 @@ const HelpScreen: React.FC = () => {
       <ScrollView
         ref={scrollRef}
         style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + theme.spacing(2) }]}
         showsVerticalScrollIndicator={false}
       >
         <Card style={styles.card}>
@@ -344,31 +392,34 @@ const HelpScreen: React.FC = () => {
           </ScrollView>
         </Card>
 
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Contactar soporte</Text>
-          <Text style={styles.sectionSubtitle}>Si no ves tu respuesta aquí, nuestro equipo puede ayudarte.</Text>
-          <View style={styles.supportRow}>
-            <Button
-              label="Enviar email"
-              variant="secondary"
-              onPress={() => handleLinkPress("mailto:hola@papayal.app")}
-              style={styles.supportButton}
+        <View style={styles.supportSection}>
+          <Text style={styles.supportLabel}>Contactar soporte</Text>
+          <ListGroup>
+            <ListRow
+              icon="mail"
+              variant="accent"
+              title="Enviar email"
+              subtitle={SUPPORT_EMAIL}
+              onPress={handleContactSupport}
             />
-          </View>
-          <View style={styles.linksRow}>
-            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/terminos")}>
-              <Text style={styles.linkText}>Ver términos</Text>
-            </Pressable>
-            <Pressable style={styles.linkPill} onPress={() => openLegal("/legal/privacidad")}>
-              <Text style={styles.linkText}>Ver privacidad</Text>
-            </Pressable>
-          </View>
-        </Card>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerWordmark}>Papayal</Text>
-          <Text style={styles.footerSubtitle}>Versión {appVersion}</Text>
+            <ListDivider />
+            <ListRow
+              icon="share-2"
+              title="Compartir Papayal"
+              subtitle="Invita a tu familia y amigos"
+              onPress={shareApp}
+            />
+            <ListDivider />
+            <ListRow
+              icon="file-text"
+              title="Legal y privacidad"
+              subtitle="Términos y políticas de datos"
+              onPress={() => navigation.navigate("LegalPrivacy")}
+            />
+          </ListGroup>
         </View>
+
+        <Text style={styles.version}>Papayal · Versión {appVersion ?? "—"}</Text>
       </ScrollView>
     </Screen>
   );
@@ -379,8 +430,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   scrollContent: {
-    gap: theme.spacing(1.5),
-    paddingBottom: theme.spacing(4)
+    gap: theme.spacing(1.5)
   },
   headerRow: {
     flexDirection: "row",
@@ -557,47 +607,23 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     textAlign: "center"
   },
-  supportRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing(1)
+  supportSection: {
+    marginTop: theme.spacing(0.5)
   },
-  supportButton: {
-    flex: 1,
-    minWidth: 140
-  },
-  linksRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing(1),
-    marginTop: theme.spacing(1)
-  },
-  linkPill: {
-    paddingVertical: theme.spacing(0.75),
-    paddingHorizontal: theme.spacing(1.5),
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background
-  },
-  linkText: {
+  supportLabel: {
+    marginBottom: theme.spacing(1),
+    paddingLeft: theme.spacing(0.5),
     color: theme.colors.secondary,
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.typography.small
+    fontFamily: theme.fonts.extraBold,
+    fontSize: 16
   },
-  footer: {
-    alignItems: "center",
-    gap: theme.spacing(0.25),
-    marginTop: theme.spacing(0.5),
-    paddingBottom: theme.spacing(1)
-  },
-  footerWordmark: {
-    fontSize: theme.typography.body,
-    fontFamily: theme.fonts.brandBlack,
-    color: theme.colors.text
-  },
-  footerSubtitle: {
-    color: theme.colors.muted
+  version: {
+    marginTop: theme.spacing(1),
+    textAlign: "center",
+    color: theme.colors.captionMuted,
+    fontSize: 12,
+    fontFamily: theme.fonts.medium,
+    letterSpacing: 0.3
   }
 });
 

@@ -13,7 +13,7 @@ import TextField from "../../ui/components/TextField";
 import { theme } from "../../ui/theme";
 import { ProfileStackParamList } from "../../navigation";
 import { useAuth } from "../../auth/authStore";
-import { meApi } from "../../api/endpoints";
+import { giftCardApi, meApi } from "../../api/endpoints";
 import { HttpError } from "../../api/http";
 import { openLegal } from "../../utils/openExternal";
 import { centsToDollars, formatMoney } from "../../utils/money";
@@ -35,6 +35,16 @@ const DeleteAccountScreen: React.FC = () => {
   const { data: preview, isLoading: previewLoading } = useQuery({
     queryKey: ["deletionPreview"],
     queryFn: meApi.deletionPreview,
+    enabled: !!accessToken,
+    staleTime: 30_000
+  });
+
+  // The preview endpoint reports the card totals; the cards themselves carry
+  // the split, so the warning can name what is spendable today and what is
+  // still in security review separately (§3.4) instead of one lump sum.
+  const { data: cards } = useQuery({
+    queryKey: ["giftCards"],
+    queryFn: giftCardApi.list,
     enabled: !!accessToken,
     staleTime: 30_000
   });
@@ -96,6 +106,11 @@ const DeleteAccountScreen: React.FC = () => {
   const balanceCents = preview?.balance_cents ?? 0;
   const activeCardCount = preview?.active_card_count ?? 0;
   const currency = preview?.currency ?? "USD";
+  const spendableCents = (cards ?? []).reduce(
+    (total, card) => total + (card.spendable_cents ?? card.remaining_balance_cents ?? 0),
+    0
+  );
+  const pendingCents = Math.max(0, balanceCents - spendableCents);
   const hasActiveBalance = balanceCents > 0;
   const hasActiveCards = activeCardCount > 0;
 
@@ -119,7 +134,10 @@ const DeleteAccountScreen: React.FC = () => {
             <View style={styles.consequenceRow}>
               <Feather name="x-circle" size={16} color={theme.colors.danger} />
               <Text style={styles.consequenceTextDanger}>
-                Perderás {formatBalance(balanceCents, currency)} en saldo activo
+                Perderás {formatBalance(spendableCents, currency)} de saldo disponible
+                {pendingCents > 0
+                  ? ` y ${formatBalance(pendingCents, currency)} en revisión`
+                  : ""}
               </Text>
             </View>
           ) : null}
@@ -127,7 +145,10 @@ const DeleteAccountScreen: React.FC = () => {
             <View style={styles.consequenceRow}>
               <Feather name="x-circle" size={16} color={theme.colors.danger} />
               <Text style={styles.consequenceTextDanger}>
-                {activeCardCount} {activeCardCount === 1 ? "tarjeta activa se perderá" : "tarjetas activas se perderán"}
+                {activeCardCount}{" "}
+                {activeCardCount === 1
+                  ? "tarjeta de regalo se perderá"
+                  : "tarjetas de regalo se perderán"}
               </Text>
             </View>
           ) : null}

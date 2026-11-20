@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { BottomTabBarHeightCallbackContext, type BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { StackActions, type NavigationState, type PartialState } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -25,6 +25,16 @@ const iconMap: Record<string, keyof typeof Feather.glyphMap> = {
   WalletTab: "credit-card",
   ProfileTab: "user"
 };
+const ICON_SIZE = 22;
+/**
+ * Optical size correction. Every Feather glyph is drawn with the same stroke
+ * width, but the house packs a roof + door into the box, so at the shared size
+ * it reads heavier than the card and the person. Nudging it down evens out the
+ * perceived weight across the bar.
+ */
+const iconSizeMap: Record<string, number> = {
+  HomeTab: 20
+};
 const tabRootScreens: Record<string, string> = {
   HomeTab: "Home",
   WalletTab: "WalletList",
@@ -42,6 +52,10 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, theme.spacing(1));
+  // Report the real height so useBottomTabBarHeight() matches this custom bar;
+  // without it, react-navigation only knows the default bar's estimate and
+  // screens pad too little, hiding content behind the floating rail.
+  const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
   // const bottomPadding = Math.max(bottomInset, theme.spacing(3));
   const panX = useSharedValue(0);
   
@@ -50,8 +64,12 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
 
   const railInnerWidth = railWidth - railPaddingX * 2;
 
+  // Tabs tile the rail exactly — no gap, no distributed slack. The indicator is
+  // positioned with `index * tabWidth`, so any spacing between the buttons would
+  // desync it from the icons, and the drift compounds with each tab (the last
+  // one, Perfil, ends up furthest off).
   const tabWidth = useMemo(() => {
-    return Math.max(railInnerWidth / state.routes.length, 96);
+    return railInnerWidth / state.routes.length;
   }, [railInnerWidth, state.routes.length]);
 
   const indicatorWidth = useMemo(() => {
@@ -159,6 +177,7 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
           railStyle
         ]}
         pointerEvents={isHidden ? "none" : "auto"}
+        onLayout={(event) => onHeightChange?.(event.nativeEvent.layout.height)}
       >
         <View style={[styles.rail, { width: railWidth, paddingBottom: bottomInset + theme.spacing(2) }]} pointerEvents="box-none">
           <Animated.View style={[styles.indicator, { width: indicatorWidth }, indicatorStyle]} />
@@ -219,7 +238,11 @@ const AnimatedTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navig
                 accessibilityLabel={label?.toString()}
                 accessibilityHint={`Ir a ${label}`}
               >
-                <AnimatedIcon name={icon} size={22} style={iconAnimatedStyle} />
+                <AnimatedIcon
+                  name={icon}
+                  size={iconSizeMap[route.name] ?? ICON_SIZE}
+                  style={iconAnimatedStyle}
+                />
                 <Animated.Text style={[styles.label, labelAnimatedStyle]} numberOfLines={1}>
                   {label}
                 </Animated.Text>
@@ -248,14 +271,13 @@ const styles = StyleSheet.create({
   rail: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     backgroundColor: theme.colors.card,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: theme.spacing(0.75),
     paddingBottom: theme.spacing(4),
     paddingHorizontal: theme.spacing(0.5),
-    gap: theme.spacing(0.5),
     shadowColor: "#00000",
     shadowOpacity: 0.08,
     shadowRadius: 12,

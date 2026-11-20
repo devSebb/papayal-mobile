@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
 import Screen from "../ui/components/Screen";
+import BackButton from "../ui/components/BackButton";
 import Card from "../ui/components/Card";
 import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
@@ -68,7 +69,18 @@ const InterestsScreen: React.FC = () => {
   const handleSubmit = async (interests: string[]) => {
     setError(null);
     try {
-      await signup({ ...route.params.formData, interests });
+      const result = await signup({ ...route.params.formData, interests });
+      // Fresh signup: a 6-digit code was emailed — go confirm it before
+      // the account is activated. (A pending-account claim returns tokens
+      // instead and auto-navigates via RootNavigator.)
+      if (result.verificationRequired) {
+        navigation.navigate("EmailVerification", {
+          email: result.email,
+          maskedEmail: result.maskedEmail,
+          resendAvailableIn: result.resendAvailableIn
+        });
+        return;
+      }
     } catch (err) {
       const httpErr = err as HttpError;
 
@@ -111,13 +123,7 @@ const InterestsScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
-      <Pressable
-        onPress={() => navigation.goBack()}
-        style={styles.backButton}
-        hitSlop={12}
-      >
-        <Feather name="arrow-left" size={24} color={theme.colors.text} />
-      </Pressable>
+      <BackButton onPress={() => navigation.goBack()} style={styles.backButton} />
 
       <View style={styles.header}>
         <View style={styles.stepRow}>

@@ -25,13 +25,18 @@ function navigateFromNotification(
 ): void {
   if (!navigationRef.isReady() || !data?.gift_card_id) return;
 
+  // Every gift-card push is about one card, and the card screen shows the
+  // recarga, the hold and the canje that any of them can refer to.
   switch (data.type) {
     case "gift_card_received":
+    case "gift_card_topped_up":
     case "gift_card_redeemed":
+    case "gift_card_hold_released":
+    case "gift_card_load_disputed":
       navigationRef.navigate("App", {
         screen: "WalletTab",
         params: {
-          screen: "GiftCardDetail",
+          screen: "GiftCard",
           params: { id: data.gift_card_id }
         }
       });

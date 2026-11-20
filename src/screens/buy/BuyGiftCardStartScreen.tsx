@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,21 +11,25 @@ import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
+import Constants from "expo-constants";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
 import Button from "../../ui/components/Button";
+import Banner from "../../ui/components/Banner";
 import TextField from "../../ui/components/TextField";
 import { SkeletonBlock } from "../../ui/components/StateViews";
 import { theme } from "../../ui/theme";
-import { merchantsApi } from "../../api/endpoints";
+import { giftCardApi, merchantsApi } from "../../api/endpoints";
 import { Merchant } from "../../types/api";
-import { formatMoney } from "../../utils/money";
+import { centsToDollars, formatMoney, formatMoneyCompact } from "../../utils/money";
 import {
-  GIFT_CARD_MAX_AMOUNT_USD as MAX_AMOUNT,
-  GIFT_CARD_MIN_AMOUNT_USD as MIN_AMOUNT
+  GIFT_CARD_MAX_AMOUNT_USD,
+  GIFT_CARD_MIN_AMOUNT_USD
 } from "../../domain/purchase/giftCardAmountLimits";
 import { usePurchaseDraft, MerchantSelection } from "../../domain/purchase/purchaseDraftStore";
+import { useAppConfig } from "../../hooks/useAppConfig";
+import { isVersionBelow } from "../../utils/version";
 import { useAuth } from "../../auth/authStore";
 import { HomeStackParamList } from "../../navigation";
 import CheckoutHeader from "./CheckoutHeader";
@@ -40,19 +45,40 @@ const AmountChip: React.FC<{
   label: string;
   selected: boolean;
   onPress: () => void;
-}> = ({ label, selected, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    style={[styles.amountChip, selected ? styles.amountChipSelected : styles.amountChipIdle]}
-    hitSlop={8}
-    accessibilityRole="button"
-    accessibilityState={{ selected }}
-  >
-    <Text style={[styles.amountChipLabel, selected ? styles.amountChipLabelSelected : null]}>
-      {label}
-    </Text>
-  </Pressable>
-);
+  icon?: React.ComponentProps<typeof Feather>["name"];
+  variant?: "preset" | "custom";
+}> = ({ label, selected, onPress, icon, variant = "preset" }) => {
+  const isCustom = variant === "custom";
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.amountChip,
+        isCustom ? styles.amountChipCustom : null,
+        selected
+          ? styles.amountChipSelected
+          : isCustom
+          ? styles.amountChipCustomIdle
+          : styles.amountChipIdle
+      ]}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+    >
+      {icon ? (
+        <Feather
+          name={icon}
+          size={15}
+          color={selected ? theme.colors.secondary : theme.colors.primary}
+          style={styles.amountChipIcon}
+        />
+      ) : null}
+      <Text style={[styles.amountChipLabel, selected ? styles.amountChipLabelSelected : null]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
 
 const MerchantCard: React.FC<{
   merchant: MerchantOption;
@@ -100,8 +126,35 @@ const BuyGiftCardStartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<BuyGiftCardStartRoute>();
   const { accessToken } = useAuth();
-  const { draft, setMerchant, setAmount } = usePurchaseDraft();
+  const { draft, setMerchant, setAmount, setRecipient } = usePurchaseDraft();
   const isQueryEnabled = !!accessToken;
+  // "Recargar mi tarjeta" (§11.3): the buyer is the recipient, so there is no
+  // delivery step and the merchant is fixed to the card they came from.
+  const isSelfLoad = Boolean(route.params?.self) || Boolean(draft.recipient?.self);
+
+  // Remote config: limits, kill switch, min supported version. All treated
+  // as "use local defaults" when unavailable — a config outage never blocks.
+  const { data: appConfig } = useAppConfig();
+  // The $5 floor is a product rule, not a config value: remote config may raise
+  // the minimum but never take it below GIFT_CARD_MIN_AMOUNT_USD. (The config
+  // endpoint currently returns 100 cents, which is what surfaced as "Mín $1".)
+  // `limits` (§4.1) is authoritative once the backend serves it; the old
+  // gift_card_limits block is the fallback for a pre-Phase-3 API.
+  const limits = appConfig?.limits;
+  const minAmount = Math.max(
+    (limits?.min_load_cents ?? appConfig?.gift_card_limits?.min_cents ?? 0) / 100 ||
+      GIFT_CARD_MIN_AMOUNT_USD,
+    GIFT_CARD_MIN_AMOUNT_USD
+  );
+  const maxAmount =
+    (limits?.max_load_cents ?? appConfig?.gift_card_limits?.max_cents ?? 0) / 100 ||
+    GIFT_CARD_MAX_AMOUNT_USD;
+  const purchasesEnabled = appConfig?.purchases_enabled !== false;
+  const minSupported =
+    Platform.OS === "ios"
+      ? appConfig?.min_supported_version?.ios
+      : appConfig?.min_supported_version?.android;
+  const updateRequired = isVersionBelow(Constants.expoConfig?.version, minSupported);
   const requestedMerchantId = route.params?.merchantId?.toString() ?? null;
   const appliedMerchantParamRef = useRef<string | null>(null);
   const {
@@ -113,6 +166,14 @@ const BuyGiftCardStartScreen: React.FC = () => {
     queryKey: ["merchants"],
     queryFn: merchantsApi.list,
     enabled: isQueryEnabled
+  });
+
+  // Self-reload only: the buyer's own card at this merchant, for the
+  // "Saldo actual" hint and the client-side balance cap.
+  const { data: myCards } = useQuery({
+    queryKey: ["giftCards"],
+    queryFn: giftCardApi.list,
+    enabled: isQueryEnabled && isSelfLoad
   });
 
   const merchantOptions = useMemo(() => {
@@ -130,7 +191,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(
     draft.amount_cents ? draft.amount_cents / 100 : null
   );
-  const [useCustomAmount, setUseCustomAmount] = useState<boolean>(false);
+  // A draft amount that isn't one of the chips (e.g. picked from a merchant
+  // profile, or carried across login from the public profile) opens as a
+  // pre-filled custom amount so the selection stays visible here.
+  const [useCustomAmount, setUseCustomAmount] = useState<boolean>(
+    Boolean(draft.amount_cents && !presetAmounts.includes(draft.amount_cents / 100))
+  );
   const [customAmount, setCustomAmount] = useState<string>(
     draft.amount_cents && (!presetAmounts.includes(draft.amount_cents / 100))
       ? String(draft.amount_cents / 100)
@@ -170,18 +236,52 @@ const BuyGiftCardStartScreen: React.FC = () => {
     selectedMerchantId
   ]);
 
+  const existingCard = useMemo(() => {
+    if (!isSelfLoad || !selectedMerchantId) return null;
+    return (
+      (myCards ?? []).find(
+        (card) => String(card.merchant_id ?? "") === String(selectedMerchantId)
+      ) ?? null
+    );
+  }, [isSelfLoad, myCards, selectedMerchantId]);
+  const currentBalanceCents =
+    existingCard?.spendable_cents ?? existingCard?.remaining_balance_cents ?? null;
+
   const parsedCustomAmount = Number.parseFloat(customAmount.replace(/,/g, "."));
   const amountValue = useCustomAmount ? parsedCustomAmount : selectedAmount ?? null;
   const amountCents =
     amountValue && Number.isFinite(amountValue) ? Math.round(amountValue * 100) : null;
   const amountValid =
     amountCents !== null &&
-    amountCents >= MIN_AMOUNT * 100 &&
-    amountCents <= MAX_AMOUNT * 100 &&
+    amountCents >= minAmount * 100 &&
+    amountCents <= maxAmount * 100 &&
     !Number.isNaN(amountCents);
   const amountLabel = formatMoney(amountCents ? amountCents / 100 : null, draft.currency);
 
-  const canContinue = Boolean(selectedMerchant && amountValid);
+  // Instant feedback for the one cap the app can evaluate on its own: the
+  // card's balance ceiling, when we know the balance (self-reload). Every
+  // other cap in §4.1 needs the server's rolling windows, so the server
+  // stays authoritative and its 422 carries the exact room left.
+  const balanceCapCents = limits?.max_card_balance_cents ?? null;
+  const exceedsBalanceCap = Boolean(
+    balanceCapCents !== null &&
+      currentBalanceCents !== null &&
+      amountCents !== null &&
+      currentBalanceCents + amountCents > balanceCapCents
+  );
+  const balanceCapMessage = exceedsBalanceCap
+    ? `Esta tarjeta puede tener hasta ${formatMoney(
+        centsToDollars(balanceCapCents),
+        "USD"
+      )} de saldo. Puedes recargar ${formatMoney(
+        centsToDollars(Math.max(0, (balanceCapCents ?? 0) - (currentBalanceCents ?? 0))),
+        "USD"
+      )}.`
+    : null;
+
+  const canContinue = Boolean(
+    selectedMerchant && amountValid && !exceedsBalanceCap && purchasesEnabled && !updateRequired
+  );
   const isMerchantBusy = isLoadingMerchants || isRefetchingMerchants;
   const hasMerchantOptions = merchantOptions.length > 0;
 
@@ -193,6 +293,12 @@ const BuyGiftCardStartScreen: React.FC = () => {
       logoUrl: selectedMerchant.logoUrl
     });
     setAmount(amountCents, "USD");
+    if (isSelfLoad) {
+      // No recipient to collect: the backend resolves the buyer (§8.3).
+      setRecipient({ self: true });
+      navigation.navigate("PurchaseConfirmation");
+      return;
+    }
     navigation.navigate("DeliveryProfile");
   };
 
@@ -200,12 +306,37 @@ const BuyGiftCardStartScreen: React.FC = () => {
     <Screen scrollable>
       <CheckoutHeader
         step="merchant"
-        title="Compra una tarjeta de regalo"
-        subtitle="Selecciona el comercio y el monto para empezar tu compra."
+        title={
+          isSelfLoad && selectedMerchant
+            ? `Recarga tu tarjeta de ${selectedMerchant.name}`
+            : "Envía una tarjeta de regalo digital"
+        }
+        subtitle={
+          isSelfLoad ? "Elige cuánto quieres añadir" : "Elige el comercio y el monto"
+        }
         onBack={() => navigation.goBack()}
         showSummary={false}
       />
 
+      {!purchasesEnabled ? (
+        <Banner
+          icon="pause-circle"
+          tone="warning"
+          title="Compras en pausa"
+          message="Las compras están temporalmente deshabilitadas. Intenta de nuevo más tarde — tus tarjetas y canjes siguen funcionando."
+          style={styles.configBanner}
+        />
+      ) : updateRequired ? (
+        <Banner
+          icon="download"
+          tone="warning"
+          title="Actualización necesaria"
+          message="Hay una nueva versión de Papayal. Actualiza la app desde la tienda para continuar con tu compra."
+          style={styles.configBanner}
+        />
+      ) : null}
+
+      {isSelfLoad ? null : (
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Comercio</Text>
@@ -260,17 +391,24 @@ const BuyGiftCardStartScreen: React.FC = () => {
           </View>
         )}
       </Card>
+      )}
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Monto</Text>
-          <Text style={styles.sectionHint}>USD • mínimo ${MIN_AMOUNT} • máximo ${MAX_AMOUNT}</Text>
+          <View style={styles.minMaxBadge}>
+            <Feather name="info" size={12} color={theme.colors.secondary} />
+            <Text style={styles.minMaxBadgeText}>
+              Mín {formatMoneyCompact(minAmount, "USD")} · Máx{" "}
+              {formatMoneyCompact(maxAmount, "USD")}
+            </Text>
+          </View>
         </View>
         <View style={styles.amountGrid}>
           {presetAmounts.map((amt) => (
             <AmountChip
               key={amt}
-              label={formatMoney(amt, "USD")}
+              label={formatMoneyCompact(amt, "USD")}
               selected={!useCustomAmount && selectedAmount === amt}
               onPress={() => {
                 setUseCustomAmount(false);
@@ -280,6 +418,8 @@ const BuyGiftCardStartScreen: React.FC = () => {
           ))}
           <AmountChip
             label="Otro monto"
+            variant="custom"
+            icon="edit-3"
             selected={useCustomAmount}
             onPress={() => {
               setUseCustomAmount(true);
@@ -287,6 +427,11 @@ const BuyGiftCardStartScreen: React.FC = () => {
             }}
           />
         </View>
+        {!useCustomAmount ? (
+          <Text style={styles.otroHint}>
+            ¿Buscas otro valor? Toca “Otro monto” para escribir la cantidad exacta.
+          </Text>
+        ) : null}
         {useCustomAmount ? (
           <View style={styles.customAmountRow}>
             <TextField
@@ -298,14 +443,30 @@ const BuyGiftCardStartScreen: React.FC = () => {
               accessibilityLabel="Monto personalizado en dólares"
               error={
                 amountCents !== null && !amountValid
-                  ? `Ingresa entre ${formatMoney(MIN_AMOUNT, "USD")} y ${formatMoney(
-                      MAX_AMOUNT,
+                  ? `Ingresa entre ${formatMoneyCompact(
+                      minAmount,
                       "USD"
-                    )}`
+                    )} y ${formatMoneyCompact(maxAmount, "USD")}`
                   : undefined
               }
             />
+            {!(amountCents !== null && !amountValid) ? (
+              <View style={styles.customHelperRow}>
+                <Feather name="alert-circle" size={12} color={theme.colors.muted} />
+                <Text style={styles.customHelperText}>
+                  El monto mínimo es {formatMoneyCompact(minAmount, "USD")}.
+                </Text>
+              </View>
+            ) : null}
           </View>
+        ) : null}
+        {isSelfLoad && currentBalanceCents !== null ? (
+          <Text style={styles.currentBalanceHint}>
+            Saldo actual: {formatMoney(centsToDollars(currentBalanceCents), "USD")}
+          </Text>
+        ) : null}
+        {balanceCapMessage ? (
+          <Text style={styles.capError}>{balanceCapMessage}</Text>
         ) : null}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Monto seleccionado</Text>
@@ -331,10 +492,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing(1.5),
     gap: theme.spacing(1)
   },
+  configBanner: {
+    marginBottom: theme.spacing(1.5)
+  },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end"
+    alignItems: "center",
+    gap: theme.spacing(1)
   },
   sectionTitle: {
     fontSize: theme.typography.subheading,
@@ -437,6 +602,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing(1)
   },
   amountChip: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: theme.spacing(1),
     paddingHorizontal: theme.spacing(1.5),
     borderRadius: 14,
@@ -450,12 +617,67 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary
   },
+  amountChipCustom: {
+    borderWidth: 1.5
+  },
+  amountChipCustomIdle: {
+    backgroundColor: "#FFF7E6",
+    borderColor: theme.colors.primary,
+    borderStyle: "dashed"
+  },
+  amountChipIcon: {
+    marginRight: theme.spacing(0.5)
+  },
   amountChipLabel: {
     fontFamily: theme.fonts.bold,
     color: theme.colors.secondary
   },
   amountChipLabelSelected: {
     color: theme.colors.secondary
+  },
+  minMaxBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    paddingVertical: theme.spacing(0.4),
+    paddingHorizontal: theme.spacing(0.9),
+    borderRadius: 999,
+    backgroundColor: "#FFF7E6",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(252, 165, 15, 0.55)"
+  },
+  minMaxBadgeText: {
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small
+  },
+  currentBalanceHint: {
+    marginTop: theme.spacing(0.75),
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.typography.small + 1
+  },
+  capError: {
+    marginTop: theme.spacing(0.5),
+    color: theme.colors.danger,
+    fontSize: theme.typography.small,
+    lineHeight: 18
+  },
+  otroHint: {
+    marginTop: theme.spacing(0.75),
+    color: theme.colors.muted,
+    fontSize: theme.typography.small,
+    lineHeight: 18
+  },
+  customHelperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    marginTop: theme.spacing(0.6)
+  },
+  customHelperText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.small
   },
   customAmountRow: {
     marginTop: theme.spacing(1)

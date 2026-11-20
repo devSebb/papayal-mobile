@@ -5,6 +5,7 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
+import BackButton from "../ui/components/BackButton";
 import TextField from "../ui/components/TextField";
 import Button from "../ui/components/Button";
 import { theme } from "../ui/theme";
@@ -48,6 +49,9 @@ const ForgotPasswordScreen: React.FC = () => {
 
   return (
     <Screen scrollable>
+      <View style={styles.navRow}>
+        <BackButton onPress={() => navigation.goBack()} />
+      </View>
       <View style={styles.header}>
         <Text style={styles.title}>Recuperar contraseña</Text>
         <Text style={styles.subtitle}>
@@ -117,6 +121,11 @@ const ForgotPasswordScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacing(1)
+  },
   header: {
     marginBottom: theme.spacing(2)
   },

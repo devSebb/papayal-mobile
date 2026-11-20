@@ -4,10 +4,30 @@ import * as SecureStore from "expo-secure-store";
 
 import { authApi, meApi, pushTokenApi } from "../api/endpoints";
 import { configureHttpAuth, HttpError } from "../api/http";
-import { AuthTokens } from "../types/api";
+import { AuthTokens, EmailVerificationDetails, SignupResponse } from "../types/api";
+
+/**
+ * Result of signup()/login(): either the session was established (tokens
+ * stored, RootNavigator will swap trees) or the email needs verifying first,
+ * in which case the caller routes to the EmailVerification screen.
+ */
+export type AuthResult =
+  | { verificationRequired: false }
+  | {
+      verificationRequired: true;
+      email: string;
+      maskedEmail?: string | null;
+      resendAvailableIn?: number;
+    };
+
+const isVerificationRequired = (
+  res: SignupResponse
+): res is Extract<SignupResponse, { verification_required: true }> =>
+  (res as { verification_required?: boolean }).verification_required === true;
 import { queryClient } from "../query/queryClient";
 import { unregisterPushToken } from "../notifications/register";
 import { generateUUID } from "../utils/uuid";
+import { setSentryUser } from "../boot/sentry";
 
 type AuthState = {
   accessToken: string | null;
@@ -23,7 +43,7 @@ type AuthState = {
 };
 
 type AuthContextValue = AuthState & {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthResult>;
   signup: (params: {
     first_name: string;
     last_name: string;
@@ -33,7 +53,9 @@ type AuthContextValue = AuthState & {
     phone: string;
     interests?: string[];
     claim_otp?: string;
-  }) => Promise<void>;
+  }) => Promise<AuthResult>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
+  resendEmailVerification: (email: string) => Promise<EmailVerificationDetails>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
@@ -224,6 +246,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const hydrateFromStorage = useCallback(async () => {
+    // Attach the per-install device id to every Sentry event, including for
+    // guests — without an identity, "users affected" and crash-free-users are
+    // both meaningless. resolveDeviceId never throws (it falls back to a
+    // session-scoped UUID if SecureStore is unavailable).
+    setSentryUser(await resolveDeviceId());
+
     const storedRefresh = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
     if (storedRefresh) {
       refreshTokenRef.current = storedRefresh;
@@ -266,12 +294,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [setTokens]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<AuthResult> => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
         const device_id = await resolveDeviceId();
-        const tokens = await authApi.login({ email, password, device_id });
-        await setTokens(tokens);
+        const res = await authApi.login({ email, password, device_id });
+        if (isVerificationRequired(res)) {
+          return {
+            verificationRequired: true,
+            email: res.email,
+            maskedEmail: res.masked_email,
+            resendAvailableIn: res.resend_available_in
+          };
+        }
+        await setTokens(res);
+        return { verificationRequired: false };
       } finally {
         dispatch({ type: "SET_LOADING", payload: false });
       }
@@ -289,17 +326,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       phone: string;
       interests?: string[];
       claim_otp?: string;
-    }) => {
+    }): Promise<AuthResult> => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
         const device_id = await resolveDeviceId();
-        const tokens = await authApi.signup({ ...params, device_id });
+        const res = await authApi.signup({ ...params, device_id });
+        // Pending-account claims (with a valid claim_otp) come back verified
+        // with tokens; fresh signups come back needing email verification.
+        if (isVerificationRequired(res)) {
+          return {
+            verificationRequired: true,
+            email: res.email,
+            maskedEmail: res.masked_email,
+            resendAvailableIn: res.resend_available_in
+          };
+        }
+        await setTokens(res);
+        return { verificationRequired: false };
+      } finally {
+        dispatch({ type: "SET_LOADING", payload: false });
+      }
+    },
+    [setTokens]
+  );
+
+  const verifyEmail = useCallback(
+    async (email: string, code: string) => {
+      dispatch({ type: "SET_LOADING", payload: true });
+      try {
+        const device_id = await resolveDeviceId();
+        const tokens = await authApi.verifyEmail({ email, code, device_id });
+        // Storing tokens flips accessToken → RootNavigator swaps to the app.
         await setTokens(tokens);
       } finally {
         dispatch({ type: "SET_LOADING", payload: false });
       }
     },
     [setTokens]
+  );
+
+  const resendEmailVerification = useCallback(
+    (email: string) => authApi.resendEmailVerification(email),
+    []
   );
 
   const logout = useCallback(async () => {
@@ -352,6 +420,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // push token row was already destroyed by the server; tolerate 4xx
       }
       await clearAuth();
+      // The account is gone — drop the Sentry identity too rather than keep
+      // reporting under an id tied to a deleted user.
+      setSentryUser(null);
     },
     [clearAuth]
   );
@@ -448,13 +519,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...state,
       login,
       signup,
+      verifyEmail,
+      resendEmailVerification,
       logout,
       logoutAll,
       deleteAccount,
       refreshTokens,
       hydrateFromStorage
     }),
-    [deleteAccount, hydrateFromStorage, login, logout, logoutAll, refreshTokens, signup, state]
+    [
+      deleteAccount,
+      hydrateFromStorage,
+      login,
+      logout,
+      logoutAll,
+      refreshTokens,
+      resendEmailVerification,
+      signup,
+      state,
+      verifyEmail
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

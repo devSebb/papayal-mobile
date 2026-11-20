@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation, useRoute, useFocusEffect, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 
 import Screen from "../../ui/components/Screen";
 import Card from "../../ui/components/Card";
@@ -11,30 +12,65 @@ import { theme } from "../../ui/theme";
 import { HomeStackParamList } from "../../navigation";
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { hapticSuccess } from "../../utils/haptics";
+import { giftCardApi } from "../../api/endpoints";
+import { shareGiftCardLoad } from "../../sharing/shareGiftCard";
+import { centsToDollars, formatMoney } from "../../utils/money";
 
 type PurchaseSuccessRouteProp = RouteProp<HomeStackParamList, "PurchaseSuccess">;
 
+/**
+ * Confirmation for a payment that has already succeeded. Which of the three
+ * §4.4 cases it is — a first card, a reload of someone's card, or the buyer
+ * reloading their own — is decided by `target` from the PaymentIntent, so the
+ * copy matches what actually happened rather than what was intended.
+ */
 const PurchaseSuccessScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<PurchaseSuccessRouteProp>();
   const { resetDraft } = usePurchaseDraft();
 
-  const merchantName = route.params?.merchantName ?? "Tarjeta de regalo";
+  const merchantName = route.params?.merchantName ?? "el comercio";
   const amountLabel = route.params?.amountLabel ?? "";
-  const recipientEmail = route.params?.recipientEmail ?? "";
+  const recipientName = route.params?.recipientName?.trim().split(/\s+/)[0] ?? null;
   const paymentIntentId = route.params?.paymentIntentId;
   const cardReady = route.params?.cardReady ?? false;
+  const isSelf = route.params?.self ?? false;
+  const isReload = route.params?.isReload ?? false;
+  const projectedBalanceCents = route.params?.projectedBalanceCents;
 
   // Celebrate the confirmed payment once, when the screen first appears.
   React.useEffect(() => {
     hapticSuccess();
   }, []);
 
+  // Resolve the card + load so the buyer can share THIS load's claim link
+  // right away. The webhook usually finished before this screen (cardReady),
+  // so this normally resolves on the first try.
+  const { data: resolved } = useQuery({
+    queryKey: ["giftCardByIntent", paymentIntentId],
+    queryFn: () => giftCardApi.byPaymentIntent(paymentIntentId as string),
+    enabled: !!paymentIntentId,
+    retry: 3,
+    retryDelay: 2000
+  });
+  const giftCardId = resolved?.id ? String(resolved.id) : route.params?.giftCardId;
+  const loadId = resolved?.load?.id ? String(resolved.load.id) : undefined;
+  const [sharing, setSharing] = React.useState(false);
+
+  const shareGift = async () => {
+    if (!giftCardId) return;
+    setSharing(true);
+    try {
+      await shareGiftCardLoad(giftCardId, loadId);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   // Only reset draft when leaving the screen, not when mounting
   useFocusEffect(
     React.useCallback(() => {
       return () => {
-        // Cleanup: reset draft when leaving the screen
         resetDraft();
       };
     }, [resetDraft])
@@ -56,8 +92,17 @@ const PurchaseSuccessScreen: React.FC = () => {
 
   const startAnother = () => {
     resetDraft();
-    navigation.navigate("BuyGiftCardStart");
+    navigation.navigate("BuyGiftCardStart", isSelf ? { self: true } : undefined);
   };
+
+  // §4.4 "PurchaseSuccess"
+  const title = isSelf || isReload ? "¡Recarga confirmada!" : "¡Tarjeta enviada!";
+  const who = recipientName ?? "Tu destinatario";
+  const body = isSelf
+    ? `Tu tarjeta de regalo digital de ${merchantName} ya tiene ${amountLabel} más.`
+    : isReload
+    ? `Añadimos ${amountLabel} a la tarjeta de ${merchantName} de ${who}. Ya le avisamos.`
+    : `${who} recibirá una tarjeta de regalo digital de ${merchantName} con ${amountLabel}. Ya le avisamos.`;
 
   return (
     <Screen scrollable centerContent>
@@ -77,52 +122,54 @@ const PurchaseSuccessScreen: React.FC = () => {
         <View style={styles.iconCircle}>
           <Feather name="check" size={32} color="#fff" />
         </View>
-        <Text style={styles.title}>¡Pago confirmado!</Text>
-        <Text style={styles.subtitle}>
-          Tu pago fue procesado exitosamente.
-        </Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{body}</Text>
 
         <View style={styles.summary}>
           <Text style={styles.summaryText}>{merchantName}</Text>
           {amountLabel ? <Text style={styles.summaryAmount}>{amountLabel}</Text> : null}
-          {recipientEmail ? (
-            <Text style={styles.summaryRecipient}>Destinatario: {recipientEmail}</Text>
+          {typeof projectedBalanceCents === "number" ? (
+            <Text style={styles.summaryRecipient}>
+              Saldo de la tarjeta: {formatMoney(centsToDollars(projectedBalanceCents), "USD")}
+            </Text>
           ) : null}
         </View>
 
-        <View style={styles.infoBox}>
-          <Feather
-            name={cardReady ? "check-circle" : "clock"}
-            size={16}
-            color={theme.colors.secondary}
-          />
-          <View style={styles.infoContent}>
-            <Text style={styles.infoText}>
-              {cardReady
-                ? "Tu tarjeta ya fue creada y está lista para aparecer en tu billetera."
-                : "La tarjeta puede tardar unos segundos en aparecer en tu billetera."}
-            </Text>
-            <Text style={styles.infoHint}>
-              {cardReady
-                ? "Abre tu billetera para ver los detalles."
-                : "Si no la ves de inmediato, desliza para actualizar."}
-            </Text>
+        {cardReady ? null : (
+          <View style={styles.infoBox}>
+            <Feather name="clock" size={16} color={theme.colors.secondary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoText}>Puede tardar unos segundos en reflejarse.</Text>
+              <Text style={styles.infoHint}>
+                Si no lo ves de inmediato, desliza para actualizar.
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {__DEV__ && paymentIntentId ? (
           <Text style={styles.debugText}>PaymentIntent: {paymentIntentId}</Text>
         ) : null}
 
         <View style={styles.actions}>
+          {!isSelf && giftCardId ? (
+            <Button
+              label="Compartir por WhatsApp"
+              onPress={shareGift}
+              loading={sharing}
+              variant="secondary"
+              style={styles.shareBtn}
+              accessibilityLabel="Compartir la tarjeta de regalo por WhatsApp"
+            />
+          ) : null}
           <Button
-            label="Ver mis tarjetas de regalo"
+            label={isSelf ? "Ver mi tarjeta" : "Ver mis tarjetas"}
             onPress={goToWallet}
             variant="primary"
             style={styles.primaryBtn}
           />
           <Button
-            label="Comprar otra"
+            label={isSelf ? "Recargar otra" : "Enviar otra"}
             onPress={startAnother}
             variant="ghost"
             style={styles.secondaryBtn}
@@ -240,6 +287,11 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing(1)
   },
   primaryBtn: {
+    width: "100%",
+    paddingVertical: theme.spacing(1.4),
+    borderRadius: 18
+  },
+  shareBtn: {
     width: "100%",
     paddingVertical: theme.spacing(1.4),
     borderRadius: 18

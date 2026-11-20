@@ -1,7 +1,13 @@
-export type PostAuthIntent = {
-  type: "buy_gift_card";
-  merchantId: string;
-};
+export type PostAuthIntent =
+  | {
+      type: "buy_gift_card";
+      merchantId: string;
+    }
+  | {
+      /** Open a gift card after auth (set by the claim deep-link flow). */
+      type: "open_gift_card";
+      giftCardId: string;
+    };
 
 let pendingIntent: PostAuthIntent | null = null;
 

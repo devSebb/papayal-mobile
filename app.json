@@ -3,7 +3,11 @@
     "scheme": "papayal",
     "name": "Papayal",
     "slug": "papayal-mobile",
-    "version": "1.0.1",
+    "version": "1.1.0",
+    "updates": {
+      "url": "https://u.expo.dev/089f71cd-3c34-4cdd-ae21-fae443cec5e0"
+    },
+    "runtimeVersion": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/Papayal-icon.png",
     "splash": {
@@ -26,6 +30,9 @@
       "entitlements": {
         "aps-environment": "production"
       },
+      "associatedDomains": [
+        "applinks:papayal.app"
+      ],
       "appleTeamId": "DLFL9SP5JG",
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
@@ -59,19 +66,46 @@
     "android": {
       "package": "com.papayal.app",
       "versionCode": 1,
+      "icon": "./assets/Papayal-icon.png",
       "googleServicesFile": "./google-services.json",
-      "permissions": [],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "papayal.app",
+              "pathPrefix": "/claim"
+            },
+            {
+              "scheme": "https",
+              "host": "papayal.app",
+              "pathPrefix": "/reset"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.READ_CONTACTS"
+      ],
       "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Papayal-logoTag.png",
-        "backgroundColor": "#FDF1E1"
+        "foregroundImage": "./assets/Papayal-icon.png",
+        "backgroundColor": "#0D2F32"
       }
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/Papayal-logoTag.png"
+      "favicon": "./assets/Papayal-icon.png"
     },
     "plugins": [
       "expo-font",
@@ -84,6 +118,12 @@
         }
       ],
       [
+        "expo-contacts",
+        {
+          "contactsPermission": "Papayal usa tus contactos solo para elegir a quién enviarle una tarjeta de regalo. No los almacenamos ni compartimos."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/Papayal-icon.png",
@@ -91,7 +131,14 @@
         }
       ],
       "expo-web-browser",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "url": "https://sentry.io/",
+          "organization": "papayal",
+          "project": "papayal-mobile"
+        }
+      ]
     ],
     "extra": {
       "eas": {

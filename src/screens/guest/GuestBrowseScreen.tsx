@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 
 import Screen from "../../ui/components/Screen";
-import Card from "../../ui/components/Card";
-import Button from "../../ui/components/Button";
+import BackButton from "../../ui/components/BackButton";
+import HomeHeroCard from "../../ui/components/HomeHeroCard";
 import MerchantGridCard from "../../ui/components/MerchantGridCard";
 import { EmptyStateCard, SkeletonBlock } from "../../ui/components/StateViews";
 import { theme } from "../../ui/theme";
@@ -54,40 +53,25 @@ const GuestBrowseScreen: React.FC = () => {
     <Screen scrollable edges={["top", "left", "right"]}>
       <View style={styles.container}>
         <View style={styles.topRow}>
-          <View>
-            <Text style={styles.brand}>Papayal</Text>
-            <Text style={styles.kicker}>Explora comercios antes de crear una cuenta.</Text>
+          <View style={styles.topLeft}>
+            {rootNavigation?.canGoBack?.() ? (
+              <BackButton
+                onPress={() => rootNavigation.goBack()}
+                accessibilityLabel="Volver a la pantalla de inicio"
+              />
+            ) : null}
+            <View style={styles.brandBlock}>
+              <Text style={styles.brand}>Papayal</Text>
+              <Text style={styles.kicker}>Explora comercios antes de crear una cuenta.</Text>
+            </View>
           </View>
-          <Pressable
-            onPress={() => rootNavigation?.navigate("Auth", { screen: "Login" })}
-            style={styles.signInPill}
-            accessibilityRole="button"
-            accessibilityLabel="Iniciar sesión"
-          >
-            <Feather name="log-in" size={16} color={theme.colors.secondary} />
-            <Text style={styles.signInText}>Entrar</Text>
-          </Pressable>
         </View>
 
-        <Card style={styles.heroCard}>
-          <Text style={styles.heroTitle}>Tarjetas de regalo digitales para lo esencial en Ecuador.</Text>
-          <Text style={styles.heroText}>
-            Revisa los comercios disponibles sin registrarte. Para comprar, pagar o administrar tu billetera te pediremos iniciar sesión.
-          </Text>
-          <View style={styles.heroActions}>
-            <Button
-              label="Crear cuenta"
-              onPress={() => rootNavigation?.navigate("Auth", { screen: "Signup" })}
-              style={styles.heroButton}
-            />
-            <Button
-              label="Iniciar sesión"
-              variant="ghost"
-              onPress={() => rootNavigation?.navigate("Auth", { screen: "Login" })}
-              style={styles.heroButton}
-            />
-          </View>
-        </Card>
+        <HomeHeroCard
+          ctaLabel="Comprar tarjeta de regalo"
+          onPressCta={() => rootNavigation?.navigate("Auth", { screen: "Login" })}
+          style={styles.heroCard}
+        />
 
         <View style={styles.sectionHeaderRow}>
           <View>
@@ -205,6 +189,15 @@ const styles = StyleSheet.create({
     gap: theme.spacing(1.5),
     marginBottom: theme.spacing(2)
   },
+  topLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(1)
+  },
+  brandBlock: {
+    flex: 1
+  },
   brand: {
     fontSize: 30,
     fontFamily: theme.fonts.brandBlack,
@@ -215,46 +208,8 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small,
     marginTop: theme.spacing(0.25)
   },
-  signInPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing(0.5),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
-    paddingVertical: theme.spacing(0.8),
-    paddingHorizontal: theme.spacing(1.15),
-    borderRadius: 999
-  },
-  signInText: {
-    color: theme.colors.secondary,
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.typography.small
-  },
   heroCard: {
-    marginBottom: theme.spacing(2),
-    gap: theme.spacing(1)
-  },
-  heroTitle: {
-    color: theme.colors.text,
-    fontFamily: theme.fonts.extraBold,
-    fontSize: 26,
-    lineHeight: 34
-  },
-  heroText: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body,
-    lineHeight: 25
-  },
-  heroActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing(1),
-    marginTop: theme.spacing(0.5)
-  },
-  heroButton: {
-    flexGrow: 1,
-    minWidth: 160
+    marginBottom: theme.spacing(2)
   },
   sectionHeaderRow: {
     marginBottom: theme.spacing(1)

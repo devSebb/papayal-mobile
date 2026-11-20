@@ -3,6 +3,8 @@ import { NavigationContainer, DefaultTheme, NavigatorScreenParams, createNavigat
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { setupNotificationResponseListener, handleInitialNotification } from "../notifications/handler";
+import { setupAppLinkListener, handleInitialAppLink } from "../linking/handler";
+import { navigationIntegration, reportFloating } from "../boot/sentry";
 
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -11,7 +13,7 @@ import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import HomeScreen from "../screens/HomeScreen";
 import WalletListScreen from "../screens/WalletListScreen";
-import GiftCardDetailScreen from "../screens/GiftCardDetailScreen";
+import GiftCardScreen from "../screens/GiftCardScreen";
 import RedemptionTokenScreen from "../screens/RedemptionTokenScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
@@ -34,8 +36,11 @@ import PurchaseSuccessScreen from "../screens/buy/PurchaseSuccessScreen";
 import MerchantProfileScreen from "../screens/MerchantProfileScreen";
 import InterestsScreen from "../screens/InterestsScreen";
 import ClaimVerificationScreen from "../screens/ClaimVerificationScreen";
+import ClaimLandingScreen from "../screens/ClaimLandingScreen";
+import EmailVerificationScreen from "../screens/EmailVerificationScreen";
 import type { ClaimVerificationDetails } from "../types/api";
 import AnimatedTabBar from "../ui/components/AnimatedTabBar";
+import BackButton from "../ui/components/BackButton";
 import { consumePendingPostAuthIntent } from "./postAuthIntent";
 
 export type AuthStackParamList = {
@@ -66,14 +71,25 @@ export type AuthStackParamList = {
     /** Masked channel info from the 409 auth.claim_verification_required. */
     details: ClaimVerificationDetails;
   };
+  EmailVerification: {
+    /** Address the 6-digit code was sent to; used for verify + resend. */
+    email: string;
+    /** Masked form for display, e.g. "s•••@gmail.com". */
+    maskedEmail?: string | null;
+    /** Seconds until a resend is allowed (from signup/login response). */
+    resendAvailableIn?: number;
+  };
   ForgotPassword: { email?: string };
   ResetPassword: { token?: string };
+  /** Gift teaser behind a papayal.app/claim/<token> deep link (signed out). */
+  ClaimLanding: { token: string };
 };
 
 export type HomeStackParamList = {
   Home: undefined;
   MerchantProfile: { id: string };
-  BuyGiftCardStart: { merchantId?: string } | undefined;
+  /** `self` enters the "Recargar mi tarjeta" path: no recipient form (§11.3). */
+  BuyGiftCardStart: { merchantId?: string; self?: boolean } | undefined;
   DeliveryProfile: undefined;
   PurchaseConfirmation: undefined;
   CompleteDetails:
@@ -86,17 +102,29 @@ export type HomeStackParamList = {
   PurchaseSuccess: {
     merchantName?: string;
     amountLabel?: string;
-    recipientEmail?: string;
+    /** Recipient's first name; absent on a self-reload. */
+    recipientName?: string;
     paymentIntentId?: string;
     cardReady?: boolean;
+    /** The buyer reloaded their own card. */
+    self?: boolean;
+    /** False = this payment created the recipient's first card at the merchant. */
+    isReload?: boolean;
+    /** Card balance after this load, when the server reported it (§8.3). */
+    projectedBalanceCents?: number;
+    /** The card this load landed on, for "Ver mi tarjeta". */
+    giftCardId?: string;
   };
 };
 
 export type WalletStackParamList = {
   WalletList: undefined;
-  GiftCardDetail: { id: string };
+  /** The user's single card at one merchant: balance, recargas, canjes (D1). */
+  GiftCard: { id: string };
   RedemptionToken: { id: string };
   Activity: undefined;
+  /** Gift teaser behind a papayal.app/claim/<token> deep link (signed in). */
+  ClaimLanding: { token: string };
 };
 
 export type ProfileStackParamList = {
@@ -165,32 +193,47 @@ const HomeStackNavigator = () => (
   </HomeStack.Navigator>
 );
 
-const walletHeaderFonts = {
+// Native headers would render the platform chevron; headerLeft swaps in the
+// same BackButton every custom-header screen uses, so back looks identical
+// everywhere in the app.
+const walletScreenOptions = ({
+  navigation
+}: {
+  navigation: { canGoBack: () => boolean; goBack: () => void };
+}) => ({
   headerTitleStyle: { fontFamily: theme.fonts.semiBold },
-  headerBackTitleStyle: { fontFamily: theme.fonts.regular }
-};
+  headerBackTitleStyle: { fontFamily: theme.fonts.regular },
+  headerBackVisible: false,
+  headerLeft: () =>
+    navigation.canGoBack() ? <BackButton onPress={() => navigation.goBack()} /> : null
+});
 
 const WalletStackNavigator = () => (
-  <WalletStack.Navigator screenOptions={walletHeaderFonts}>
+  <WalletStack.Navigator screenOptions={walletScreenOptions}>
     <WalletStack.Screen
       name="WalletList"
       component={WalletListScreen}
-      options={{ title: "Billetera", headerShown: false }}
+      options={{ title: "Mis tarjetas", headerShown: false }}
     />
     <WalletStack.Screen
-      name="GiftCardDetail"
-      component={GiftCardDetailScreen}
+      name="GiftCard"
+      component={GiftCardScreen}
       options={{ title: "Tarjeta de regalo" }}
     />
     <WalletStack.Screen
       name="RedemptionToken"
       component={RedemptionTokenScreen}
-      options={{ title: "Token de canje" }}
+      options={{ title: "Canjear en tienda" }}
     />
     <WalletStack.Screen
       name="Activity"
       component={ActivityScreen}
-      options={{ title: "Actividad" }}
+      options={{ title: "Historial" }}
+    />
+    <WalletStack.Screen
+      name="ClaimLanding"
+      component={ClaimLandingScreen}
+      options={{ title: "Tu regalo" }}
     />
   </WalletStack.Navigator>
 );
@@ -231,7 +274,7 @@ const AppTabs = () => (
     <Tab.Screen
       name="WalletTab"
       component={WalletStackNavigator}
-      options={{ title: "Billetera" }}
+      options={{ title: "Mis tarjetas" }}
     />
     <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: "Perfil" }} />
   </Tab.Navigator>
@@ -254,7 +297,7 @@ const GuestAppTabs = () => (
     }}
   >
     <GuestTab.Screen name="HomeTab" component={GuestHomeStackNavigator} options={{ title: "Explorar" }} />
-    <GuestTab.Screen name="WalletTab" component={GuestWalletGate} options={{ title: "Billetera" }} />
+    <GuestTab.Screen name="WalletTab" component={GuestWalletGate} options={{ title: "Mis tarjetas" }} />
     <GuestTab.Screen name="ProfileTab" component={GuestProfileGate} options={{ title: "Perfil" }} />
   </GuestTab.Navigator>
 );
@@ -287,6 +330,11 @@ const AuthNavigator = () => (
       options={{ headerShown: false }}
     />
     <AuthStack.Screen
+      name="EmailVerification"
+      component={EmailVerificationScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
       name="ForgotPassword"
       component={ForgotPasswordScreen}
       options={{ headerShown: false }}
@@ -294,6 +342,11 @@ const AuthNavigator = () => (
     <AuthStack.Screen
       name="ResetPassword"
       component={ResetPasswordScreen}
+      options={{ headerShown: false }}
+    />
+    <AuthStack.Screen
+      name="ClaimLanding"
+      component={ClaimLandingScreen}
       options={{ headerShown: false }}
     />
   </AuthStack.Navigator>
@@ -320,7 +373,15 @@ const RootNavigator = () => {
   useEffect(() => {
     if (!accessToken) return;
     const sub = setupNotificationResponseListener(navigationRef);
-    handleInitialNotification(navigationRef);
+    reportFloating(handleInitialNotification(navigationRef), "handleInitialNotification");
+    return () => sub.remove();
+  }, [accessToken]);
+
+  // Handle universal/deep links (papayal.app/claim, /reset) in both session
+  // states — unlike notifications, links matter while signed out too.
+  useEffect(() => {
+    const sub = setupAppLinkListener(navigationRef, !!accessToken);
+    reportFloating(handleInitialAppLink(navigationRef, !!accessToken), "handleInitialAppLink");
     return () => sub.remove();
   }, [accessToken]);
 
@@ -340,6 +401,16 @@ const RootNavigator = () => {
             params: { merchantId: intent.merchantId }
           }
         });
+      } else if (intent.type === "open_gift_card") {
+        // Set by the claim deep-link flow: land on the card right after
+        // signup/login (the claim itself already happened, OTP-verified).
+        navigationRef.navigate("App", {
+          screen: "WalletTab",
+          params: {
+            screen: "GiftCard",
+            params: { id: intent.giftCardId }
+          }
+        });
       }
     }, 0);
 
@@ -349,7 +420,13 @@ const RootNavigator = () => {
   // BootGate ensures we only render after hydration is complete,
   // so we can directly switch based on accessToken without a loading state.
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      // Gives Sentry screen-transition breadcrumbs, so a crash report says
+      // which screen the user was on. No-op when Sentry has no DSN.
+      onReady={() => navigationIntegration.registerNavigationContainer(navigationRef)}
+    >
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {accessToken ? (
           <RootStack.Screen name="App" component={AppTabs} />

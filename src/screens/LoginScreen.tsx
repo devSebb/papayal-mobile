@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
-import { Feather } from "@expo/vector-icons";
 
 import Screen from "../ui/components/Screen";
 import Card from "../ui/components/Card";
 import TextField from "../ui/components/TextField";
 import Button from "../ui/components/Button";
+import BackButton from "../ui/components/BackButton";
 import { theme } from "../ui/theme";
 import { useAuth } from "../auth/authStore";
 import { HttpError } from "../api/http";
@@ -25,7 +25,17 @@ const LoginScreen: React.FC = () => {
   const handleLogin = async () => {
     setError(null);
     try {
-      await login(email.trim(), password);
+      const result = await login(email.trim(), password);
+      // An account that never verified its email can't get tokens — a fresh
+      // code was emailed; route into the verification screen.
+      if (result.verificationRequired) {
+        navigation.navigate("EmailVerification", {
+          email: result.email,
+          maskedEmail: result.maskedEmail,
+          resendAvailableIn: result.resendAvailableIn
+        });
+        return;
+      }
     } catch (err) {
       const friendly =
         (err as HttpError)?.error?.message ??
@@ -37,19 +47,11 @@ const LoginScreen: React.FC = () => {
   return (
     <Screen scrollable>
       <View style={styles.navRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
       </View>
       <View style={styles.header}>
         <Text style={styles.title}>Papayal</Text>
-        <Text style={styles.subtitle}>Inicia sesión para administrar tu billetera.</Text>
+        <Text style={styles.subtitle}>Inicia sesión para ver tus tarjetas de regalo.</Text>
       </View>
       <Card>
         <View style={styles.form}>
@@ -90,6 +92,21 @@ const LoginScreen: React.FC = () => {
           />
         </View>
       </Card>
+      <View style={styles.signupRow}>
+        <Text style={styles.signupHint}>¿No tienes cuenta?</Text>
+        <Pressable
+          onPress={() => navigation.navigate("Signup")}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Crear una cuenta nueva"
+        >
+          {({ pressed }) => (
+            <Text style={[styles.signupLink, pressed ? styles.signupLinkPressed : null]}>
+              Crear cuenta
+            </Text>
+          )}
+        </Pressable>
+      </View>
     </Screen>
   );
 };
@@ -99,14 +116,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
   },
   header: {
     marginBottom: theme.spacing(2)
@@ -141,6 +150,27 @@ const styles = StyleSheet.create({
   },
   error: {
     color: theme.colors.danger
+  },
+  signupRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing(0.5),
+    marginTop: theme.spacing(2)
+  },
+  signupHint: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.body
+  },
+  signupLink: {
+    color: theme.colors.secondary,
+    fontFamily: theme.fonts.extraBold,
+    fontSize: theme.typography.body,
+    textDecorationLine: "underline"
+  },
+  signupLinkPressed: {
+    opacity: 0.6
   }
 });
 

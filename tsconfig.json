@@ -5,7 +5,7 @@
     "jsx": "react-native",
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["react", "react-native"]
+    "types": ["react", "react-native", "jest"]
   }
 }
 

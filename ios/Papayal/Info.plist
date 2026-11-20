@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.1</string>
+    <string>1.1.0</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -49,6 +49,8 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>La app necesita acceso a la cámara para tomar una foto de perfil.</string>
+    <key>NSContactsUsageDescription</key>
+    <string>Papayal usa tus contactos solo para elegir a quién enviarle una tarjeta de regalo. No los almacenamos ni compartimos.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Papayal no usa el micrófono. Este permiso lo requiere una librería del sistema.</string>
     <key>NSPhotoLibraryUsageDescription</key>

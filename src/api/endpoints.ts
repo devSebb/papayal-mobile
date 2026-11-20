@@ -1,9 +1,26 @@
 import { request } from "./http";
-import { AuthTokens, GiftCard, Merchant, RedemptionToken, User } from "../types/api";
+import {
+  ActivityPage,
+  AppConfig,
+  AuthTokens,
+  CheckoutQuote,
+  ClaimLinkTeaser,
+  EmailVerificationDetails,
+  GiftCard,
+  GiftCardShareLink,
+  GiftCardWithLoad,
+  Merchant,
+  PaginatedLoads,
+  PaginatedSentLoads,
+  RedemptionToken,
+  SignupResponse,
+  User
+} from "../types/api";
 
 export const authApi = {
   login: async (params: { email: string; password: string; device_id?: string }) => {
-    const { data } = await request<AuthTokens>("/api/v1/auth/login", {
+    // May return tokens OR a verification challenge (unverified email).
+    const { data } = await request<SignupResponse>("/api/v1/auth/login", {
       method: "POST",
       body: params
     });
@@ -26,9 +43,27 @@ export const authApi = {
      */
     claim_otp?: string;
   }) => {
-    const { data } = await request<AuthTokens>("/api/v1/auth/signup", {
+    // Fresh signups return a verification challenge; pending-account claims
+    // (with a valid claim_otp) return tokens.
+    const { data } = await request<SignupResponse>("/api/v1/auth/signup", {
       method: "POST",
       body: params
+    });
+    return data;
+  },
+  /** Confirm the emailed 6-digit code for a fresh signup; returns tokens. */
+  verifyEmail: async (params: { email: string; code: string; device_id?: string }) => {
+    const { data } = await request<AuthTokens>("/api/v1/auth/verify_email", {
+      method: "POST",
+      body: params
+    });
+    return data;
+  },
+  /** Re-send the email verification code. */
+  resendEmailVerification: async (email: string) => {
+    const { data } = await request<EmailVerificationDetails>("/api/v1/auth/resend_verification", {
+      method: "POST",
+      body: { email }
     });
     return data;
   },
@@ -133,6 +168,22 @@ export const checkoutApi = {
       method: "POST"
     });
     return data;
+  },
+  /** Server-authoritative subtotal/fee/total for a purchase amount. */
+  quote: async (amountCents: number, currency = "USD") => {
+    const { data } = await request<CheckoutQuote>("/api/v1/checkout/quote", {
+      method: "POST",
+      body: { amount_cents: amountCents, currency: currency.toLowerCase() }
+    });
+    return data;
+  }
+};
+
+export const configApi = {
+  /** Public remote config: limits, fees, kill switches, min app versions. */
+  get: async () => {
+    const { data } = await request<AppConfig>("/api/v1/config");
+    return data;
   }
 };
 
@@ -145,8 +196,16 @@ export const giftCardApi = {
     const { data } = await request<GiftCard>(`/api/v1/me/gift_cards/${id}`);
     return data;
   },
+  /** Every load on the card (recipient) or only the caller's own (sender). */
+  loads: async (id: string, page = 1) => {
+    const { data } = await request<PaginatedLoads>(
+      `/api/v1/me/gift_cards/${id}/loads?page=${page}`
+    );
+    return data;
+  },
+  /** Post-checkout polling: 404 until the webhook creates the load (§5.3). */
   byPaymentIntent: async (paymentIntentId: string) => {
-    const { data } = await request<GiftCard | { gift_card?: GiftCard | null; status?: string }>(
+    const { data } = await request<GiftCardWithLoad>(
       `/api/v1/gift_cards/by_payment_intent/${encodeURIComponent(paymentIntentId)}`
     );
     return data;
@@ -155,6 +214,48 @@ export const giftCardApi = {
     const { data } = await request<RedemptionToken>(`/api/v1/me/gift_cards/${id}/redemption_token`, {
       method: "POST"
     });
+    return data;
+  },
+  /** Buyer-only: claim URL + prewritten message for the native share sheet.
+   *  Without a loadId the backend shares the caller's latest load (compat). */
+  shareLink: async (id: string, loadId?: string) => {
+    const path = loadId
+      ? `/api/v1/me/gift_cards/${id}/loads/${loadId}/share_link`
+      : `/api/v1/me/gift_cards/${id}/share_link`;
+    const { data } = await request<GiftCardShareLink>(path, { method: "POST" });
+    return data;
+  },
+  /** Buyer-only: re-deliver that load's notification. 429 when throttled. */
+  resend: async (id: string, loadId?: string) => {
+    const path = loadId
+      ? `/api/v1/me/gift_cards/${id}/loads/${loadId}/resend`
+      : `/api/v1/me/gift_cards/${id}/resend`;
+    const { data } = await request<{ resent: boolean; load_id?: string }>(path, { method: "POST" });
+    return data;
+  }
+};
+
+export const loadsApi = {
+  /** "Enviadas": the loads the current user paid for, newest first. */
+  sent: async (page = 1) => {
+    const { data } = await request<PaginatedSentLoads>(`/api/v1/me/loads?role=sent&page=${page}`);
+    return data;
+  }
+};
+
+export const activityApi = {
+  /** "Historial": server-built feed, cursor-paginated. */
+  list: async (cursor?: string | null) => {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const { data } = await request<ActivityPage>(`/api/v1/me/activity${query}`);
+    return data;
+  }
+};
+
+export const claimApi = {
+  /** Public teaser for a papayal.app/claim/<token> link. No auth required. */
+  teaser: async (token: string) => {
+    const { data } = await request<ClaimLinkTeaser>(`/api/v1/claim/${encodeURIComponent(token)}`);
     return data;
   }
 };

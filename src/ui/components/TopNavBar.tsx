@@ -35,7 +35,10 @@ const TopNavBar: React.FC<Props> = ({ style }) => {
         accessibilityRole="button"
         accessibilityLabel="Go to home"
       >
-        <Image source={require("../../../assets/favicon.png")} style={styles.logo} />
+        {/* Transparent brand mark — the same logo used on the welcome/splash
+            screens. Never the app icon (assets/favicon.png / Papayal-icon.png),
+            which carries the solid launcher background. */}
+        <Image source={require("../../../assets/Papayal-logoTag.png")} style={styles.logo} />
       </TouchableOpacity>
 
       <TouchableOpacity

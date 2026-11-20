@@ -1,10 +1,11 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import { usePurchaseDraft } from "../../domain/purchase/purchaseDraftStore";
 import { formatMoney } from "../../utils/money";
 import { theme } from "../../ui/theme";
+import BackButton from "../../ui/components/BackButton";
 
 export type CheckoutStep = "merchant" | "recipient" | "confirm" | "payment";
 
@@ -40,15 +41,7 @@ const CheckoutHeader: React.FC<Props> = ({
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <Pressable
-          onPress={onBack}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </Pressable>
+        <BackButton onPress={onBack} />
         <Text style={styles.stepCount}>Paso {activeIndex + 1} de {steps.length}</Text>
       </View>
 
@@ -115,14 +108,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: theme.spacing(1)
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
   },
   stepCount: {
     color: theme.colors.muted,
